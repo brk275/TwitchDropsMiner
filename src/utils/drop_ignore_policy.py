@@ -117,25 +117,33 @@ class DropIgnorePolicy:
                         changed = True
                         break
 
+        branches: dict[str, frozenset[str] | None] = {}
+
         def collect_branch(
             drop_id: str, visiting: frozenset[str]
-        ) -> set[str] | None:
+        ) -> frozenset[str] | None:
             drop = drops_by_id.get(drop_id)
             if drop is None:
                 return None
             if drop.is_claimed:
-                return set()
+                return frozenset()
             if drop_id in reasons or not drop.is_watch_drop or drop_id in visiting:
+                branches[drop_id] = None
                 return None
+            if drop_id in branches:
+                return branches[drop_id]
 
+            # Shared prerequisite graphs reuse immutable results within this evaluation.
             branch = {drop_id}
             next_visiting = visiting | {drop_id}
             for prerequisite_id in drop.precondition_drops:
                 prerequisite_branch = collect_branch(prerequisite_id, next_visiting)
                 if prerequisite_branch is None:
+                    branches[drop_id] = None
                     return None
                 branch.update(prerequisite_branch)
-            return branch
+            branches[drop_id] = frozenset(branch)
+            return branches[drop_id]
 
         mineable_ids: set[str] = set()
         for drop in drops:

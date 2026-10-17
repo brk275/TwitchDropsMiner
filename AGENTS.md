@@ -361,6 +361,13 @@ skipped, while shared prerequisites required by an allowed reward remain mineabl
 and skipped drops are never counted as claimed. Twitch can still award simultaneous
 progress to an ignored drop while the miner intentionally targets another reward.
 
+`DropIgnorePolicy.evaluate()` reuses immutable prerequisite branch results only within
+one evaluation, avoiding repeated expansion of shared dependency graphs. Preserve
+cycle, missing-parent, non-watch and ignore behavior. Claimed prerequisites short-circuit
+before cycle checks. Never mutate cached branch sets or retain them across evaluations;
+claim and policy changes must be reflected on the next call. Regression coverage in
+`tests/test_drop_ignore_policy.py` includes dense fan-in and changes between calls.
+
 ### State Machine Flow
 
 1. **IDLE** - Waiting for campaigns or user action

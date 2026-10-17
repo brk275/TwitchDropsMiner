@@ -104,6 +104,56 @@ def test_policy_uses_unicode_casefold_for_deduplication_and_matching():
     assert DropIgnorePolicy(keywords).matching_keyword("STRASSE reward") == "Straße"
 
 
+def test_dense_dependency_graphs_evaluate_each_branch_a_bounded_number_of_times():
+    size = 12
+    campaign = _campaign([
+        _drop(str(index), f"Reward {index}", preconditions=tuple(str(parent) for parent in range(index)))
+        for index in range(size)
+    ])
+    visits = []
+
+    class CountedParents(list):
+        def __iter__(self):
+            visits.append(True)
+            return super().__iter__()
+
+    for drop in campaign.drops:
+        drop.precondition_drops = CountedParents(drop.precondition_drops)
+
+    result = DropIgnorePolicy().evaluate(tuple(campaign.drops))
+
+    assert result.mineable_ids == frozenset(str(index) for index in range(size))
+    assert len(visits) <= 4 * size
+
+
+def test_shared_dependency_results_do_not_persist_between_policy_evaluations():
+    campaign = _campaign([
+        _drop("parent", "Parent"),
+        _drop("left", "Left", preconditions=("parent",)),
+        _drop("right", "Right", preconditions=("parent",)),
+    ])
+    drops = tuple(campaign.drops)
+    policy = DropIgnorePolicy(["Parent"])
+    assert policy.evaluate(drops).mineable_ids == frozenset()
+    campaign.timed_drops["parent"].is_claimed = True
+    assert policy.evaluate(drops).mineable_ids == frozenset({"left", "right"})
+    campaign.timed_drops["parent"].is_claimed = False
+    assert policy.evaluate(drops).mineable_ids == frozenset()
+
+
+def test_shared_cycle_failure_does_not_mark_an_independent_branch_unmineable():
+    campaign = _campaign([
+        _drop("a", "A", preconditions=("b",)),
+        _drop("b", "B", preconditions=("a",)),
+        _drop("dependent", "Dependent", preconditions=("a",)),
+        _drop("independent", "Independent"),
+    ])
+    policy = DropIgnorePolicy()
+    assert policy.evaluate(tuple(campaign.drops)).mineable_ids == frozenset({"independent"})
+    campaign.timed_drops["a"].is_claimed = True
+    assert policy.evaluate(tuple(campaign.drops)).mineable_ids == frozenset({"b", "dependent", "independent"})
+
+
 def test_direct_ignore_propagates_through_unclaimed_preconditions():
     campaign = _campaign(
         [
