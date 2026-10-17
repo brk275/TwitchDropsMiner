@@ -541,6 +541,33 @@ progress to an ignored drop while the miner intentionally targets another reward
   `tests/test_playlist_watch.py`, `tests/test_watch_transport.py`, and
   `tests/test_watch_poll_cadence.py`.
 
+### Experimental Deadline Forecasting
+
+- `src/services/deadline_forecast.py` is a pure, opt-in forecast component, not a live
+  scheduler. It does not mutate settings, domain models, or channels and has no network
+  or wall-clock calls. The runtime adapter, persisted setting, translated status and
+  safe reevaluation/handoff are not implemented. Do not present it as an enabled feature.
+- Snapshots supply ordered selected games, fresh direct per-drop readings, explicit UTC
+  availability/mining windows, channel preference order, prerequisites and claim delays.
+  Viewing windows declare simultaneous credit conditionally; `allocation_known` defaults
+  false. Never infer it from estimated counters or assume overlapping campaigns progress
+  together. A future adapter must enforce actual eligibility and preserve the existing
+  selector's baseline, manual control and account/inventory identity boundaries.
+- Reject unknown/stale progress, unknown allocation, malformed dependency graphs,
+  overlapping contradictory channel windows, naive datetimes, incomplete horizons and
+  exhausted budgets. Normalize aware timestamps to UTC before arithmetic. Input limits:
+  256 drops/games, 512 viewing/mining windows, 32 rescue candidates, a 14-day horizon,
+  and shared transition/work budgets. Do not treat a truncated simulation as successful.
+- Compare one selected lower-ranked wanted reward's ancestor detour with rank-only
+  mining. Protect every baseline-earned reward at higher or equal rank, honor individual
+  exclusive deadlines and claim readiness, and return to ranked work after the target.
+  Outcomes are conditional on supplied windows/allocation and do not prove future Twitch
+  availability or real credit. Earliest deadline, rank and ID make candidate choice stable.
+  The current exact-input model does not bound reporting lag, fractional watch progress,
+  claim failures or switching overhead. Conservative uncertainty treatment and validation
+  against the real selector are required before any runtime adapter may steer mining.
+  Tests: `tests/test_deadline_forecast.py`, including an independent serial timing grid.
+
 ### GraphQL Operations
 
 Persisted operations are defined in `src/config/operations.py` as `GQL_OPERATIONS`; raw GraphQL payloads such as `sendSpadeEvents` use `GQLQuery`:
