@@ -39,6 +39,10 @@ Inventory supports **All / Linked / Not Linked** account-link filters. Settings 
 default-off option to mine campaigns reported as Not Linked; read its warning and
 check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-override).
 
+Source-build campaign and progress API payloads include `progress_observation`: the
+last direct Twitch minute reading, its source and local receipt time, or `null` when
+unknown. This is separate from displayed counters that can include inferred progress.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).

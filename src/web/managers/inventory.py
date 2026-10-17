@@ -58,6 +58,7 @@ class InventoryManager:
             "id": drop.id,
             "name": drop.name,
             "current_minutes": drop.current_minutes,
+            "progress_observation": drop.progress_observation,
             "required_minutes": drop.required_minutes,
             "progress": drop.progress,
             "is_claimed": drop.is_claimed,

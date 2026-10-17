@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 from dateutil.parser import isoparse
 
@@ -26,6 +26,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("TwitchDrops")
 DIMS_PATTERN = re.compile(r"-\d+x\d+(?=\.(?:jpg|png|gif)$)", re.I)
+
+ProgressSource = Literal["inventory", "websocket", "current_drop"]
+
+
+class ProgressObservation(TypedDict):
+    minutes: int
+    source: ProgressSource
+    received_at: str
 
 
 def remove_dimensions(url: str) -> str:
@@ -258,10 +266,13 @@ class TimedDrop(BaseDrop):
     ):
         super().__init__(campaign, data, claimed_benefits)
         self.real_current_minutes: int = (
-            "self" in data and data["self"]["currentMinutesWatched"] or 0
+            "self" in data and data["self"].get("currentMinutesWatched") or 0
         )
         self.required_minutes: int = data["requiredMinutesWatched"]
         self.extra_current_minutes: int = 0
+        self._progress_observation: ProgressObservation | None = None
+        if isinstance(data.get("self"), dict):
+            self._record_progress_observation(data["self"].get("currentMinutesWatched"), "inventory")
         if self.is_claimed:
             # claimed drops may report inconsistent current minutes, so we need to overwrite them
             self.real_current_minutes = self.required_minutes
@@ -282,6 +293,29 @@ class TimedDrop(BaseDrop):
     @property
     def current_minutes(self) -> int:
         return self.real_current_minutes + self.extra_current_minutes
+
+    @property
+    def observed_minutes(self) -> int | None:
+        """Return the last direct reading, excluding estimates and sibling inference."""
+        return self._progress_observation["minutes"] if self._progress_observation is not None else None
+
+    @property
+    def progress_observation(self) -> ProgressObservation | None:
+        """Expose a copy so serialized payloads cannot mutate the recorded reading."""
+        return self._progress_observation.copy() if self._progress_observation is not None else None
+
+    def _record_progress_observation(self, minutes: object, source: ProgressSource | None) -> bool:
+        if (
+            source is None or source not in ("inventory", "websocket", "current_drop")
+            or type(minutes) is not int or type(self.required_minutes) is not int
+            or not 0 <= minutes <= self.required_minutes
+        ):
+            return False
+        self._progress_observation = {
+            "minutes": minutes, "source": source,
+            "received_at": datetime.now(timezone.utc).isoformat(),
+        }
+        return True
 
     @property
     def is_watch_drop(self) -> bool:
@@ -381,13 +415,19 @@ class TimedDrop(BaseDrop):
         """Display this drop in the GUI with progress information."""
         self._twitch.gui.display_drop(self, countdown=countdown, subone=subone)
 
-    def update_minutes(self, new_minutes: int) -> None:
+    def update_minutes(self, new_minutes: int, *, source: ProgressSource | None = None) -> None:
         """Update the current watched minutes for this drop."""
+        observed = self._record_progress_observation(new_minutes, source)
+        previous = (self.real_current_minutes, self.extra_current_minutes)
         delta: int = new_minutes - self.real_current_minutes
         if delta == 0:
+            if observed:
+                self._on_state_changed()
             return
         elif self.real_current_minutes + delta < 0:
             delta = -self.real_current_minutes
         elif self.real_current_minutes + delta > self.required_minutes:
             delta = self.required_minutes - self.real_current_minutes
         self.campaign._update_real_minutes(delta)
+        if observed and (self.real_current_minutes, self.extra_current_minutes) == previous:
+            self._on_state_changed()

@@ -273,6 +273,7 @@ class Diagnostics:
                     "id": self.reference(drop.id), "name": self.reference(drop.name),
                     "claimed": self.flag(drop.is_claimed), "mineable": self.flag(drop.is_mineable),
                     "required_minutes": self.number(drop.required_minutes), "reported_minutes": self.number(drop.real_current_minutes),
+                    "observed_minutes": self.number(drop.observed_minutes),
                     "estimated_minutes": self.number(drop.extra_current_minutes),
                     "preconditions": [self.reference(key) for key in islice(drop.precondition_drops, self.MAX_PRECONDITIONS)],
                     "preconditions_total": len(drop.precondition_drops),

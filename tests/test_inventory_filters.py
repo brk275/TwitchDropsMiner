@@ -69,6 +69,7 @@ class TestInventoryDropUpdates(unittest.IsolatedAsyncioTestCase):
             name="Drop 1",
             campaign=campaign,
             current_minutes=29,
+            progress_observation=None,
             required_minutes=30,
             progress=0.97,
             is_claimed=False,
@@ -96,6 +97,7 @@ class TestInventoryDropUpdates(unittest.IsolatedAsyncioTestCase):
         campaign_data = manager._campaigns["campaign-1"]
         assert campaign_data["claimed_drops"] == 1
         assert campaign_data["total_drops"] == 1
+        assert campaign_data["drops"][0]["progress_observation"] is None
         broadcaster.emit.assert_awaited_once_with(
             "drop_update",
             {

@@ -233,7 +233,7 @@ class WatchService:
                 if drop_data is not None:
                     gql_drop: TimedDrop | None = self._twitch._drops.get(drop_data["dropID"])
                     if gql_drop is not None and gql_drop.can_earn(channel):
-                        gql_drop.update_minutes(drop_data["currentMinutesWatched"])
+                        gql_drop.update_minutes(drop_data["currentMinutesWatched"], source="current_drop")
                         drop_text: str = (
                             f"{gql_drop.name} ({gql_drop.campaign.game}, "
                             f"{gql_drop.current_minutes}/{gql_drop.required_minutes})"

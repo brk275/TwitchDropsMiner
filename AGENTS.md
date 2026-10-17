@@ -537,6 +537,18 @@ progress to an ignored drop while the miner intentionally targets another reward
   cadence when changing playlist polling, including across restarts/channel events.
 - Twitch reports authoritative progress through User.Drops websocket events and GraphQL
   Inventory/CurrentDrop. Distinguish those readings from dashboard estimates and mocks.
+- `TimedDrop.progress_observation` is a copied read-only payload for the latest valid
+  direct reading: integer minutes within the requirement, allowlisted source and local
+  UTC `received_at`. `observed_minutes` is nullable: missing/invalid inventory minutes
+  are not confirmed zero. Only inventory ingestion and explicitly tagged websocket or
+  CurrentDrop observations record it, including unchanged values. Sibling deltas, local
+  estimates, untagged updates and claim normalization do not fabricate observations.
+  Preserve all existing counters and mining eligibility. Re-publish unchanged readings
+  so cached inventory and Socket.IO consumers receive the new receipt metadata.
+  API inventory, incremental updates, active progress and initial-state progress all
+  expose the same field. Diagnosis adds strictly projected `observed_minutes`; legacy
+  `reported_minutes` still includes sibling inference. Never export source free text.
+  Regression coverage: `tests/test_progress_observation.py` and `tests/test_diagnostics.py`.
   Playlist/transport, lifecycle, and controlled-clock regressions live in
   `tests/test_playlist_watch.py`, `tests/test_watch_transport.py`, and
   `tests/test_watch_poll_cadence.py`.

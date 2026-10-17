@@ -112,7 +112,7 @@ def test_snapshot_projects_real_campaign_and_drop_boolean_fields_strictly(tmp_pa
     assert CANARY not in json.dumps(snapshot)
 
 
-def test_snapshot_retains_authoritative_and_estimated_progress_and_ban_metadata(tmp_path):
+def test_snapshot_retains_progress_counters_and_ban_metadata(tmp_path):
     miner = diagnostic_miner(tmp_path)
     campaign = add_campaign(miner)
     drop = next(iter(campaign.drops))
@@ -125,10 +125,37 @@ def test_snapshot_retains_authoritative_and_estimated_progress_and_ban_metadata(
     result = snapshot["campaigns"][0]["drops"][0]
     assert result["required_minutes"] == 30
     assert result["reported_minutes"] == 7
+    assert result["observed_minutes"] is None
     assert result["estimated_minutes"] == 2
     assert snapshot["channels"][0]["banned"] is True
     assert snapshot["channels"][0]["ban_permanent"] is False
     assert snapshot["channels"][0]["ban_expires_at"].startswith("2099-01-01")
+
+
+def test_snapshot_distinguishes_direct_observation_from_sibling_inference(tmp_path):
+    miner = diagnostic_miner(tmp_path)
+    campaign = add_campaign(miner)
+    drop = next(iter(campaign.drops))
+    drop.update_minutes(7, source="websocket")
+    drop.real_current_minutes = 9
+    drop.extra_current_minutes = 2
+
+    result = miner.diagnostics.snapshot(miner)["campaigns"][0]["drops"][0]
+
+    assert result["observed_minutes"] == 7
+    assert result["reported_minutes"] == 9
+    assert result["estimated_minutes"] == 2
+
+
+def test_snapshot_projects_observed_minutes_strictly(tmp_path):
+    miner = diagnostic_miner(tmp_path)
+    drop = next(iter(add_campaign(miner).drops))
+    drop._progress_observation = {"minutes": CANARY, "source": "websocket", "received_at": CANARY}
+
+    snapshot = miner.diagnostics.snapshot(miner)
+
+    assert snapshot["campaigns"][0]["drops"][0]["observed_minutes"] is None
+    assert CANARY not in json.dumps(snapshot)
 
 
 def test_settings_prerequisites_and_response_shapes_have_explicit_limits(tmp_path):
