@@ -39,6 +39,10 @@ Inventory supports **All / Linked / Not Linked** account-link filters. Settings 
 default-off option to mine campaigns reported as Not Linked; read its warning and
 check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-override).
 
+Claim rewards promptly. Source builds can attempt existing claim IDs for up to 14 days
+after campaign end, following the [Twitch API guide](https://dev.twitch.tv/docs/drops/technical-guide/#can-claims-occur-after-the-campaign-ends).
+Some campaigns stop accepting claims earlier; Twitch decides whether each claim succeeds.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).

@@ -203,6 +203,13 @@ lang/                # Translation JSON files (20 languages)
 
 - `TimedDrop`: Drops with minute requirements and progress
 - `BaseDrop`: Base class with claim logic
+- `BaseDrop.can_claim` bounds attempts for an existing, unclaimed ID to strictly less
+  than 14 days after the campaign end, not the individual reward end. This follows the
+  developer API FAQ's maximum grace. Viewer help describes seven days and individual
+  campaigns may close earlier; this is an attempt window, not a promise of eligibility
+  or delivery. Twitch responses remain authoritative. Never extend mining deadlines,
+  fabricate success on rejection, or duplicate history/notifications for repeated claims.
+  Regression coverage: `tests/test_claim_grace.py`.
 - Precondition chains for sequential drops
 
 **src/web/gui_manager.py** - Web GUI:

@@ -142,13 +142,13 @@ class BaseDrop:
 
     @property
     def can_claim(self) -> bool:
-        # https://help.twitch.tv/s/article/mission-based-drops?language=en_US#claiming
-        # "If you are unable to claim the Drop in time, you will be able to claim it
-        # from the Drops Inventory page until 24 hours after the Drops campaign has ended."
+        # The API guide permits claims up to 14 days after the campaign ends:
+        # https://dev.twitch.tv/docs/drops/technical-guide/#can-claims-occur-after-the-campaign-ends
+        # This bounds attempts with existing claim IDs; Twitch can reject them earlier.
         return (
             self.claim_id is not None
             and not self.is_claimed
-            and datetime.now(timezone.utc) < self.campaign.ends_at + timedelta(hours=24)
+            and datetime.now(timezone.utc) < self.campaign.ends_at + timedelta(days=14)
         )
 
     def update_claim(self, claim_id: str) -> None:
