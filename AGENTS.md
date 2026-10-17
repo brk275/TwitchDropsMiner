@@ -148,6 +148,20 @@ lang/                # Translation JSON files (20 languages)
 
 - `ChannelService`: Channel management and selection logic
 - `InventoryService`: Campaign and drop inventory operations
+- `InventoryService.fetch_campaigns()` skips explicit null `user.dropCampaign` nodes,
+  including the GQL client's handled server-error nullification. Never construct new
+  campaigns from catalog-only metadata. Validate batch size, requested unique string
+  IDs and required response traversal; malformed/missing user/data or unexpected IDs
+  raise a fixed redacted `GQLException`, not an empty successful result. Preserve
+  cancellation and safe-read retry rules. Match non-null results by ID, not array order.
+  Before detail fan-out, merge available catalog metadata only into matching inventory
+  records, preserving authoritative inventory fields and existing merge precedence.
+  Keep known minutes/claim IDs without inventing missing fields, settled claims or
+  eligibility. Unavailable new campaigns are retried by the normal next refresh; this
+  adds no fast retry, permanent exclusion, auth recovery or live-progress guarantee.
+  Traversal, batch-size and returned-ID failures reject before current model state is
+  cleared or published. This is not an atomicity guarantee for later model or GUI errors.
+  Tests: `tests/test_unavailable_campaign_details.py` and cancellation/cleanup coverage.
 - `WatchService`: Drop mining watch payload logic
 - `MaintenanceService`: Periodic maintenance tasks
 - `MessageHandlerService`: Websocket message routing and handling

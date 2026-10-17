@@ -39,6 +39,10 @@ Inventory supports **All / Linked / Not Linked** account-link filters. Settings 
 default-off option to mine campaigns reported as Not Linked; read its warning and
 check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-override).
 
+Source builds skip unavailable campaign details without creating empty campaigns.
+Known inventory data keeps priority over available catalog metadata. Missing campaigns
+are tried again on the next refresh; malformed detail batches still reject the refresh.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
