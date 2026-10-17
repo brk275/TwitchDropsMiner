@@ -39,6 +39,9 @@ Inventory supports **All / Linked / Not Linked** account-link filters. Settings 
 default-off option to mine campaigns reported as Not Linked; read its warning and
 check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-override).
 
+Source builds reject invalid watch-time requirements before replacing inventory.
+Zero remains a valid non-watch requirement; invalid values are not converted to zero.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).

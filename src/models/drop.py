@@ -9,7 +9,7 @@ from dateutil.parser import isoparse
 
 from src.config.constants import MAX_EXTRA_MINUTES
 from src.config.operations import GQL_OPERATIONS
-from src.exceptions import GQLException
+from src.exceptions import GQLException, MinerException
 from src.i18n import _
 from src.models.benefit import Benefit
 from src.services.discord_service import DiscordNotifier
@@ -256,11 +256,14 @@ class TimedDrop(BaseDrop):
     def __init__(
         self, campaign: DropsCampaign, data: JsonType, claimed_benefits: dict[str, datetime]
     ):
+        required_minutes = data.get("requiredMinutesWatched")
+        if type(required_minutes) is not int or required_minutes < 0:
+            raise MinerException("Invalid drop watch requirement")
         super().__init__(campaign, data, claimed_benefits)
         self.real_current_minutes: int = (
             "self" in data and data["self"]["currentMinutesWatched"] or 0
         )
-        self.required_minutes: int = data["requiredMinutesWatched"]
+        self.required_minutes: int = required_minutes
         self.extra_current_minutes: int = 0
         if self.is_claimed:
             # claimed drops may report inconsistent current minutes, so we need to overwrite them

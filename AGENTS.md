@@ -202,6 +202,14 @@ lang/                # Translation JSON files (20 languages)
 **src/models/drop.py** - Drop types:
 
 - `TimedDrop`: Drops with minute requirements and progress
+- Validate raw `requiredMinutesWatched` at `TimedDrop` construction: accept only a
+  plain nonnegative integer, including zero for non-watch/subscription rewards.
+  Missing/null, booleans, floats, strings, containers and negative values raise a
+  fixed `MinerException` without echoing data, coercion or a zero default. Refuse
+  before base construction and before inventory installation, retaining the prior
+  inventory/index/GUI state at this failure boundary. Preserve valid claim/progress
+  normalization and estimate semantics. This is not general model/GUI transactionality
+  or automatic retry/auth recovery. Tests: `tests/test_drop_watch_requirements.py`.
 - `BaseDrop`: Base class with claim logic
 - Precondition chains for sequential drops
 
