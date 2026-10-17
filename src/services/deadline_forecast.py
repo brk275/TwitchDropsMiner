@@ -11,7 +11,7 @@ from typing import Literal
 ForecastReason = Literal[
     "disabled", "manual_override", "invalid_snapshot", "unknown_progress",
     "unknown_allocation", "budget_exceeded", "incomplete_horizon", "no_ranked_work",
-    "no_safe_rescue", "unknown_timing", "rescue",
+    "no_safe_rescue", "unknown_timing", "unknown_coverage", "rescue",
 ]
 
 

@@ -579,6 +579,31 @@ progress to an ignored drop while the miner intentionally targets another reward
   does not bound arbitrary backend lag/failures or predict future availability. Continuous
   uncertainty treatment and real-selector equivalence remain required before live steering.
   Tests: `tests/test_deadline_forecast.py` and `tests/test_deadline_timing.py`.
+- `src/services/deadline_certificate.py` adds sufficient fixed-calendar certificates,
+  not a continuous proof for the adaptive greedy simulator. It requires explicit
+  remaining-work, successful-claim-delay and setup bounds; it never derives them from
+  local counters or assumes unknown latency is zero. Direct readings still gate input
+  validity. Remaining upper bounds cannot exceed directly observed remaining minutes.
+  A continuously ready, available higher-ranked blocker must need at least the whole
+  target deadline interval even at its lower work bound. Reject any higher/equal-to-blocker
+  channel that could credit the target in parallel. This proves baseline misses only
+  under declared eligibility/allocation/availability assumptions, not live Twitch behavior.
+  `baseline_complete` defaults false and must be explicitly boolean true to certify.
+  Unknown coverage returns `unknown_coverage`. Windows must exhaust possible baseline
+  credit routes as well as guarantee reserved capacity; a currently tracked subset or
+  guaranteed-minimum credit set is not evidence that other parallel credit is impossible.
+  Reserve upper work, claim waits and setup for the target's ancestor chain, then ALL
+  higher/equal-ranked wanted rewards and their ancestors. Fixed UTC slots intersect
+  individual, channel and mining windows; reconnect setup earns no credit. Each setup
+  and claim latency may vary independently anywhere within its bound. The future executor
+  must follow the reserved calendar, not substitute the adaptive greedy policy or move
+  later work earlier. Existing `current_channel_id` means an already established stream;
+  unknown readiness must pay setup. Claim bounds assume successful settlement, not merely
+  a response arriving. No certificate means not proven, not impossible. Some safe detours
+  cannot be certified by this sufficient construction. Preserve shared resource budgets,
+  exclusive deadlines, immutable inputs and default-off/manual gates. A live adapter,
+  actual selector equivalence, persisted setting, translated status, identity invalidation,
+  handoff and end-to-end checks remain required. Tests: `tests/test_deadline_certificate.py`.
 
 ### GraphQL Operations
 
