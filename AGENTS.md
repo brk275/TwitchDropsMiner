@@ -537,6 +537,11 @@ progress to an ignored drop while the miner intentionally targets another reward
   cadence when changing playlist polling, including across restarts/channel events.
 - Twitch reports authoritative progress through User.Drops websocket events and GraphQL
   Inventory/CurrentDrop. Distinguish those readings from dashboard estimates and mocks.
+- `DropsCampaign.bump_minutes()` must update all eligible drops before testing whether
+  any reached the estimate limit. Evaluate `_bump_minutes()` eagerly; a short-circuiting
+  generator leaves later rewards unchanged. Preserve eligibility and the estimate cap,
+  request at most one channel switch per batch, and display only after the batch.
+  Regression coverage: `tests/test_campaign_estimates.py`.
   Playlist/transport, lifecycle, and controlled-clock regressions live in
   `tests/test_playlist_watch.py`, `tests/test_watch_transport.py`, and
   `tests/test_watch_poll_cadence.py`.
