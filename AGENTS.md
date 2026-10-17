@@ -562,6 +562,9 @@ progress to an ignored drop while the miner intentionally targets another reward
   replies may estimate only against that same campaign and unchanged revision. Fresh
   polls can still correct progress downward. Keep this separate from estimated-minute
   bumps. Regression coverage: `tests/test_stale_progress.py`.
+  `tests/test_progress_integration.py` also covers unchanged observations recovering
+  capped rewards during pending polls: superseded session/null/error/timeout replies
+  must not undo recovery or estimate another minute, while a fresh downward poll works.
 - `DropsCampaign.bump_minutes()` must update all eligible drops before testing whether
   any reached the estimate limit. Evaluate `_bump_minutes()` eagerly; a short-circuiting
   generator leaves later rewards unchanged. Preserve eligibility and the estimate cap,
