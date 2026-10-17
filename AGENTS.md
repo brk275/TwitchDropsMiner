@@ -758,6 +758,26 @@ progress to an ignored drop while the miner intentionally targets another reward
   Current context is not proof of transport readiness, future uptime, allocation,
   successful claims or selector equivalence. No executor, enabled setting, UI or live
   scheduler is delivered here. Tests: `tests/test_deadline_context.py`.
+- `src/services/deadline_channels.py` adds optional point-in-time channel inputs through
+  `DeadlineContextGuard.capture(include_channels=True)`, still disabled by default.
+  Use the real channel/watch services and their owning client; getters may warm derived
+  policy caches but must not claim, select, change settings, read credentials or call
+  the network. Record tracked insertion order, ACL, streamed category, strict mining
+  priority, actual watchability and eligible selected drop/ancestor IDs. Eligibility is
+  not simultaneous credit: `allocation_known` and `baseline_complete` stay false.
+  Fallback-only work can be watchable with an empty selected-drop set. Keep the watched
+  object separate, even outside the tracked table or alongside a same-ID replacement.
+  Predict only this serialized automatic checkpoint's switch/keep/idle result, with
+  stable runtime priority ordering and current-stream/ACL rules. Do not infer future
+  windows, exact decision cadence, transport readiness, claim timing or execution rights.
+  All-record limits and a work estimate charge wanted-game and ACL membership plus
+  repeated per-campaign policy-key scans before eligibility getters; this is not a
+  CPU-time guarantee. No sampling or partial projection. Bind service identities and
+  service/model/channel owner identities too, recheck context after
+  route reads and charge that work against the original UTC/monotonic lifetime.
+  Retain manual/pending-selection precedence without consuming the GUI getter. The
+  current snapshot is not a complete live adapter, executor, enabled setting or UI.
+  Tests: `tests/test_deadline_channels.py`, including actual mocked CHANNEL_SWITCH steps.
 
 ### GraphQL Operations
 

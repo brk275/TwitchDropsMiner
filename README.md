@@ -64,6 +64,8 @@ Experimental captures also have short-lived context checks before reuse; these d
 enable automatic rescues or establish future channel availability.
 Read-only model inputs preserve direct readings and project configured mining hours;
 future channel availability and claim timing still require explicit assumptions.
+Optional captures include current channel eligibility and priorities, not future uptime,
+transport readiness or evidence that all eligible drops receive credit together.
 
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;

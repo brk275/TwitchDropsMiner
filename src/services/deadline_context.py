@@ -10,6 +10,7 @@ from time import monotonic
 from typing import TYPE_CHECKING, Literal
 
 from src.config import State
+from src.services.deadline_channels import DeadlineChannelAdapter, DeadlineChannelInputs
 from src.services.deadline_inputs import (
     DeadlineInputAdapter,
     DeadlineModelInputs,
@@ -70,6 +71,7 @@ def _freeze(value: object) -> tuple:
 class BoundDeadlineInputs:
     inputs: DeadlineModelInputs = field(repr=False)
     valid_until: datetime
+    channels: DeadlineChannelInputs | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -119,6 +121,7 @@ class DeadlineContextGuard:
         self._max_age = max_age
         self._clock = clock
         self._adapter = DeadlineInputAdapter()
+        self._channels = DeadlineChannelAdapter()
         self._capture: _Capture | None = None
 
     def _tick(self) -> float:
@@ -170,6 +173,8 @@ class DeadlineContextGuard:
         objects: list[object] = [twitch, auth, settings, inventory, channels,
                                  twitch._campaigns, twitch._drops, watched,
                                  auth.context_epoch, twitch._deadline_context_epoch]
+        for service in (getattr(twitch, "_channel_service", None), getattr(twitch, "_watch_service", None)):
+            objects.extend((service, getattr(service, "_twitch", None)))
         values: list[object] = [auth.user_id, (
             settings.games_to_watch, settings.drop_name_blacklist, settings.mining_benefits,
             settings.mining_hours, settings.priority_list_only, settings.allow_unlinked_campaigns,
@@ -187,7 +192,7 @@ class DeadlineContextGuard:
             if channel_edges > 4096:
                 raise _Refusal("budget_exceeded")
             # Relationships matter even when the same node's state was visited earlier.
-            objects.append(channel)
+            objects.extend((channel, channel._twitch))
             if id(channel) in seen_channels:
                 return
             seen_channels.add(id(channel))
@@ -211,7 +216,7 @@ class DeadlineContextGuard:
             campaign_ids.add(campaign.id)
             if len(campaign.timed_drops) + len(drop_ids) > 256 or len(campaign.allowed_channels) > 512:
                 raise _Refusal("budget_exceeded")
-            objects.extend((campaign, campaign.game, campaign.timed_drops))
+            objects.extend((campaign, campaign._twitch, campaign.game, campaign.timed_drops))
             boundaries.extend((_utc(campaign.starts_at), _utc(campaign.ends_at)))
             values.append((campaign.id, campaign.game.id, campaign.game.name, campaign._valid, campaign.linked,
                            campaign.starts_at, campaign.ends_at, campaign.progress_revision,
@@ -227,7 +232,7 @@ class DeadlineContextGuard:
                         or not isinstance(drop.precondition_drops, (list, tuple))
                         or len(drop.precondition_drops) > 256):
                     raise _Refusal("budget_exceeded")
-                objects.append(drop)
+                objects.extend((drop, drop._twitch))
                 boundaries.extend((_utc(drop.starts_at), _utc(drop.ends_at)))
                 values.append((drop.id, drop.name, drop.required_minutes, drop.real_current_minutes,
                                drop.extra_current_minutes, drop.is_claimed, drop.starts_at, drop.ends_at,
@@ -244,10 +249,12 @@ class DeadlineContextGuard:
         return _Context(tuple(objects), _freeze(values), tuple(boundaries))
 
     def capture(self, twitch: Twitch, *, now: datetime, horizon: datetime, enabled: bool = False,
-                local_timezone: str | timezone | None = None) -> ContextResult:
+                local_timezone: str | timezone | None = None, include_channels: bool = False) -> ContextResult:
         self._capture = None
         if enabled is not True:
             return ContextResult("disabled")
+        if type(include_channels) is not bool:
+            return ContextResult("invalid_context")
         try:
             now = _utc(now)
             started, zone = self._tick(), self._zone(local_timezone)
@@ -256,6 +263,9 @@ class DeadlineContextGuard:
             if result.inputs is None:
                 return ContextResult(result.reason)
             inputs = result.inputs
+            channels = self._channels.capture(twitch, inputs) if include_channels else None
+            if include_channels and not context.matches(self._context(twitch, now)):
+                return ContextResult("superseded")
             edges = (*context.boundaries,
                      *(edge for window in inputs.mining_windows for edge in (window.starts_at, window.ends_at)))
             until = min(now + self._max_age, inputs.horizon, *(edge for edge in edges if edge > now))
@@ -266,7 +276,7 @@ class DeadlineContextGuard:
             wall_finish = now + timedelta(seconds=elapsed)
             if wall_finish >= until:
                 return ContextResult("expired")
-            bound = BoundDeadlineInputs(inputs, until)
+            bound = BoundDeadlineInputs(inputs, until, channels)
             self._capture = _Capture(bound, context, started, zone, wall_finish, finished)
             return ContextResult("captured", bound)
         except (ProjectionError, _Refusal) as exc:
