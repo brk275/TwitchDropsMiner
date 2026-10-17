@@ -43,6 +43,8 @@ Source builds poll progress about once a minute while successfully watching and 
 replies superseded by newer observations or inventory reloads. Fresh eligible readings
 replace fallback estimates even after the local estimate limit. Other eligibility
 checks and the estimate cap remain.
+Fallback estimates update all eligible rewards before testing the limit; they are
+not Twitch-confirmed progress.
 
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;

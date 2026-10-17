@@ -277,8 +277,9 @@ class DropsCampaign:
         Used when websocket updates aren't available.
         """
         # NOTE: Use a temporary list to ensure all drops are bumped before checking
-        if any(drop._bump_minutes(channel) for drop in self.drops):
-            # Executes if any drop's extra_current_minutes reach MAX_ESTIMATED_MINUTES
+        limits_reached = [drop._bump_minutes(channel) for drop in self.drops]
+        if any(limits_reached):
+            # Executes if any drop's extra_current_minutes reach MAX_EXTRA_MINUTES
             # TODO: Figure out a better way to handle this case
             logger.warning(
                 f'At least one of the drops in campaign "{self.name}({self.game.name})" '
