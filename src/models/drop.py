@@ -182,14 +182,21 @@ class BaseDrop:
             return []
         return [benefit.name for benefit in self.benefits if benefit.is_wanted(allowed_benefits)]
 
-    async def claim(self) -> bool:
-        result = await self._claim()
-        if result and not self.is_claimed:
+    def _apply_claim_result(self, result: bool) -> bool:
+        """Commit a claim result synchronously; return whether it is newly claimed."""
+        newly_claimed = result and not self.is_claimed
+        if newly_claimed:
             self.is_claimed = True
             self.campaign.progress_revision += 1
             # A mixed campaign can still earn unwanted rewards after its last
             # wanted claim. Rebuild policy so fallback can take over promptly.
             self._twitch.request_games_update()
+        return newly_claimed
+
+    async def claim(self) -> bool:
+        result = await self._claim()
+        # Commit confirmed state before an optional notification can be cancelled.
+        if self._apply_claim_result(result):
             claim_text = (
                 f"{self.campaign.game.name}\n"
                 f"{self.rewards_text()} "
@@ -409,16 +416,15 @@ class TimedDrop(BaseDrop):
                 return True
         return False
 
-    async def claim(self) -> bool:
-        was_claimed = self.is_claimed
-        result = await super().claim()
+    def _apply_claim_result(self, result: bool) -> bool:
+        newly_claimed = super()._apply_claim_result(result)
         if result:
             self.real_current_minutes = self.required_minutes
             self.extra_current_minutes = 0
-            if not was_claimed:
+            if newly_claimed:
                 self._twitch.drop_history.record(self, self.campaign)
         self._on_state_changed()
-        return result
+        return newly_claimed
 
     def display(self, *, countdown: bool = True, subone: bool = False) -> None:
         """Display this drop in the GUI with progress information."""

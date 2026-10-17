@@ -54,6 +54,9 @@ Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
 
+Source builds save confirmed claim history before waiting on dashboard or notification
+delivery. Interrupted alerts are not retried automatically.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash
