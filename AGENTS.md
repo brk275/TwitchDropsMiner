@@ -203,6 +203,13 @@ lang/                # Translation JSON files (20 languages)
 
 - `TimedDrop`: Drops with minute requirements and progress
 - `BaseDrop`: Base class with claim logic
+- `BaseDrop.can_claim` bounds attempts for an existing, unclaimed ID to strictly less
+  than 14 days after the campaign end, not the individual reward end. This follows the
+  developer API FAQ's maximum grace. Viewer help describes seven days and individual
+  campaigns may close earlier; this is an attempt window, not a promise of eligibility
+  or delivery. Twitch responses remain authoritative. Never extend mining deadlines,
+  fabricate success on rejection, or duplicate history/notifications for repeated claims.
+  Regression coverage: `tests/test_claim_grace.py`.
 - Precondition chains for sequential drops
 - `BaseDrop.claim()` applies successful state synchronously through `_apply_claim_result()`
   before awaiting dashboard, Telegram or Discord delivery. `TimedDrop` normalizes minutes,
@@ -211,6 +218,10 @@ lang/                # Translation JSON files (20 languages)
   confirmations; do not postpone persistence until optional notifications finish.
   Regression coverage: `tests/test_claim_state_order.py`. This does not add notification
   retries or guarantee persistence after a filesystem failure.
+  Keep the campaign progress revision increment in the same synchronous transition:
+  cancelled notification delivery must not allow an older CurrentDrop reply to update
+  sibling progress or create estimates. Claim-normalized counters are not direct minute
+  observations. Integration coverage: `tests/test_claim_progress_integration.py`.
 
 **src/web/gui_manager.py** - Web GUI:
 
