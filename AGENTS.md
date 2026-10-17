@@ -204,6 +204,13 @@ lang/                # Translation JSON files (20 languages)
 - `TimedDrop`: Drops with minute requirements and progress
 - `BaseDrop`: Base class with claim logic
 - Precondition chains for sequential drops
+- `BaseDrop.claim()` applies successful state synchronously through `_apply_claim_result()`
+  before awaiting dashboard, Telegram or Discord delivery. `TimedDrop` normalizes minutes,
+  records first-transition history, and publishes inventory in that hook. Preserve
+  cancellation propagation, failure/repeat behavior and one-time effects for overlapping
+  confirmations; do not postpone persistence until optional notifications finish.
+  Regression coverage: `tests/test_claim_state_order.py`. This does not add notification
+  retries or guarantee persistence after a filesystem failure.
 
 **src/web/gui_manager.py** - Web GUI:
 
