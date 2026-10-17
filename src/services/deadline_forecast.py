@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from itertools import product
+from sys import maxsize
 from typing import Literal
+
+from src.services.channel_switch_policy import ChannelSwitchPolicy
 
 
 ForecastReason = Literal[
@@ -44,6 +47,8 @@ class ViewingWindow:
     drop_ids: frozenset[str]
     allocation_known: bool = False
     channel_order: int = 0
+    acl_based: bool = False
+    mining_priority: tuple[int, int] | None = None
 
 
 @dataclass(frozen=True)
@@ -95,6 +100,8 @@ class _Choice:
     credits: frozenset[str]
     starts_at: datetime
     channel_order: int
+    acl_based: bool
+    mining_priority: tuple[int, int]
 
 
 @dataclass
@@ -376,6 +383,14 @@ class DeadlineForecaster:
                 or not isinstance(window.drop_ids, frozenset) or not window.drop_ids
                 or not window.drop_ids.issubset(drops)
                 or type(window.channel_order) is not int or window.channel_order < 0
+                or type(window.acl_based) is not bool
+            ):
+                raise _Decline("invalid_snapshot")
+            priority = window.mining_priority
+            if priority is not None and (
+                not isinstance(priority, tuple) or len(priority) != 2
+                or any(type(value) is not int for value in priority)
+                or priority[0] not in (0, 1) or not 0 <= priority[1] <= maxsize
             ):
                 raise _Decline("invalid_snapshot")
             normalized = replace(window, starts_at=start, ends_at=end)
@@ -451,7 +466,9 @@ class DeadlineForecaster:
         selected_channel = state.current_channel_id
         setup_until = time
         while time < state.horizon:
-            budget.spend(1 + len(drops) * max(1, len(state.viewing_windows)) + len(boundaries))
+            window_count = len(state.viewing_windows)
+            budget.spend(1 + len(drops) * max(1, window_count) + len(boundaries)
+                         + window_count * max(1, window_count.bit_length()))
             ready = frozenset(
                 key for key, duration in remaining.items()
                 if duration > timedelta(0) and drops[key].starts_at <= time < drops[key].ends_at
@@ -463,12 +480,21 @@ class DeadlineForecaster:
                     credits = window.drop_ids.intersection(ready)
                     if window.starts_at <= time < window.ends_at and credits:
                         game = min((drops[key].game_id for key in credits), key=ranks.__getitem__)
-                        choices.append(_Choice(window.channel_id, game, credits, time, window.channel_order))
+                        choices.append(_Choice(
+                            window.channel_id, game, credits, time, window.channel_order,
+                            window.acl_based, window.mining_priority or (0, ranks[game]),
+                        ))
             # Only preempt while the target/ancestor work still needs watching.
             rescue_choices = [choice for choice in choices if choice.credits.intersection(rescue_ids)]
-            active = min(rescue_choices or choices, key=lambda choice: (
-                ranks[choice.game_id], choice.channel_order, choice.channel_id,
-            ), default=None)
+            candidates = sorted(rescue_choices or choices, key=lambda choice: (
+                choice.mining_priority, choice.channel_order, choice.channel_id,
+            ))
+            current = next((choice for choice in candidates if choice.channel_id == selected_channel), None)
+            active = next((choice for choice in candidates if ChannelSwitchPolicy.should_switch(
+                choice.mining_priority, choice.acl_based,
+                current_priority=current.mining_priority if current is not None else None,
+                current_acl_based=current.acl_based if current is not None else False,
+            )), current)
             if active is None:
                 selected_channel = None
             else:

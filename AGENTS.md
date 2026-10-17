@@ -626,6 +626,24 @@ progress to an ignored drop while the miner intentionally targets another reward
   false. Never infer it from estimated counters or assume overlapping campaigns progress
   together. A future adapter must enforce actual eligibility and preserve the existing
   selector's baseline, manual control and account/inventory identity boundaries.
+- `ChannelSwitchPolicy.should_switch()` shares the runtime's priority/ACL comparison
+  with conditional routing. Keep eligibility checks in `WatchService.should_switch()`;
+  an absent or unwatchable current stream permits replacement. Lower `(tier, game)`
+  tuples win; an eligible current stream survives ties unless promoted from ordinary
+  to ACL. Do not prefer channel ID or discovery order over a healthy tied current.
+  Forecast candidates use supplied `channel_order` (then ID for deterministic ties),
+  not a new implicit ACL sort. `ViewingWindow.acl_based` is strictly boolean;
+  optional `mining_priority` is an explicit `(0|1, 0..MAX_INT)` tuple, not future proof.
+  Without it the conditional priority follows the highest-ranked ready credited game.
+  With it channel priority remains separate from reward rank, including cross-category
+  Special Events/IRL and selected-before-fallback tiers. These are supplied assumptions,
+  not a live routing adapter. Fixed-calendar certificates accept only absent or
+  single-game rank-canonical overrides; other routing returns `unknown_coverage`
+  because the blocker proof is rank-based. Reconnect/setup and rescue release rules
+  still apply. Decision timing, complete discovery and future eligibility equivalence
+  remain unproven; sharing this predicate does not deliver a live scheduler.
+  Tests: `tests/test_deadline_channel_policy.py`, including real-model pointwise
+  special-category/fallback checks and the original comparison truth table.
 - Reject unknown/stale progress, unknown allocation, malformed dependency graphs,
   overlapping contradictory channel windows, naive datetimes, incomplete horizons and
   exhausted budgets. Normalize aware timestamps to UTC before arithmetic. Input limits:

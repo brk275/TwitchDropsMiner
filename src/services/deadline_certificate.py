@@ -110,6 +110,13 @@ class CertifiedDeadlineForecaster(DeadlineForecaster):
             work, setup = self._bounds(state, timing, frozenset(drop.id for drop in snapshot.drops))
             drops = {drop.id: drop for drop in state.drops}
             ranks = {game: rank for rank, game in enumerate(state.ranked_game_ids)}
+            for window in state.viewing_windows:
+                if window.mining_priority is not None:
+                    budget.spend(1 + len(window.drop_ids))
+                    games = {drops[key].game_id for key in window.drop_ids if key in drops}
+                    if (len(games) != 1
+                            or window.mining_priority != (0, ranks[next(iter(games))])):
+                        return CertificateResult("unknown_coverage")
             candidates = sorted((drop for drop in state.drops if drop.wanted and not drop.claimed
                                  and drop.ends_at > state.now and drop.ends_at <= state.horizon
                                  and work[drop.id].remaining.lower > ZERO),

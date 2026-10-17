@@ -57,6 +57,8 @@ Some campaigns stop accepting claims earlier; Twitch decides whether each claim 
 An experimental source-only deadline forecaster compares temporary rescues with a
 ranked baseline, including explicitly supplied finite timing alternatives. A separate
 builder conditionally certifies fixed schedules under explicit continuous timing bounds.
+Conditional routing retains healthy streams on priority ties, except for ACL promotion;
+explicit channel priorities can represent special-category and fallback cases.
 Neither is connected to live mining or dashboard settings or covers unbounded uncertainty.
 Experimental captures also have short-lived context checks before reuse; these do not
 enable automatic rescues or establish future channel availability.

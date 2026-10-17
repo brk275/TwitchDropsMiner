@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, NoReturn
 from src.config import CALL, GQL_OPERATIONS, WATCH_INTERVAL
 from src.exceptions import GQLException
 from src.i18n import _
+from src.services.channel_switch_policy import ChannelSwitchPolicy
 from src.utils import task_wrapper
 
 
@@ -105,12 +106,9 @@ class WatchService:
         channel_order = self._twitch._channel_service.get_mining_priority(channel)
         watching_order = self._twitch._channel_service.get_mining_priority(watching_channel)
 
-        return (
-            # this channel's game is higher order than the watching one's
-            channel_order < watching_order
-            or channel_order == watching_order  # or the order is the same
-            # and this channel is ACL-based and the watching channel isn't
-            and channel.acl_based > watching_channel.acl_based
+        return ChannelSwitchPolicy.should_switch(
+            channel_order, channel.acl_based,
+            current_priority=watching_order, current_acl_based=watching_channel.acl_based,
         )
 
     def watch(self, channel: Channel, *, update_status: bool = True) -> None:
