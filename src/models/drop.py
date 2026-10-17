@@ -186,6 +186,7 @@ class BaseDrop:
         result = await self._claim()
         if result and not self.is_claimed:
             self.is_claimed = True
+            self.campaign.progress_revision += 1
             # A mixed campaign can still earn unwanted rewards after its last
             # wanted claim. Rebuild policy so fallback can take over promptly.
             self._twitch.request_games_update()
@@ -371,24 +372,32 @@ class TimedDrop(BaseDrop):
         return math.inf
 
     def _base_earn_conditions(self) -> bool:
-        return (
-            super()._base_earn_conditions()
-            and self.is_watch_drop
-            # NOTE: This may be a bad idea, as it invalidates the can_earn status
-            # and provides no way to recover from this state until the next reload.
-            and self.extra_current_minutes < MAX_EXTRA_MINUTES
-        )
+        return super()._base_earn_conditions() and self.is_watch_drop
+
+    def _base_can_earn(self) -> bool:
+        return self.extra_current_minutes < MAX_EXTRA_MINUTES and super()._base_can_earn()
+
+    def _can_earn_within(self, stamp: datetime) -> bool:
+        return self.extra_current_minutes < MAX_EXTRA_MINUTES and super()._can_earn_within(stamp)
+
+    def can_reconcile_progress(self, channel: Channel | None = None) -> bool:
+        """Accept confirmed progress without treating the local estimate cap as evidence."""
+        return super()._base_can_earn() and self.campaign._base_can_earn(channel)
 
     def _on_state_changed(self) -> None:
         self._twitch.gui.inv.update_drop(self)
 
     def _update_real_minutes(self, delta: int) -> None:
-        if delta == 0 or self.real_current_minutes + delta < 0 or not self.can_earn():
+        if not self.can_reconcile_progress():
             return
-        if self.real_current_minutes + delta < self.required_minutes:
-            self.real_current_minutes += delta
-        else:
-            self.real_current_minutes = self.required_minutes
+        new_minutes = self.real_current_minutes + delta
+        # Keep the existing lower-bound guard for inferred sibling progress.
+        if new_minutes < 0:
+            new_minutes = self.real_current_minutes
+        new_minutes = min(new_minutes, self.required_minutes)
+        if new_minutes == self.real_current_minutes and self.extra_current_minutes == 0:
+            return
+        self.real_current_minutes = new_minutes
         self.extra_current_minutes = 0
         self._on_state_changed()
 
@@ -417,17 +426,23 @@ class TimedDrop(BaseDrop):
 
     def update_minutes(self, new_minutes: int, *, source: ProgressSource | None = None) -> None:
         """Update the current watched minutes for this drop."""
+        # Even an unchanged observation supersedes an older in-flight poll.
+        self.campaign.progress_revision += 1
+        if not self.can_reconcile_progress():
+            return
         observed = self._record_progress_observation(new_minutes, source)
         previous = (self.real_current_minutes, self.extra_current_minutes)
         delta: int = new_minutes - self.real_current_minutes
-        if delta == 0:
-            if observed:
-                self._on_state_changed()
-            return
-        elif self.real_current_minutes + delta < 0:
+        if self.real_current_minutes + delta < 0:
             delta = -self.real_current_minutes
         elif self.real_current_minutes + delta > self.required_minutes:
             delta = self.required_minutes - self.real_current_minutes
+        exhausted = [
+            drop for drop in self.campaign.drops
+            if drop.extra_current_minutes >= MAX_EXTRA_MINUTES
+        ]
         self.campaign._update_real_minutes(delta)
         if observed and (self.real_current_minutes, self.extra_current_minutes) == previous:
             self._on_state_changed()
+        if any(drop.can_earn() for drop in exhausted):
+            self._twitch.request_games_update()

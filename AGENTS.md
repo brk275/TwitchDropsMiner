@@ -535,6 +535,11 @@ progress to an ignored drop while the miner intentionally targets another reward
   Its HTTP 204 response and a Watching label do not prove Twitch has credited progress.
   Keep fallback CurrentDrop queries and estimated-minute bumps on the existing minute
   cadence when changing playlist polling, including across restarts/channel events.
+- `WatchService.watch_loop` schedules progress queries with its monotonic deadline,
+  independently of the GUI's remaining-seconds value. That value represents total reward
+  time and does not count down on the server. Keep successful-watch, current-broadcast,
+  mining-hours and cancellation guards. The real `CampaignProgressManager` regression
+  covers positive remaining time, exact query cadence, failed watches and stale streams.
 - Twitch reports authoritative progress through User.Drops websocket events and GraphQL
   Inventory/CurrentDrop. Distinguish those readings from dashboard estimates and mocks.
 - `TimedDrop.progress_observation` is a copied read-only payload for the latest valid
@@ -549,6 +554,39 @@ progress to an ignored drop while the miner intentionally targets another reward
   expose the same field. Diagnosis adds strictly projected `observed_minutes`; legacy
   `reported_minutes` still includes sibling inference. Never export source free text.
   Regression coverage: `tests/test_progress_observation.py` and `tests/test_diagnostics.py`.
+  Combined regressions in `tests/test_progress_observation_integration.py` ensure
+  stale replies and estimate recovery cannot rewrite direct-reading provenance.
+  Record accepted readings before publishing counter changes, but after reconciliation
+  eligibility checks. Unchanged readings still clear eligible estimates and publish
+  updated receipt metadata without duplicate recovery requests.
+- `TimedDrop.can_reconcile_progress()` retains account, campaign/drop timing, watch
+  reward, prerequisite, claim, ignore and category/ACL checks, but not the local estimate
+  cap. Websocket and CurrentDrop observations use it; actual mining and future selection
+  still enforce the cap through `_base_can_earn()` and `_can_earn_within()`. An unchanged
+  observation clears eligible estimates too. Recovered capped rewards queue one games
+  update per observation so idle/fallback policy can be reconsidered; repeated readings
+  must not enqueue duplicate recovery updates. Preserve sibling bounds and do not
+  infer progress from ignored, claimed or otherwise ineligible reported rewards.
+  If a sibling delta would underflow, retain its real minutes but still clear eligible
+  estimates immediately; an identical second observation must not recover it again.
+  Regression coverage: `tests/test_progress_reconciliation.py`.
+- `DropsCampaign.progress_revision` advances on every `TimedDrop.update_minutes()`
+  observation, including unchanged values, and before awaiting notification work on a
+  successful claim transition. Sibling progress shares this revision. CurrentDrop polling
+  snapshots drop identity and campaign revision before awaiting Twitch; discard replies
+  superseded by observations, claims or model replacement/removal without estimating a
+  minute. Snapshot the fallback campaign before the request too; null, errored or timed-out
+  replies may estimate only against that same campaign and unchanged revision. Fresh
+  polls can still correct progress downward. Keep this separate from estimated-minute
+  bumps. Regression coverage: `tests/test_stale_progress.py`.
+  `tests/test_progress_integration.py` also covers unchanged observations recovering
+  capped rewards during pending polls: superseded session/null/error/timeout replies
+  must not undo recovery or estimate another minute, while a fresh downward poll works.
+- `DropsCampaign.bump_minutes()` must update all eligible drops before testing whether
+  any reached the estimate limit. Evaluate `_bump_minutes()` eagerly; a short-circuiting
+  generator leaves later rewards unchanged. Preserve eligibility and the estimate cap,
+  request at most one channel switch per batch, and display only after the batch.
+  Regression coverage: `tests/test_campaign_estimates.py`.
   Playlist/transport, lifecycle, and controlled-clock regressions live in
   `tests/test_playlist_watch.py`, `tests/test_watch_transport.py`, and
   `tests/test_watch_poll_cadence.py`.

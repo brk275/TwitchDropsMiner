@@ -43,6 +43,13 @@ Source-build campaign and progress API payloads include `progress_observation`: 
 last direct Twitch minute reading, its source and local receipt time, or `null` when
 unknown. This is separate from displayed counters that can include inferred progress.
 
+Source builds poll progress about once a minute while successfully watching and ignore
+replies superseded by newer observations or inventory reloads. Fresh eligible readings
+replace fallback estimates even after the local estimate limit. Other eligibility
+checks and the estimate cap remain.
+Fallback estimates update all eligible rewards before testing the limit; they are
+not Twitch-confirmed progress.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
