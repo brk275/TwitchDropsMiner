@@ -376,7 +376,12 @@ lang/                # Translation JSON files (20 languages)
 Drop-name ignore policy is dependency-aware: a matching unclaimed drop and its dependent
 branches are ignored dynamically. Prerequisite-only branches with no mineable reward are
 skipped, while shared prerequisites required by an allowed reward remain mineable. Ignored
-and skipped drops are never counted as claimed. Twitch can still award simultaneous
+and skipped drops are never counted as claimed. `DropIgnorePolicy.evaluate()` memoizes
+immutable prerequisite branch results only within one evaluation to bound repeated
+work in shared DAGs. Preserve cycle/unknown/non-watch rejection and recompute after
+claim or policy changes; never mutate or persist a branch result across evaluations.
+Regression coverage includes dense fan-in, shared cycles and claim-state changes.
+Twitch can still award simultaneous
 progress to an ignored drop while the miner intentionally targets another reward.
 
 ### State Machine Flow
@@ -672,6 +677,36 @@ progress to an ignored drop while the miner intentionally targets another reward
   exclusive deadlines, immutable inputs and default-off/manual gates. A live adapter,
   actual selector equivalence, persisted setting, translated status, identity invalidation,
   handoff and end-to-end checks remain required. Tests: `tests/test_deadline_certificate.py`.
+- `src/services/deadline_inputs.py` captures selected real campaign/drop data as immutable
+  inputs, not a plan or execution authorization. It reads no credentials, performs no
+  network calls, changes no claim/progress/settings/selection state, and never caches
+  or rebinds earlier captures to replacement models. Scope IDs as JSON campaign/drop
+  pairs. Use the shared ignore evaluator and real campaign account eligibility;
+  clip individual windows to campaign bounds. Keep unclaimed watch ancestors explicit;
+  omit already claimed ancestors as settled, including zero-minute prerequisites.
+  Do not reopen branches the real mineability policy rejects. Root benefit filters
+  and saved selected game order remain authoritative; this is not proof of equivalence
+  to the runtime fallback/channel selector.
+  Copy valid direct minutes/source/aware receipt only. Unknown evidence stays null;
+  stale receipts stay stale. Never substitute display/inferred/estimated minutes.
+  Compilation requires explicit per-drop claim timings and hypothetical viewing windows;
+  captured inputs always report baseline coverage false and no established channel.
+  Manual or partially populated manual targets refuse automatic capture.
+  Mining-hours projection uses the validated wall-clock rules over UTC minute segments
+  and an explicit installed IANA name or fixed-offset timezone. It handles ordinary
+  DST gaps/folds and non-hour offsets without adding local-day timedeltas. No timezone
+  is needed for always-open/equal-edge schedules. Missing zones, subminute offsets or
+  observed intra-minute discontinuities refuse instead of rounding or assuming UTC.
+  The trusted timezone data must have minute-granularity transitions; arbitrary custom
+  TZif behavior is outside this projector's domain. Bound scans to 14 days/20,162
+  segments, 512 campaigns, 256 selected raw drops and 256 parents per drop before policy
+  evaluation; validate graph IDs, strict claim booleans and nonnegative integer watch
+  requirements before policy work. Unknown values must not be treated as settled claims
+  or silently omitted from protection. No partial result after refusal.
+  Nominal hours do not establish actual enforcement jitter or future channel uptime.
+  Channel/availability projection, complete baseline coverage, live identity/version
+  invalidation, controller handoff, settings/UI and end-to-end runtime checks remain
+  unfinished. Tests: `tests/test_deadline_inputs.py`.
 
 ### GraphQL Operations
 
