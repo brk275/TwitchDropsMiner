@@ -38,6 +38,7 @@ class _AuthState:
         self._twitch: Twitch = twitch
         self._lock = asyncio.Lock()
         self._logged_in = asyncio.Event()
+        self.context_epoch = object()
         self.user_id: int
         self.device_id: str
         self.session_id: str
@@ -57,6 +58,7 @@ class _AuthState:
 
     def clear(self) -> None:
         """Clear all authentication state."""
+        self.context_epoch = object()
         self._delattrs(
             "user_id",
             "device_id",
@@ -81,6 +83,7 @@ class _AuthState:
         self._use_browser_identity(identity)
 
     def _use_browser_identity(self, identity: BrowserIdentity) -> None:
+        self.context_epoch = object()
         client_info = ClientInfo(
             ClientType.WEB.CLIENT_URL, ClientType.WEB.CLIENT_ID, identity.user_agent,
         )
@@ -196,6 +199,7 @@ class _AuthState:
         except (KeyError, ValueError, TypeError):
             await self._browser_login()
             return
+        self.context_epoch = object()
         self.access_token, self.user_id = token, user_id
         self.device_id = cookie["unique_id"].value if "unique_id" in cookie else create_nonce(CHARS_HEX_LOWER, 32)
         cookie["unique_id"] = self.device_id
@@ -207,4 +211,5 @@ class _AuthState:
 
     def invalidate(self):
         """Invalidate the current access token."""
+        self.context_epoch = object()
         self._delattrs("access_token")

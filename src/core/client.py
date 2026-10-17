@@ -67,6 +67,7 @@ class Twitch:
         self.diagnostics = Diagnostics(DATA_DIR)
         # State management
         self._state: State = State.IDLE
+        self._deadline_context_epoch = object()
         self._state_change = asyncio.Event()
         self._games_update_pending = False
         self._inventory_loaded = False
@@ -174,6 +175,7 @@ class Twitch:
     @asynccontextmanager
     async def authentication_change(self):
         """Drain authenticated work before replacing its identity and derived state."""
+        self.invalidate_deadline_context()
         self._changing_auth = True
         self._resume_mining.clear()
         try:
@@ -273,14 +275,20 @@ class Twitch:
     def change_state(self, state: State) -> None:
         """Change the current state of the miner."""
         if self._state is not State.EXIT:
+            self.invalidate_deadline_context()
             # prevent state changing once we switch to exit state
             self._state = state
         self._state_change.set()
+
+    def invalidate_deadline_context(self) -> None:
+        """Retire experimental captures without changing mining policy or state."""
+        self._deadline_context_epoch = object()
 
     def request_games_update(self) -> bool:
         """Queue a mining-policy recalculation without racing the active state step."""
         if self._state is State.EXIT:
             return False
+        self.invalidate_deadline_context()
         self._games_update_pending = True
         self._schedule_changed.set()
         self._state_change.set()
@@ -309,6 +317,7 @@ class Twitch:
         if self._state is State.EXIT:
             return False
 
+        self.invalidate_deadline_context()
         self._inventory_refresh_pending = True
         self._clear_cache_pending = self._clear_cache_pending or clear_cache
         self._state_change.set()
@@ -810,14 +819,17 @@ class Twitch:
     def watch(self, channel: Channel, *, update_status: bool = True) -> None:
         """Delegate to WatchService."""
         if self.is_mining_time():
+            self.invalidate_deadline_context()
             self._watch_service.watch(channel, update_status=update_status)
 
     def stop_watching(self) -> None:
         """Delegate to WatchService."""
+        self.invalidate_deadline_context()
         self._watch_service.stop_watching()
 
     def restart_watching(self) -> None:
         """Delegate to WatchService."""
+        self.invalidate_deadline_context()
         self._watch_service.restart_watching()
 
     def is_manual_mode(self) -> bool:
@@ -835,6 +847,7 @@ class Twitch:
             logger.warning(f"Cannot enter manual mode: channel {channel.name} has no game")
             return
 
+        self.invalidate_deadline_context()
         self._manual_target_channel = channel
         self._manual_target_game = channel.game
         logger.info(f"Entered manual mode for game: {channel.game.name}, channel: {channel.name}")
@@ -855,6 +868,7 @@ class Twitch:
             f"Clearing manual mode for game: {game_name}. Reason: {reason or 'User requested'}"
         )
 
+        self.invalidate_deadline_context()
         self._manual_target_channel = None
         self._manual_target_game = None
         self.gui.broadcast_manual_mode_change(self.get_manual_mode_info())
@@ -919,6 +933,7 @@ class Twitch:
 
     async def fetch_inventory(self) -> None:
         """Delegate to InventoryService."""
+        self.invalidate_deadline_context()
         await self._inventory_service.fetch_inventory()
 
     def get_active_campaign(self, channel: Channel | None = None) -> DropsCampaign | None:

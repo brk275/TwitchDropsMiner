@@ -58,6 +58,8 @@ An experimental source-only deadline forecaster compares temporary rescues with 
 ranked baseline, including explicitly supplied finite timing alternatives. A separate
 builder conditionally certifies fixed schedules under explicit continuous timing bounds.
 Neither is connected to live mining or dashboard settings or covers unbounded uncertainty.
+Experimental captures also have short-lived context checks before reuse; these do not
+enable automatic rescues or establish future channel availability.
 Read-only model inputs preserve direct readings and project configured mining hours;
 future channel availability and claim timing still require explicit assumptions.
 

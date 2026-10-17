@@ -704,9 +704,42 @@ progress to an ignored drop while the miner intentionally targets another reward
   requirements before policy work. Unknown values must not be treated as settled claims
   or silently omitted from protection. No partial result after refusal.
   Nominal hours do not establish actual enforcement jitter or future channel uptime.
-  Channel/availability projection, complete baseline coverage, live identity/version
-  invalidation, controller handoff, settings/UI and end-to-end runtime checks remain
+  Channel/availability projection, complete baseline coverage, controller handoff,
+  settings/UI and end-to-end runtime checks remain
   unfinished. Tests: `tests/test_deadline_inputs.py`.
+- `src/services/deadline_context.py` binds one experimental capture to private runtime
+  object identities and bounded non-secret state. It is disconnected from live policy,
+  not an execution capability, eligibility grant or baseline/availability certificate.
+  Capture/validation both default off; require authenticated, loaded, quiescent
+  CHANNEL_SWITCH state, open mining hours, no pending refresh/policy work and no manual
+  targets or selected channel. Each new capture or failed validation retires the old
+  binding. Inspect the pending selected ID without consuming it, including dangling
+  IDs; the normal state machine owns the consuming GUI getter. Restored values cannot
+  revive a refusal. Never serialize the private context
+  or its retained object references, inspect credentials, or persist/export bindings.
+  Preserve auth context epochs on clear, invalidation and real identity adoption, and
+  client epochs on queued policy/refresh requests, accepted state requests (including
+  a repeat of the same state), auth replacement,
+  manual targeting and watch/restart/stop/fetch paths. Compare actual inventory/index,
+  campaign/drop/channel/stream identities, campaign progress revisions, explicit mining
+  settings and non-secret values; Channel equality by ID is not an identity check.
+  Retain every ordered ACL/tracked-channel relationship's identity even when node
+  state is deduplicated; bound channel relationships to 4,096 entries per capture.
+  Replacements with identical IDs/values must still retire earlier contexts. Keep
+  strict type-tagged value copying, all-record budgets and exact index consistency.
+  A capture expires after at most 30 seconds (15 by default), clipped at the next
+  campaign/drop/mining-window boundary. UTC and monotonic checks are exclusive; charge
+  capture and validation processing against that same clipped lifetime and reject
+  clock reversal/nonfinite values. Caller UTC time and monotonic clock must be trusted.
+  Retain successful clock high-water marks, including capture/validation processing. Charge
+  processing against both monotonic lifetime and remaining UTC lifetime at entry.
+  Caller ownership of the serialized CHANNEL_SWITCH checkpoint remains necessary;
+  enum state cannot prove quiescence for direct concurrent service calls outside it.
+  Future consumers must revalidate synchronously immediately before action with no
+  intervening await, and still enforce real eligibility, current policy and coverage.
+  Current context is not proof of transport readiness, future uptime, allocation,
+  successful claims or selector equivalence. No executor, enabled setting, UI or live
+  scheduler is delivered here. Tests: `tests/test_deadline_context.py`.
 
 ### GraphQL Operations
 
