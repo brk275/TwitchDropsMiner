@@ -563,10 +563,22 @@ progress to an ignored drop while the miner intentionally targets another reward
   exclusive deadlines and claim readiness, and return to ranked work after the target.
   Outcomes are conditional on supplied windows/allocation and do not prove future Twitch
   availability or real credit. Earliest deadline, rank and ID make candidate choice stable.
-  The current exact-input model does not bound reporting lag, fractional watch progress,
-  claim failures or switching overhead. Conservative uncertainty treatment and validation
-  against the real selector are required before any runtime adapter may steer mining.
-  Tests: `tests/test_deadline_forecast.py`, including an independent serial timing grid.
+  `analyze()` remains an exact-input conditional analysis. `analyze_robust()` enumerates
+  the full Cartesian product of supplied finite progress offsets, claim delays and
+  channel-switch costs, up to 64 cases with one shared transition/work budget. Unknown
+  timing alternatives return no recommendation; never sample or silently truncate.
+  Offsets are hypothetical additional progress, not rewritten direct observations.
+  Charge setup on startup, each channel change and reconnection after idle windows;
+  account for interrupted setups without crediting watch time during setup.
+  Require the same immediate target/game/channel in every case and preserve each case's
+  baseline-earned higher/equal rewards. Search later candidates when earlier ones fail
+  in some cases. `earned_at` is the latest target completion among supplied alternatives;
+  `baseline_earned_ids` and `protected_drop_ids` are unions with case-conditional meaning,
+  not claims that every reward is earnable in every case.
+  Finite alternatives are not endpoints standing in for a continuous interval. This
+  does not bound arbitrary backend lag/failures or predict future availability. Continuous
+  uncertainty treatment and real-selector equivalence remain required before live steering.
+  Tests: `tests/test_deadline_forecast.py` and `tests/test_deadline_timing.py`.
 
 ### GraphQL Operations
 

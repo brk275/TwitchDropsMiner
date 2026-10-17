@@ -40,7 +40,8 @@ default-off option to mine campaigns reported as Not Linked; read its warning an
 check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-override).
 
 An experimental source-only deadline forecaster compares temporary rescues with a
-ranked baseline. It is not connected to live mining or dashboard settings.
+ranked baseline, including explicitly supplied finite timing alternatives. It is not
+connected to live mining or dashboard settings and does not cover unbounded uncertainty.
 
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
