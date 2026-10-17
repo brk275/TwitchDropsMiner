@@ -609,6 +609,70 @@ progress to an ignored drop while the miner intentionally targets another reward
   `tests/test_playlist_watch.py`, `tests/test_watch_transport.py`, and
   `tests/test_watch_poll_cadence.py`.
 
+### Experimental Deadline Forecasting
+
+- `src/services/deadline_forecast.py` is a pure, opt-in forecast component, not a live
+  scheduler. It does not mutate settings, domain models, or channels and has no network
+  or wall-clock calls. The runtime adapter, persisted setting, translated status and
+  safe reevaluation/handoff are not implemented. Do not present it as an enabled feature.
+- Snapshots supply ordered selected games, fresh direct per-drop readings, explicit UTC
+  availability/mining windows, channel preference order, prerequisites and claim delays.
+  Viewing windows declare simultaneous credit conditionally; `allocation_known` defaults
+  false. Never infer it from estimated counters or assume overlapping campaigns progress
+  together. A future adapter must enforce actual eligibility and preserve the existing
+  selector's baseline, manual control and account/inventory identity boundaries.
+- Reject unknown/stale progress, unknown allocation, malformed dependency graphs,
+  overlapping contradictory channel windows, naive datetimes, incomplete horizons and
+  exhausted budgets. Normalize aware timestamps to UTC before arithmetic. Input limits:
+  256 drops/games, 512 viewing/mining windows, 32 rescue candidates, a 14-day horizon,
+  and shared transition/work budgets. Do not treat a truncated simulation as successful.
+- Compare one selected lower-ranked wanted reward's ancestor detour with rank-only
+  mining. Protect every baseline-earned reward at higher or equal rank, honor individual
+  exclusive deadlines and claim readiness, and return to ranked work after the target.
+  Outcomes are conditional on supplied windows/allocation and do not prove future Twitch
+  availability or real credit. Earliest deadline, rank and ID make candidate choice stable.
+  `analyze()` remains an exact-input conditional analysis. `analyze_robust()` enumerates
+  the full Cartesian product of supplied finite progress offsets, claim delays and
+  channel-switch costs, up to 64 cases with one shared transition/work budget. Unknown
+  timing alternatives return no recommendation; never sample or silently truncate.
+  Offsets are hypothetical additional progress, not rewritten direct observations.
+  Charge setup on startup, each channel change and reconnection after idle windows;
+  account for interrupted setups without crediting watch time during setup.
+  Require the same immediate target/game/channel in every case and preserve each case's
+  baseline-earned higher/equal rewards. Search later candidates when earlier ones fail
+  in some cases. `earned_at` is the latest target completion among supplied alternatives;
+  `baseline_earned_ids` and `protected_drop_ids` are unions with case-conditional meaning,
+  not claims that every reward is earnable in every case.
+  Finite alternatives are not endpoints standing in for a continuous interval. This
+  does not bound arbitrary backend lag/failures or predict future availability. Continuous
+  uncertainty treatment and real-selector equivalence remain required before live steering.
+  Tests: `tests/test_deadline_forecast.py` and `tests/test_deadline_timing.py`.
+- `src/services/deadline_certificate.py` adds sufficient fixed-calendar certificates,
+  not a continuous proof for the adaptive greedy simulator. It requires explicit
+  remaining-work, successful-claim-delay and setup bounds; it never derives them from
+  local counters or assumes unknown latency is zero. Direct readings still gate input
+  validity. Remaining upper bounds cannot exceed directly observed remaining minutes.
+  A continuously ready, available higher-ranked blocker must need at least the whole
+  target deadline interval even at its lower work bound. Reject any higher/equal-to-blocker
+  channel that could credit the target in parallel. This proves baseline misses only
+  under declared eligibility/allocation/availability assumptions, not live Twitch behavior.
+  `baseline_complete` defaults false and must be explicitly boolean true to certify.
+  Unknown coverage returns `unknown_coverage`. Windows must exhaust possible baseline
+  credit routes as well as guarantee reserved capacity; a currently tracked subset or
+  guaranteed-minimum credit set is not evidence that other parallel credit is impossible.
+  Reserve upper work, claim waits and setup for the target's ancestor chain, then ALL
+  higher/equal-ranked wanted rewards and their ancestors. Fixed UTC slots intersect
+  individual, channel and mining windows; reconnect setup earns no credit. Each setup
+  and claim latency may vary independently anywhere within its bound. The future executor
+  must follow the reserved calendar, not substitute the adaptive greedy policy or move
+  later work earlier. Existing `current_channel_id` means an already established stream;
+  unknown readiness must pay setup. Claim bounds assume successful settlement, not merely
+  a response arriving. No certificate means not proven, not impossible. Some safe detours
+  cannot be certified by this sufficient construction. Preserve shared resource budgets,
+  exclusive deadlines, immutable inputs and default-off/manual gates. A live adapter,
+  actual selector equivalence, persisted setting, translated status, identity invalidation,
+  handoff and end-to-end checks remain required. Tests: `tests/test_deadline_certificate.py`.
+
 ### GraphQL Operations
 
 Persisted operations are defined in `src/config/operations.py` as `GQL_OPERATIONS`; raw GraphQL payloads such as `sendSpadeEvents` use `GQLQuery`:

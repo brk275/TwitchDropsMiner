@@ -54,6 +54,11 @@ Claim rewards promptly. Source builds can attempt existing claim IDs for up to 1
 after campaign end, following the [Twitch API guide](https://dev.twitch.tv/docs/drops/technical-guide/#can-claims-occur-after-the-campaign-ends).
 Some campaigns stop accepting claims earlier; Twitch decides whether each claim succeeds.
 
+An experimental source-only deadline forecaster compares temporary rescues with a
+ranked baseline, including explicitly supplied finite timing alternatives. A separate
+builder conditionally certifies fixed schedules under explicit continuous timing bounds.
+Neither is connected to live mining or dashboard settings or covers unbounded uncertainty.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
