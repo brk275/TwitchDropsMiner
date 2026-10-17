@@ -537,6 +537,17 @@ progress to an ignored drop while the miner intentionally targets another reward
   cadence when changing playlist polling, including across restarts/channel events.
 - Twitch reports authoritative progress through User.Drops websocket events and GraphQL
   Inventory/CurrentDrop. Distinguish those readings from dashboard estimates and mocks.
+- `TimedDrop.can_reconcile_progress()` retains account, campaign/drop timing, watch
+  reward, prerequisite, claim, ignore and category/ACL checks, but not the local estimate
+  cap. Websocket and CurrentDrop observations use it; actual mining and future selection
+  still enforce the cap through `_base_can_earn()` and `_can_earn_within()`. An unchanged
+  observation clears eligible estimates too. Recovered capped rewards queue one games
+  update per observation so idle/fallback policy can be reconsidered; repeated readings
+  must not enqueue duplicate recovery updates. Preserve sibling bounds and do not
+  infer progress from ignored, claimed or otherwise ineligible reported rewards.
+  If a sibling delta would underflow, retain its real minutes but still clear eligible
+  estimates immediately; an identical second observation must not recover it again.
+  Regression coverage: `tests/test_progress_reconciliation.py`.
   Playlist/transport, lifecycle, and controlled-clock regressions live in
   `tests/test_playlist_watch.py`, `tests/test_watch_transport.py`, and
   `tests/test_watch_poll_cadence.py`.

@@ -248,7 +248,7 @@ class MessageHandlerService:
 
         logger.log(CALL, f"Drop update from websocket: {drop_text}")
 
-        if drop is not None and drop.can_earn(self._twitch.watching_channel.get_with_default(None)):
+        if drop is not None and drop.can_reconcile_progress(watching_channel):
             # the received payload is for the drop we expected
             drop.update_minutes(message["data"]["current_progress_min"])
 
