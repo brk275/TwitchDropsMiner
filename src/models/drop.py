@@ -304,20 +304,32 @@ class TimedDrop(BaseDrop):
         self, *, remaining: bool, visiting: frozenset[str]
     ) -> int:
         """Return the longest prerequisite chain without recursing through cycles."""
-        if self.id in visiting or remaining and self.is_claimed:
-            return 0
+        totals: dict[str, int] = {}
 
-        next_visiting = visiting | {self.id}
-        prerequisite_minutes = (
-            prerequisite._total_chain_minutes(
-                remaining=remaining, visiting=next_visiting
-            )
-            for prerequisite_id in self.precondition_drops
-            if (prerequisite := self.campaign.timed_drops.get(prerequisite_id))
-            is not None
-        )
-        own_minutes = self.remaining_minutes if remaining else self.required_minutes
-        return own_minutes + max(prerequisite_minutes, default=0)
+        def visit(drop: TimedDrop, ancestors: frozenset[str]) -> tuple[int, bool]:
+            if remaining and drop.is_claimed:
+                return 0, True
+            if drop.id in ancestors:
+                return 0, False
+            if drop.id in totals:
+                return totals[drop.id], True
+
+            next_ancestors = ancestors | {drop.id}
+            parent_minutes: list[int] = []
+            cacheable = True
+            for parent_id in drop.precondition_drops:
+                if (parent := drop.campaign.timed_drops.get(parent_id)) is not None:
+                    minutes, parent_cacheable = visit(parent, next_ancestors)
+                    parent_minutes.append(minutes)
+                    cacheable = cacheable and parent_cacheable
+            own_minutes = drop.remaining_minutes if remaining else drop.required_minutes
+            total = own_minutes + max(parent_minutes, default=0)
+            # A subtotal truncated by a cycle depends on the current ancestor path.
+            if cacheable:
+                totals[drop.id] = total
+            return total, cacheable
+
+        return visit(self, visiting)[0]
 
     @property
     def progress(self) -> float:
