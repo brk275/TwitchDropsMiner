@@ -39,15 +39,14 @@ Inventory supports **All / Linked / Not Linked** account-link filters. Settings 
 default-off option to mine campaigns reported as Not Linked; read its warning and
 check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-override).
 
-In source builds, fresh eligible Twitch readings replace fallback estimates even
-after the local estimate limit. Other eligibility checks and the estimate cap remain.
+Source builds poll progress about once a minute while successfully watching and ignore
+replies superseded by newer observations or inventory reloads. Fresh eligible readings
+replace fallback estimates even after the local estimate limit. Other eligibility
+checks and the estimate cap remain.
 
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
-
-Source builds check active Drop progress about once a minute while successfully watching,
-including when a reward still has substantial watch time remaining.
 
 ## Quick start
 
