@@ -83,7 +83,8 @@ function setHistoryTbodyMessage() {}
                       "game": "原神", "since": "2026-09-01"}
 
 
-def test_clear_history_requires_confirmation_and_successful_response():
+@pytest.mark.parametrize("status", [500, 503])
+def test_clear_history_requires_confirmation_and_successful_response(status):
     result = run_javascript(["clearHistory"], """
 let historyRequestId = 0, historyCurrentPage = 2, historyTotal = 1, historyAllEntries = [{id:'keep'}];
 let historyStatsData = null, historyStatsVisible = false, confirm = false, ok = false, calls = 0;
@@ -91,7 +92,7 @@ const window = {confirm: () => confirm};
 function historyText(key) { return key; }
 const alerts = [];
 function alert(message) { alerts.push(message); }
-async function fetch() { calls++; return {ok,status:500}; }
+async function fetch() { calls++; return {ok,status:FAILURE_STATUS}; }
 function updateHistoryCount() {}
 function setHistoryTbodyMessage() {}
 function renderHistoryPagination() {}
@@ -106,7 +107,7 @@ function renderHistoryPagination() {}
  process.stdout.write(JSON.stringify({cancelledCalls,afterFailure,alerts,calls,
  entries:historyAllEntries,total:historyTotal,page:historyCurrentPage,historyRequestId,historyStatsData}));
 })();
-""")
+""".replace("FAILURE_STATUS", str(status)))
     assert result == {"cancelledCalls": 0, "afterFailure": [{"id": "keep"}], "alerts": ["clear_error"],
                       "calls": 2, "entries": [], "total": 0, "page": 0, "historyRequestId": 1,
                       "historyStatsData": {"total_drops": 0, "by_game": {}, "by_month": {}}}

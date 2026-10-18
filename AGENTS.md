@@ -899,3 +899,8 @@ and confirmed local deletion. Date-only filters mean midnight UTC; aware timesta
 preserve their instant. CSV attachment names use UTF-8 percent encoding with an ASCII
 fallback. History text is defined in `gui.history` for every locale and rendered as text.
 Tests cover persistence, filtering, Unicode exports, offsets, and translated UI behavior.
+`DropHistory.clear()` returns success only after the empty history file is atomically
+replaced. On storage failure restore the previous in-memory records and return false;
+the DELETE endpoint returns a fixed HTTP 503 error so the existing UI retains its data.
+Keep ordinary claim recording best-effort; save failures must not undo successful
+Twitch claims. Save errors must not expose filesystem paths or exception text.

@@ -205,11 +205,15 @@ class DropHistory:
             counts[month] = counts.get(month, 0) + 1
         return dict(sorted(counts.items()))
 
-    def clear(self) -> None:
-        """Delete all history entries from memory and disk."""
+    def clear(self) -> bool:
+        """Delete history only if the empty file can be saved successfully."""
+        previous = self._entries
         self._entries = []
-        self._save()
+        if not self._save():
+            self._entries = previous
+            return False
         logger.warning("Drop history cleared.")
+        return True
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -234,12 +238,13 @@ class DropHistory:
         except (json.JSONDecodeError, OSError) as exc:
             logger.error(f"Failed to load drop history: {exc}")
 
-    def _save(self) -> None:
+    def _save(self) -> bool:
         """
         Write the current state to disk atomically.
         Writes to a .tmp file first, then renames it over the real file.
         This ensures the history file is never left in a half-written state
         even if the process is killed during the write.
+        Return whether the atomic replacement completed.
         """
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -253,5 +258,7 @@ class DropHistory:
                 )
             # Atomic rename — on POSIX this is guaranteed by the OS
             tmp.replace(self._path)
-        except OSError as exc:
-            logger.error(f"Failed to save drop history: {exc}")
+        except OSError:
+            logger.error("Failed to save drop history.")
+            return False
+        return True
