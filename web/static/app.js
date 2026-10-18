@@ -197,6 +197,7 @@ socket.on('initial_state', (data) => {
 
     // Batch update channels to prevent UI freezing
     if (data.channels) {
+        state.channels = {};
         data.channels.forEach(ch => {
             state.channels[ch.id] = ch;
         });

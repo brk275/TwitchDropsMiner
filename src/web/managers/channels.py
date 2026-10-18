@@ -140,4 +140,7 @@ class ChannelListManager:
         Returns:
             List of channel data dictionaries
         """
-        return list(self._channels.values())
+        return [
+            {**data, "watching": channel_id == self._watching_id}
+            for channel_id, data in self._channels.items()
+        ]

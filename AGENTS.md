@@ -1190,6 +1190,18 @@ The application uses a web-based interface accessible via browser:
 **src/web/gui_manager.py** - WebGUIManager class:
 
 - Managers: StatusManager, ConsoleOutputManager, ChannelListManager, CampaignProgressManager, InventoryManager, LoginFormManager, SettingsManager, CacheManager
+- `ChannelListManager.get_channels()` projects `watching` from the current watched
+  ID instead of cached row flags, so REST and initial Socket.IO snapshots agree after
+  start, switch and clear without another channel display update. Return fresh outer
+  row dictionaries; preserve order, identity fields and existing watch events without
+  mutating previously serialized payloads or changing mining selection. Regressions:
+  `tests/test_channel_watching_snapshot.py`.
+  The frontend replaces channel rows when an initial-state channel list is present,
+  including an empty list, so reconnect cannot retain removed watched channels.
+  Preserve omitted/null partial-event handling and incremental events; campaign and
+  console snapshot behavior is unchanged. Regressions:
+  `tests/test_channel_snapshot_frontend.py`. Release/cache-key bump required before
+  deploying the changed app.js through the authorized release workflow.
 - Uses WebSocketBroadcaster to push real-time updates to connected clients via Socket.IO
 - Pure async/await implementation
 
