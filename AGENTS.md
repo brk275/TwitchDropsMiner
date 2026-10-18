@@ -931,6 +931,31 @@ progress to an ignored drop while the miner intentionally targets another reward
   multi-error list, make batch mutations atomic or prove live progress recovery.
   Regression coverage: `tests/test_gql_server_error_paths.py` with real GQLClient,
   mocked HTTP/browser transports, safe controls and no mutation-request replay.
+- `GQLRetryPolicy` shares the existing exact persisted-read classifier between
+  ImportedSession's ambiguous-HTTP retries and GQLClient's service-error retries.
+  Accept only the original eleven operation-name/hash pairs and strict version-one
+  envelope; raw/unknown operations and all four catalog mutations are not retry-safe.
+  Never infer safety from a query name or expand this allowlist incidentally.
+- `GQLClient.request()` snapshots operations before awaiting, preserving nested
+  variables and batch membership. It gates all five existing service-retry messages
+  on the whole original request, before retry logging or sleep, and rechecks the
+  owned payload after auth before sending a later attempt. A successful mutation
+  elsewhere in a mixed batch must not be repeated. First sends/successful writes,
+  safe-read backoff/rate limits and existing definitive auth-rejection handling remain.
+  Unsafe retries raise a fixed `GQLException`, not response-derived details. This
+  does not return partial results, provide exactly-once execution, validate all raw
+  envelopes or harden generic HTTPClient/caller retry behavior. Existing debug logs
+  are not globally redacted by this change. Tests: `tests/test_gql_retry_safety.py`,
+  including mocked HTTP/browser branches and a loopback imported-session dispatch.
+- At the `browser.gql()` boundary only, map `SessionError("REQUEST")` to a fixed
+  `GQLException` so watch fallback and failed claims use their existing request-error
+  paths. ImportedSession already owns bounded transport retries; do not add outer
+  retries, clear authentication or replay writes here. Preserve other session codes,
+  errors from initial auth validation, cancellation, exit and unrelated exceptions.
+  Integration coverage: `tests/test_progress_retry_integration.py` uses the real
+  client/watch/domain paths with mocked HTTP/browser IO and a loopback HTTP peer.
+  Retries must retain pre-query observation/claim revision guards; a retry wait
+  does not authorize stale progress, estimated evidence or duplicate local history.
 
 Persisted operations are defined in `src/config/operations.py` as `GQL_OPERATIONS`; raw GraphQL payloads such as `sendSpadeEvents` use `GQLQuery`:
 

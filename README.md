@@ -99,6 +99,11 @@ Source builds report unusable GraphQL server-error paths as request failures ins
 of path-traversal errors. Expected request errors can still use the existing estimated
 fallback; those minutes are not confirmed progress. No request retries are added.
 
+Source builds restrict GraphQL service-error retries to known read-only requests.
+Writes and mixed batches fail without being automatically resent by that retry layer.
+Imported transport failures use normal request-error handling; authentication and
+account-change failures remain distinct.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash

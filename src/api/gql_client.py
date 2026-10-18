@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from copy import deepcopy
 from itertools import chain
 from typing import TYPE_CHECKING, overload
 
+from src.api.gql_retry_policy import GQLRetryPolicy
+from src.auth.session_bundle import SessionError
 from src.exceptions import GQLException, MinerException
 from src.utils import ExponentialBackoff, RateLimiter
 
@@ -89,6 +92,9 @@ class GQLClient:
         RuntimeError
             If the retry loop is broken unexpectedly
         """
+        ops = deepcopy(ops)
+        retry_allowed = GQLRetryPolicy.can_retry(ops)
+        retrying = False
         gql_logger.debug(f"GQL Request: {ops}")
         backoff = ExponentialBackoff(maximum=60)
         # Flag to retry the request once for specific errors
@@ -97,11 +103,19 @@ class GQLClient:
         for delay in backoff:
             async with self._qgl_limiter:
                 auth_state = await self._auth_state.validate()
+                if retrying and (not retry_allowed or not GQLRetryPolicy.can_retry(ops)):
+                    raise GQLException("Automatic retry is unsafe for this GraphQL request")
                 response_json: JsonType | list[JsonType]
                 if auth_state.browser_active is True:
                     browser = auth_state._twitch._browser
                     assert browser is not None
-                    response_json = await browser.gql(ops)
+                    try:
+                        response_json = await browser.gql(ops)
+                    except SessionError as error:
+                        if error.code != "REQUEST":
+                            raise
+                        # Transport retries are already bounded by ImportedSession.
+                        raise GQLException("Authenticated GraphQL request failed (SESSION_REQUEST)") from None
                 else:
                     async with self.http_client.request(
                         "POST",
@@ -123,6 +137,11 @@ class GQLClient:
                 if "errors" in response_json:
                     for error_dict in response_json["errors"]:
                         if "message" in error_dict:
+                            if error_dict["message"] in (
+                                "service error", "PersistedQueryNotFound", "service timeout",
+                                "service unavailable", "context deadline exceeded",
+                            ) and (not retry_allowed or not GQLRetryPolicy.can_retry(ops)):
+                                raise GQLException("Automatic retry is unsafe for this GraphQL request")
                             if single_retry and error_dict["message"] in (
                                 "service error",
                                 "PersistedQueryNotFound",
@@ -159,6 +178,7 @@ class GQLClient:
             else:
                 return orig_response
 
+            retrying = True
             await asyncio.sleep(delay)
 
         raise RuntimeError("Retry loop was broken")
