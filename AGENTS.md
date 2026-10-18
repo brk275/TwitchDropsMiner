@@ -509,6 +509,12 @@ claim and policy changes must be reflected on the next call. Regression coverage
   as the default. On macOS, users must quit the helper-owned browser instance to flush
   its profile. Keep the release-ready README, installation examples, login guide, and
   generated release-note instructions consistent with these behaviors.
+- The close-ownership regression in `tests/test_login_helper.py` waits for a bounded
+  fake-peer completion event before asserting observed commands. A client-side send
+  returning is not a server-observation barrier. Preserve exact owned-peer commands,
+  the ownership error and absence of close commands for a different owner, plus peer
+  cleanup. Use synchronization rather than sleeps or weaker assertions. This test
+  change does not alter production close behavior or guarantee real-browser delivery.
 
 ### Dashboard authentication
 
