@@ -543,6 +543,19 @@ progress to an ignored drop while the miner intentionally targets another reward
 
 ### GraphQL Operations
 
+- `GQLClient._nullify_server_error()` handles only the existing `server error`
+  normalization branch. Response data must be an object and its path a nonempty
+  list of nonempty string object keys or plain nonnegative in-range list indices.
+  Traverse existing parents only; missing/null/scalar parents and unusable paths
+  raise a fixed redacted `GQLException` without mutating the failed response or
+  replaying the request. Preserve existing missing-leaf null insertion and unrelated
+  batch entries. Do not coerce booleans, numeric strings, negative indices or floats.
+  Retry/rate policies, cancellation and all other error branches remain unchanged.
+  This does not validate every raw response envelope, normalize every error in a
+  multi-error list, make batch mutations atomic or prove live progress recovery.
+  Regression coverage: `tests/test_gql_server_error_paths.py` with real GQLClient,
+  mocked HTTP/browser transports, safe controls and no mutation-request replay.
+
 Persisted operations are defined in `src/config/operations.py` as `GQL_OPERATIONS`; raw GraphQL payloads such as `sendSpadeEvents` use `GQLQuery`:
 
 - **Inventory** - Fetch in-progress campaigns and claimed benefits

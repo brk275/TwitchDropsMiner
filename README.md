@@ -43,6 +43,9 @@ Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
 
+Source builds report unusable GraphQL server-error paths as request failures instead
+of path-traversal errors. This does not add automatic retries or guarantee progress.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash
