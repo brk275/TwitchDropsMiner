@@ -3,13 +3,13 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeGuard
 
 from dateutil.parser import isoparse
 
 from src.config.constants import MAX_EXTRA_MINUTES
 from src.config.operations import GQL_OPERATIONS
-from src.exceptions import GQLException
+from src.exceptions import GQLException, MinerException
 from src.i18n import _
 from src.models.benefit import Benefit
 from src.services.discord_service import DiscordNotifier
@@ -37,6 +37,15 @@ class BaseDrop:
     def __init__(
         self, campaign: DropsCampaign, data: JsonType, claimed_benefits: dict[str, datetime]
     ):
+        claim_data = data.get("self")
+        if "self" in data and (
+            not isinstance(claim_data, dict)
+            or type(claim_data.get("isClaimed")) is not bool
+            or "dropInstanceID" not in claim_data
+            or (claim_data["dropInstanceID"] is not None
+                and not self._is_claim_id(claim_data["dropInstanceID"]))
+        ):
+            raise MinerException("Invalid drop claim state")
         self._twitch: Twitch = campaign._twitch
         self.id: str = data["id"]
         self.name: str = data["name"]
@@ -46,9 +55,9 @@ class BaseDrop:
         self.ends_at: datetime = isoparse(data["endAt"])
         self.claim_id: str | None = None
         self.is_claimed: bool = False
-        if "self" in data:
-            self.claim_id = data["self"]["dropInstanceID"]
-            self.is_claimed = data["self"]["isClaimed"]
+        if isinstance(claim_data, dict):
+            self.claim_id = claim_data["dropInstanceID"]
+            self.is_claimed = claim_data["isClaimed"]
         elif (
             # If there's no self edge available, we can use claimed_benefits to determine
             # (with pretty good certainty) if this drop has been claimed or not.
@@ -146,14 +155,21 @@ class BaseDrop:
         # "If you are unable to claim the Drop in time, you will be able to claim it
         # from the Drops Inventory page until 24 hours after the Drops campaign has ended."
         return (
-            self.claim_id is not None
+            self._is_claim_id(self.claim_id)
             and not self.is_claimed
             and datetime.now(timezone.utc) < self.campaign.ends_at + timedelta(hours=24)
         )
 
-    def update_claim(self, claim_id: str) -> None:
-        """Update the claim ID for this drop."""
+    @staticmethod
+    def _is_claim_id(claim_id: object) -> TypeGuard[str]:
+        return isinstance(claim_id, str) and bool(claim_id.strip())
+
+    def update_claim(self, claim_id: object) -> bool:
+        """Admit an opaque nonblank ID; leave the previous ID intact on rejection."""
+        if not self._is_claim_id(claim_id):
+            return False
         self.claim_id = claim_id
+        return True
 
     async def generate_claim(self) -> None:
         # claim IDs now appear to be constructed from other IDs we have access to

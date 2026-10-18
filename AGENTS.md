@@ -232,6 +232,15 @@ lang/                # Translation JSON files (20 languages)
   `tests/test_numeric_progress_ordering.py` covers rejected values and valid integer
   supersession, including unchanged and clamped readings.
 - `BaseDrop`: Base class with claim logic
+- Present inventory drop `self` must be an object with boolean `isClaimed` and
+  `dropInstanceID` explicitly null or an opaque nonblank string. Reject malformed
+  values with a fixed MinerException before inventory publication; absent `self`
+  retains benefit inference. Do not trim valid IDs or coerce booleans or strings.
+  `update_claim()` returns false for unusable live IDs without replacing an existing
+  ID. Claim-ready handlers return before claiming, publishing, waiting or refreshing.
+  `can_claim` also rejects unusable IDs; claim-ready logs must not echo ID payloads.
+  This does not validate whole websocket envelopes or add recovery/retries or change
+  claim grace. Tests: `tests/test_claim_input_reliability.py`.
 - Precondition chains for sequential drops
 - `BaseDrop.claim()` applies successful state synchronously through `_apply_claim_result()`
   before awaiting dashboard, Telegram or Discord delivery. `TimedDrop` normalizes minutes,

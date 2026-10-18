@@ -82,6 +82,9 @@ of path-traversal errors. This does not add automatic retries or guarantee progr
 Unusable post-claim progress checks no longer prevent the normal watch restart or
 inventory refresh. These advisory reads time out after five seconds; claims are not resent.
 
+Malformed inventory claim flags and IDs are rejected before inventory replacement.
+Unusable claim-ready IDs are ignored without discarding a known ID or sending a claim.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash
