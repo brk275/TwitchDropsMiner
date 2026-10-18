@@ -39,6 +39,10 @@ Inventory supports **All / Linked / Not Linked** account-link filters. Settings 
 default-off option to mine campaigns reported as Not Linked; read its warning and
 check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-override).
 
+Source builds require award history for every reward before inferring that a drop
+without explicit Twitch claim state is complete. A partially shared reward no longer
+completes the whole drop; verify actual claims in Twitch's Drops inventory.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).

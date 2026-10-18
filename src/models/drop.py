@@ -50,20 +50,14 @@ class BaseDrop:
             self.claim_id = data["self"]["dropInstanceID"]
             self.is_claimed = data["self"]["isClaimed"]
         elif (
-            # If there's no self edge available, we can use claimed_benefits to determine
-            # (with pretty good certainty) if this drop has been claimed or not.
-            # To do this, we check if the benefitEdges appear in claimed_benefits, and then
-            # deref their "lastAwardedAt" timestamps into a list to check against.
-            # If the benefits were claimed while the drop was active,
-            # the drop has been claimed too.
-            (
-                dts := [
-                    claimed_benefits[bid]
-                    for benefit in self.benefits
-                    if (bid := benefit.id) in claimed_benefits
-                ]
+            # Without explicit claim state, every benefit needs an in-window award.
+            # A shared reward alone cannot establish completion of the whole drop.
+            self.benefits
+            and all(
+                benefit.id in claimed_benefits
+                and self.starts_at <= claimed_benefits[benefit.id] < self.ends_at
+                for benefit in self.benefits
             )
-            and all(self.starts_at <= dt < self.ends_at for dt in dts)
         ):
             self.is_claimed = True
         self.precondition_drops: list[str] = [d["id"] for d in (data["preconditionDrops"] or [])]

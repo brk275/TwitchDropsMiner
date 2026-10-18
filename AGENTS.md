@@ -203,6 +203,13 @@ lang/                # Translation JSON files (20 languages)
 
 - `TimedDrop`: Drops with minute requirements and progress
 - `BaseDrop`: Base class with claim logic
+- When a drop has no `self` edge, infer a claim only for nonempty benefits with an
+  in-window award for every benefit. Partial/shared reward history must not complete
+  the drop, normalize its minutes or unlock prerequisites. Preserve explicit `self`
+  precedence, inclusive start/exclusive end, exact benefit IDs and single-reward
+  behavior. Inference does not create claim IDs, history entries or notifications;
+  it is not an authoritative claim acknowledgement. Entirely shared reward sets
+  remain ambiguous. Regression coverage: `tests/test_benefit_claim_inference.py`.
 - Precondition chains for sequential drops
 
 **src/web/gui_manager.py** - Web GUI:
