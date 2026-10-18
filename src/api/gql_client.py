@@ -162,11 +162,7 @@ class GQLClient:
                                 break
                             elif error_dict["message"] == "server error":
                                 # Nullify the key the error path points to
-                                data_dict: JsonType = response_json["data"]
-                                path: list[str] = error_dict.get("path", [])
-                                for key in path[:-1]:
-                                    data_dict = data_dict[key]
-                                data_dict[path[-1]] = None
+                                self._nullify_server_error(response_json.get("data"), error_dict.get("path"))
                                 break
                             elif error_dict["message"] in (
                                 "service timeout",
@@ -217,6 +213,28 @@ class GQLClient:
             ):
                 raise GQLInvalidResponse()
         return rows
+
+    @staticmethod
+    def _nullify_server_error(data: object, path: object) -> None:
+        """Nullify a reachable response field without inventing missing parents."""
+        if isinstance(data, dict) and isinstance(path, list) and path:
+            parent: object = data
+            for index, key in enumerate(path):
+                last = index == len(path) - 1
+                # Keep container and key types paired for static checking.
+                if isinstance(parent, dict) and isinstance(key, str) and key and (last or key in parent):  # noqa: SIM114
+                    if last:
+                        parent[key] = None
+                        return
+                    parent = parent[key]
+                elif isinstance(parent, list) and type(key) is int and 0 <= key < len(parent):
+                    if last:
+                        parent[key] = None
+                        return
+                    parent = parent[key]
+                else:
+                    break
+        raise GQLException("Unable to normalize GraphQL server error")
 
     @staticmethod
     def merge_data(primary_data: JsonType, secondary_data: JsonType) -> JsonType:

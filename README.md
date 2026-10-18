@@ -74,6 +74,9 @@ delivery. Interrupted alerts are not retried automatically.
 Source builds require usable, error-free claim confirmations before marking a reward
 claimed. An invalid reply stays unconfirmed; this does not add automatic retries.
 
+Source builds report unusable GraphQL server-error paths as request failures instead
+of path-traversal errors. This does not add automatic retries or guarantee progress.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash
