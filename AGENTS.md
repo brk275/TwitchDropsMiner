@@ -404,6 +404,16 @@ lang/                # Translation JSON files (20 languages)
 - Topics: User.Drops, User.Notifications, Channel.StreamState, Channel.StreamUpdate
 - Automatic reconnection with exponential backoff
 - Message routing to registered callbacks
+- Topic compaction retains ownership of retired shutdown tasks until completion.
+  Pool shutdown drains active and retired sockets, including retirements admitted
+  while it waits, before propagating a shutdown failure. Observe retired shutdown
+  failures without logging exception payloads. Socket shutdown cancels and drains its
+  receive task and callbacks even if close/receive fails, then clears connection
+  references and applies requested topic removal. `stop_nowait()` returns its owned
+  task so the pool can join it. Preserve auth-change draining before identity/cache
+  replacement; do not replay cancelled claims. Regression coverage:
+  `tests/test_retired_websocket_shutdown.py`. Cancellation remains cooperative, not
+  a hard deadline or guaranteed physical transport closure after an I/O failure.
 
 **src/config/settings.py** - Application settings:
 
