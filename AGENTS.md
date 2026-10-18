@@ -156,6 +156,12 @@ lang/                # Translation JSON files (20 languages)
 **src/services/** - Business logic layer (fully implemented):
 
 - `ChannelService`: Channel management and selection logic
+- `ChannelService.get_live_streams()` treats an explicit null `data.game` as an
+  unavailable directory and returns no candidates so discovery can continue to other
+  categories. Preserve query flags, no extra retry, existing absent/empty handling,
+  malformed non-null failures and cancellation. Do not infer campaign expiry, unlink
+  accounts, remove priority games or clear inventory. Regressions:
+  `tests/test_unavailable_game_directory.py`, including normalized HTTP/browser GQL.
 - `InventoryService`: Campaign and drop inventory operations
 - Admit claimed benefit history only as a list of objects with nonblank string IDs
   and parseable timezone-aware `lastAwardedAt` strings. Empty lists are valid; null,

@@ -23,6 +23,7 @@ services operated for other users are outside its support scope.
   while preserving your saved priority list.
 - Track campaigns and rewards, and ignore drops you do not want.
 - Skip channels while Twitch reports an active ban, including temporary bans.
+- Source builds continue discovering other games when a category directory is unavailable.
 - Sign in inside the dashboard; TDM saves and renews your session automatically.
 - Review claimed-drop history, export it to CSV, and receive Telegram or Discord notifications.
 - Source builds skip malformed saved history records and keep only the first valid
