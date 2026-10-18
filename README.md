@@ -27,6 +27,8 @@ services operated for other users are outside its support scope.
 - Review claimed-drop history, export it to CSV, and receive Telegram or Discord notifications.
 - Source builds skip malformed saved history records without blocking startup; keep
   a backup of `data/drop_history.json` before repairing it or recording new claims.
+- Source builds omit private credentials and message bodies from Telegram failure logs
+  and test-connection errors.
 - Manage everything from a web dashboard with optional password protection.
 - Set daily [mining hours](docs/usage.md#mining-hours) in the miner’s local timezone.
 
