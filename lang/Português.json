@@ -178,6 +178,7 @@
             "actions": "Ações",
             "connection_quality": "Qualidade da conexão:",
             "minimum_refresh": "Intervalo mínimo de atualização (minutos):",
+            "minimum_refresh_save_error": "Não foi possível guardar o intervalo de atualização. Tenta novamente.",
             "telegram": {
                 "name": "Notificações do Telegram",
                 "description": "Receba notificações no Telegram quando reivindicar drops.",

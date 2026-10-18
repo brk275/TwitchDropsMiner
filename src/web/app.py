@@ -14,11 +14,15 @@ from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, StrictBool, field_validator
+from pydantic import BaseModel, StrictBool, StrictInt, field_validator
 from semver import Version
 
 from src.config.paths import DATA_DIR
-from src.config.settings import InventoryFilterSettings, MiningHoursSettings
+from src.config.settings import (
+    InventoryFilterSettings,
+    MiningHoursSettings,
+    RefreshIntervalSettings,
+)
 from src.version import __version__
 from src.web.auth import AuthAPI, AuthMiddleware, AuthSocketServer, WebAuth
 from src.web.diagnostics_api import DiagnosticsAPI
@@ -84,7 +88,7 @@ class SettingsUpdate(BaseModel):
     priority_list_only: bool | None = None
     proxy: str | None = None
     connection_quality: int | None = None
-    minimum_refresh_interval_minutes: int | None = None
+    minimum_refresh_interval_minutes: StrictInt | None = None
     discord_webhook_url: str | None = None
     discord_remove_webhook: StrictBool | None = None
     telegram_bot_token: str | None = None
@@ -93,6 +97,11 @@ class SettingsUpdate(BaseModel):
     inventory_list_view: bool | None = None
     mining_benefits: dict[str, bool] | None = None
     mining_hours: dict | None = None
+
+    @field_validator("minimum_refresh_interval_minutes")
+    @classmethod
+    def validate_refresh_interval(cls, value: int | None) -> int | None:
+        return RefreshIntervalSettings.normalize(value) if value is not None else None
 
     @field_validator("mining_hours")
     @classmethod

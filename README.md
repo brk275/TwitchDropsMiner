@@ -34,6 +34,9 @@ services operated for other users are outside its support scope.
 
 Source builds report failed history deletions without clearing the displayed records.
 
+Inventory refresh intervals use whole minutes from 1 to 1,440. Invalid saved
+intervals fall back to the 30-minute default.
+
 The redesigned dashboard's **Now Watching** card offers **Show thumbnail**, off on
 each page load. When enabled, it shows a Twitch JPEG thumbnail, refreshed on channel
 updates at most once per minute. It does not play video or audio. The header adapts to

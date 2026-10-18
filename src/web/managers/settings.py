@@ -8,7 +8,11 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from src.config.settings import InventoryFilterSettings, MiningHoursSettings
+from src.config.settings import (
+    InventoryFilterSettings,
+    MiningHoursSettings,
+    RefreshIntervalSettings,
+)
 from src.i18n.translator import _
 from src.models.game import Game
 from src.services.discord_service import DiscordNotifier
@@ -107,6 +111,14 @@ class SettingsManager:
         Args:
             settings_data: Dictionary of settings to update
         """
+        previous_refresh_interval = getattr(self._settings, "minimum_refresh_interval_minutes", 30)
+        requested_refresh_interval = settings_data.get("minimum_refresh_interval_minutes")
+        if requested_refresh_interval is not None:
+            requested_refresh_interval = RefreshIntervalSettings.normalize(requested_refresh_interval)
+        refresh_interval_changed = (
+            requested_refresh_interval is not None
+            and requested_refresh_interval != previous_refresh_interval
+        )
         previous_hours: dict[str, str] = getattr(self._settings, "mining_hours", {})
         previous_priority_list_only = getattr(self._settings, "priority_list_only", True)
         requested_priority_list_only = settings_data.get("priority_list_only")
@@ -166,10 +178,6 @@ class SettingsManager:
                 True,
                 lambda proxy: self._log_change("Proxy cleared") if proxy == "" else None,
             )
-        should_trigger_update |= self.check_and_update_setting(
-            "minimum_refresh_interval_minutes",
-            settings_data.get("minimum_refresh_interval_minutes"),
-        )
         if "telegram_bot_token" in settings_data:
             new_token = str(settings_data.get("telegram_bot_token") or "").strip()
             if new_token and new_token != TELEGRAM_TOKEN_MASK:
@@ -205,6 +213,8 @@ class SettingsManager:
             self._settings.allow_unlinked_campaigns = requested_allow_unlinked
         if priority_mode_changed and isinstance(requested_priority_list_only, bool):
             self._settings.priority_list_only = requested_priority_list_only
+        if refresh_interval_changed and requested_refresh_interval is not None:
+            self._settings.minimum_refresh_interval_minutes = requested_refresh_interval
         self._settings.discord_webhook_url = new_webhook
         try:
             self._settings.save()
@@ -214,7 +224,12 @@ class SettingsManager:
             self._settings.allow_unlinked_campaigns = previous_allow_unlinked
             self._settings.mining_hours = previous_hours
             self._settings.priority_list_only = previous_priority_list_only
+            self._settings.minimum_refresh_interval_minutes = previous_refresh_interval
             raise
+        if refresh_interval_changed:
+            self._log_change(
+                f"Setting changed: minimum_refresh_interval_minutes = {requested_refresh_interval}"
+            )
         if new_webhook != previous_webhook:
             self._log_change(f"Setting changed: discord_webhook_url = {DISCORD_WEBHOOK_MASK}")
         if override_changed:
