@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
 from enum import Enum
@@ -153,12 +155,26 @@ def json_load(path: Path, defaults: _JSON_T, *, merge: bool = True) -> _JSON_T:
 
 def json_save(path: Path, contents: Mapping[Any, Any], *, sort: bool = False) -> None:
     """
-    Save data to a JSON file with custom serialization.
+    Replace a complete JSON file only after its private sibling is synchronized.
 
     Args:
         path: Path to save JSON file
         contents: Data to serialize
         sort: If True, sort keys alphabetically
     """
-    with open(path, "w", encoding="utf8") as file:
-        json.dump(contents, file, default=_serialize, sort_keys=sort, indent=4)
+    target = path.resolve()
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf8", dir=target.parent,
+            prefix=".tdm-json-", suffix=".tmp", delete=False,
+        ) as file:
+            temporary = Path(file.name)
+            json.dump(contents, file, default=_serialize, sort_keys=sort, indent=4)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(temporary, target)
+        temporary = None
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)

@@ -23,8 +23,14 @@ docker run -d \
 Open [http://localhost:8080](http://localhost:8080). From another computer on your home
 network, use the miner host's LAN address, such as `http://192.168.1.10:8080`.
 
-The data mount keeps settings and login credentials outside the container. The init
-process and shutdown timeout let TDM close its temporary renewal browser when stopped.
+The data mount keeps settings and login credentials outside the container. Settings
+saves atomically replace a complete file, so mount the data directory rather than
+only `settings.json`, and keep its parent directory writable. Temporary and newly
+saved settings files use owner-only permissions on Linux/macOS; Windows files
+inherit the parent directory's ACLs, so keep that directory private.
+
+The init process and shutdown timeout let TDM close its temporary renewal browser
+when stopped.
 Only the dashboard port is needed; do not publish a browser or browser-control port.
 
 The data and log mounts must enforce private Linux directory permissions. If your

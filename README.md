@@ -132,6 +132,11 @@ Keep session data directories private. On Windows, credential files inherit the
 directory's access permissions (ACLs); Unix file-mode numbers do not verify those
 permissions. On Linux/macOS, session files use owner-only permissions.
 
+Settings saves use atomic replacement to avoid partial JSON files after a write
+failure. Keep the data directory writable, not just `settings.json`.
+If an inventory-refresh interval save fails, the previous saved and live interval
+are retained; the dashboard reports the failure so you can retry.
+
 ## Updating Docker
 
 Allow a graceful stop when updating: TDM waits for its watch and maintenance workers

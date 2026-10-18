@@ -322,6 +322,19 @@ lang/                # Translation JSON files (20 languages)
   General autosaves omit this setting so stale requests cannot undo explicit changes.
   Preserve `tests/test_refresh_interval_frontend.py` and the release/cache-key gate
   before deploying changed `app.js` assets.
+- `json_save()` stages complete settings in a unique private sibling, flushes,
+  fsyncs and closes it before atomic replacement. Preserve custom serialization,
+  formatting and existing symlinks by resolving the target first. Pre-publication
+  failures leave the prior file intact and remove the temporary file when possible.
+  New POSIX files are owner-only; Windows ACL privacy depends on the parent directory.
+  Atomic replacement needs a writable parent and must not fall back to in-place writes.
+  This is not general live-settings rollback or a power-loss durability guarantee.
+  Regression coverage: `tests/test_settings_persistence.py`.
+- `tests/test_settings_reliability_integration.py` exercises the production settings
+  HTTP handlers with real settings persistence: interrupted writes, sync/replacement
+  failures, invalid-input preflight, permission failures, redaction and retry. Failed
+  refresh saves must retain the previous disk and live interval without publishing
+  success. This does not make unrelated settings mutations transactional.
 - Drop-name ignore list (`drop_name_blacklist`), empty by default. Entries are literal,
   case-insensitive substrings entered one per line; whitespace and blanks are removed and
   duplicates are casefolded while preserving the first spelling/order.
