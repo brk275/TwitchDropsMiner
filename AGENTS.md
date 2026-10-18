@@ -157,6 +157,14 @@ lang/                # Translation JSON files (20 languages)
 
 - `ChannelService`: Channel management and selection logic
 - `InventoryService`: Campaign and drop inventory operations
+- Inventory and catalog campaign collections accept only lists of objects with unique,
+  nonblank string IDs, or explicit null using the existing empty-list fallback. Reject
+  false/zero/empty strings/objects and malformed or duplicate rows with fixed redacted
+  `GQLException` before detail fan-out, model replacement, GUI clearing or maintenance
+  cancellation. Preserve opaque IDs, inventory precedence and ACTIVE/UPCOMING catalog
+  filtering. This does not validate every envelope/model field, add retry, change auth
+  handling or make GUI replacement transactional. Tests:
+  `tests/test_inventory_campaign_list_admission.py`, using real imported GQL dispatch.
 - `InventoryService.get_active_campaign(channel)` honors an explicit channel even
   when another is currently watched; only an omitted channel uses the watched value.
   Restrict local campaign guesses to `wanted_games`, including enabled runtime

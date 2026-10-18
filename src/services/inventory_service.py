@@ -134,6 +134,22 @@ class InventoryService:
             {key: campaign_ids[key] for key in fetched_data}, fetched_data,
         )
 
+    @staticmethod
+    def _campaigns_by_id(records: Any) -> dict[str, JsonType]:
+        """Admit nullable campaign lists without silently collapsing malformed rows."""
+        if records is None:
+            return {}
+        if not isinstance(records, list):
+            raise GQLException("Invalid campaign list response")
+        campaigns: dict[str, JsonType] = {}
+        for record in records:
+            campaign_id = record.get("id") if isinstance(record, dict) else None
+            if (not isinstance(campaign_id, str) or not campaign_id.strip()
+                    or campaign_id in campaigns):
+                raise GQLException("Invalid campaign list response")
+            campaigns[campaign_id] = record
+        return campaigns
+
     async def fetch_inventory(self) -> None:
         """
         Fetch the complete inventory including campaigns and drops.
@@ -152,23 +168,21 @@ class InventoryService:
         # fetch in-progress campaigns (inventory)
         response = await self._twitch.gql_request(GQL_OPERATIONS["Inventory"])
         inventory: JsonType = response["data"]["currentUser"]["inventory"]
-        ongoing_campaigns: list[JsonType] = inventory["dropCampaignsInProgress"] or []
+        inventory_data = self._campaigns_by_id(inventory["dropCampaignsInProgress"])
 
         # this contains claimed benefit edge IDs, not drop IDs
         claimed_benefits: dict[str, datetime] = {
             b["id"]: isoparse(b["lastAwardedAt"]) for b in inventory["gameEventDrops"]
         }
 
-        inventory_data: dict[str, JsonType] = {c["id"]: c for c in ongoing_campaigns}
-
         # fetch general available campaigns data (campaigns)
         response = await self._twitch.gql_request(GQL_OPERATIONS["Campaigns"])
-        available_list: list[JsonType] = response["data"]["currentUser"]["dropCampaigns"] or []
+        available_by_id = self._campaigns_by_id(response["data"]["currentUser"]["dropCampaigns"])
         applicable_statuses = ("ACTIVE", "UPCOMING")
         available_campaigns: dict[str, JsonType] = {
-            c["id"]: c
-            for c in available_list
-            if c["status"] in applicable_statuses  # that are currently not expired
+            campaign_id: campaign
+            for campaign_id, campaign in available_by_id.items()
+            if campaign["status"] in applicable_statuses  # that are currently not expired
         }
 
         # Keep inventory progress/claim data usable if its details disappear mid-refresh.
