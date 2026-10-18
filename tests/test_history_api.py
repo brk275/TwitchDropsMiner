@@ -34,6 +34,7 @@ class _FakeHistory:
 
     def clear(self):
         self.total_count = 0
+        return True
 
 
 def _fake_client() -> SimpleNamespace:

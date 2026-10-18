@@ -924,3 +924,8 @@ Require UTF-8 encodable text, including benefit names; escaped lone surrogates a
 invalid even when the JSON file itself decodes. Keep valid supplementary Unicode.
 Project only documented history fields, never arbitrary persisted extras. Log fixed
 shape errors or aggregate counts, never persisted values or parser errors.
+`DropHistory.clear()` returns success only after the empty history file is atomically
+replaced. On storage failure restore the previous in-memory records and return false;
+the DELETE endpoint returns a fixed HTTP 503 error so the existing UI retains its data.
+Keep ordinary claim recording best-effort; save failures must not undo successful
+Twitch claims. Save errors must not expose filesystem paths or exception text.
