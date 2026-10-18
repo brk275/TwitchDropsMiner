@@ -258,6 +258,8 @@ class DeadlineCheckpointQueue:
         reader = self._progress_reader
         if reader is None or self._progress_task is not None or not self._executor.has_admitted_calendar(self._twitch):
             return
+        if any(not task.done() for task in self._twitch._deadline_read_tasks):
+            return
         tick = self._executor._tick()
         if self._progress_started_tick is not None and tick - self._progress_started_tick < 120:
             return

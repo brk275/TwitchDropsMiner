@@ -83,6 +83,7 @@ can deliver timer requests to the miner's own state loop; timers never switch ch
 Session renewal retires its calendar and returns to ordinary game priorities.
 Recognized confirmed claims can continue that same calendar after owned checks;
 an opt-in source-only reader can refresh direct reports without replacing models.
+Reads remain serialized while retired queues finish cleanup.
 It rejects changed metadata and superseded responses; normal inventory replacement
 still retires the calendar. It is not constructed by default and has
 no real evidence provider, settings or inventory reentry; automatic rescues remain

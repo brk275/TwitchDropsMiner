@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.services.deadline_queue import DeadlineCheckpointQueue
 from tests.test_deadline_claim_continuation import prepare_claim
 from tests.test_deadline_forecast import NOW
 from tests.test_deadline_queue import runtime as runtime
@@ -289,3 +290,68 @@ async def test_server_claim_during_newer_minute_update_retires_queue_and_request
         assert run.executor._reservation is None
         assert drop.real_current_minutes == 9 and not drop.is_claimed
         assert run.urgent.timed_drops["urgent"].real_current_minutes == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("replace_queue", [False, True])
+async def test_new_generation_waits_for_retiring_read_cleanup(runtime, monkeypatch, replace_queue):
+    async with runtime(refresh_progress=True) as run:
+        entered, cleaning, release, cleaned = (asyncio.Event() for _ in range(4))
+        responses(run, monkeypatch, minutes=0)
+        collect = run.twitch._inventory_service.collect_inventory
+        calls = []
+
+        async def first_read_waits(**kwargs):
+            calls.append(asyncio.current_task())
+            if len(calls) != 1:
+                return await collect(**kwargs)
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cleaning.set()
+                await release.wait()
+                cleaned.set()
+
+        monkeypatch.setattr(run.twitch._inventory_service, "collect_inventory", first_read_waits)
+        await run.reserve()
+        assert (await run.tick(3)).action == "watch"
+        await asyncio.wait_for(entered.wait(), 1)
+        retired = run.queue._progress_task
+        if replace_queue:
+            queue = DeadlineCheckpointQueue(
+                run.twitch, executor=run.executor, utc_clock=run.executor._utc_clock,
+                schedule=run.scheduler, refresh_progress=True,
+            )
+            checkpoint = queue.checkpoint
+
+            def observe():
+                result = checkpoint()
+                run.observed.put_nowait(result)
+                return result
+
+            monkeypatch.setattr(queue, "checkpoint", observe)
+            run.twitch._set_deadline_queue(queue)
+            run.queue = queue
+        else:
+            run.queue.cancel()
+        try:
+            certificate = await run.reserve()
+            await asyncio.wait_for(cleaning.wait(), 1)
+            assert retired in run.twitch._deadline_read_tasks and not retired.done()
+            assert (await run.tick(6)).action == "watch"
+            await asyncio.sleep(0)
+            assert len(calls) == 1, "A new generation overlapped a retiring read"
+            assert run.queue._progress_task is None and run.queue._progress_started_tick is None
+            release.set()
+            await asyncio.gather(retired, return_exceptions=True)
+            assert cleaned.is_set()
+            # Retired completion cannot wake or publish into its replacement.
+            assert run.observed.empty()
+            assert (await run.tick(7)).action == "wait"
+            assert (await run.next()).action == "wait"
+            assert len(calls) == 2 and run.executor._reservation.certificate is certificate
+            assert not run.twitch._deadline_read_tasks
+        finally:
+            release.set()
+            await asyncio.gather(retired, return_exceptions=True)

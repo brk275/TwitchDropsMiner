@@ -1041,6 +1041,10 @@ progress to an ignored drop while the miner intentionally targets another reward
 - Retain read tasks in `Twitch._deadline_read_tasks` even after queue detachment until
   terminal callbacks release them. Drain before auth replacement, run teardown and HTTP
   shutdown; exclude the current task and do not cancel a child again during cleanup.
+  Coalesce reads across queue generations too: no new flight while any registered read
+  is nonterminal, even if the active queue's pointer is empty. Skip without consuming
+  its cadence; retry from the next owned checkpoint after cleanup. Retired completions
+  never wake or publish into replacement work, and channel actions never await cleanup.
   Full inventory-model replacement reentry, settings/UI, automatic activation and live
   acceptance remain OPEN. Offline regressions: `tests/test_inventory_collection.py`,
   `tests/test_inventory_progress.py` and `tests/test_deadline_progress_refresh.py`.
