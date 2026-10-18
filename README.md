@@ -88,6 +88,9 @@ replacement, rather than silently losing a reward.
 Source builds reuse shared acyclic prerequisite work when calculating reward-chain
 minutes, including the remaining totals used to select an active campaign.
 
+Source builds wrap notification and game-selection action buttons onto additional
+rows when space is limited, keeping translated labels visible on narrow screens.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
