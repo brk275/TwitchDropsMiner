@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 from dateutil.parser import isoparse
 
 from src.api import GQLClient
-from src.config import GQL_OPERATIONS
+from src.config import GQL_OPERATIONS, State
 from src.exceptions import ExitRequest, GQLException
 from src.i18n import _
 from src.models import DropsCampaign
@@ -50,6 +50,22 @@ class InventoryService:
             twitch: The Twitch client instance
         """
         self._twitch = twitch
+        self._refresh_token = object()
+        self._refresh_retry: asyncio.TimerHandle | None = None
+
+    def cancel_refresh_retry(self) -> None:
+        """Retire the owned deferred wakeup on refresh, cache clear or shutdown."""
+        if self._refresh_retry is not None:
+            self._refresh_retry.cancel()
+            self._refresh_retry = None
+
+    def _retry_refresh(self) -> None:
+        self._refresh_retry = None
+        self._twitch.request_inventory_refresh()
+
+    def _defer_refresh(self) -> None:
+        if self._refresh_retry is None and self._twitch._state is not State.EXIT:
+            self._refresh_retry = asyncio.get_running_loop().call_later(60, self._retry_refresh)
 
     def _clear_inventory_state(self) -> None:
         """Clear derived campaign and drop state before replacing inventory."""
@@ -61,6 +77,8 @@ class InventoryService:
 
     def clear_cached_state(self) -> None:
         """Clear local derived miner state while preserving credentials and settings."""
+        self.cancel_refresh_retry()
+        self._refresh_token = object()
         logger.info("Clearing local derived campaign and channel state")
 
         self._twitch.stop_watching()
@@ -146,6 +164,9 @@ class InventoryService:
         5. Updates GUI with campaign information
         6. Sets up maintenance triggers for campaign timing changes
         """
+        self.cancel_refresh_retry()
+        token = self._refresh_token = object()
+        previous = tuple((campaign, campaign.progress_revision) for campaign in self._twitch.inventory)
         status_update = self._twitch.gui.status.update
         status_update(_.t["gui"]["status"]["fetching_inventory"])
 
@@ -196,6 +217,15 @@ class InventoryService:
                 task.cancel()
             await asyncio.gather(*fetch_campaigns_tasks, return_exceptions=True)
 
+        if token is not self._refresh_token:
+            return
+        # Do not retire a claim's target or overwrite updates received during the reads.
+        if (len(previous) != len(self._twitch.inventory)
+                or any(current is not old or old.progress_revision != revision or old._pending_claims
+                       for current, (old, revision) in zip(self._twitch.inventory, previous, strict=True))):
+            self._defer_refresh()
+            return
+
         # filter out invalid campaigns
         for campaign_id in list(inventory_data.keys()):
             if inventory_data[campaign_id]["game"] is None:
@@ -241,8 +271,6 @@ class InventoryService:
                     )
                 )
                 # this is needed here explicitly, because cache reads from disk don't raise this
-                from src.config import State
-
                 if self._twitch._state == State.EXIT:
                     raise ExitRequest()
         finally:
@@ -250,6 +278,8 @@ class InventoryService:
                 task.cancel()
             await asyncio.gather(*add_campaign_tasks, return_exceptions=True)
 
+        if token is not self._refresh_token:
+            return
         self._twitch._mnt_triggers.extend(sorted(switch_triggers))
 
         # trim out all triggers that we're already past

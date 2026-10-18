@@ -113,7 +113,7 @@ async def test_inventory_replacement_removes_stale_campaign_lookup_entries():
     twitch = SimpleNamespace(
         _drops={"stale-drop": object()},
         _campaigns={"stale-campaign": object()},
-        inventory=[object()],
+        inventory=[SimpleNamespace(progress_revision=0, _pending_claims=0)],
         _mnt_triggers=deque([datetime.now(timezone.utc)]),
         _mnt_task=None,
         _state=State.IDLE,

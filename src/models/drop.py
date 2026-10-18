@@ -149,6 +149,10 @@ class BaseDrop:
         )
 
     @property
+    def claim_pending(self) -> bool:
+        return self.id in self.campaign._pending_claims
+
+    @property
     def can_claim(self) -> bool:
         # The API guide permits claims up to 14 days after the campaign ends:
         # https://dev.twitch.tv/docs/drops/technical-guide/#can-claims-occur-after-the-campaign-ends
@@ -194,7 +198,14 @@ class BaseDrop:
         return newly_claimed
 
     async def claim(self) -> bool:
-        result = await self._claim()
+        pending = self.campaign._pending_claims
+        pending[self.id] = pending.get(self.id, 0) + 1
+        try:
+            result = await self._claim()
+        finally:
+            pending[self.id] -= 1
+            if not pending[self.id]:
+                del pending[self.id]
         # Commit confirmed state before an optional notification can be cancelled.
         if self._apply_claim_result(result):
             claim_text = (

@@ -11,6 +11,7 @@ import pytest
 
 from src.config import State
 from src.exceptions import MinerException
+from src.models.campaign import DropsCampaign
 from src.services.inventory_service import InventoryService
 from tests.test_cache_clear import _make_cache_test_client
 from tests.test_watch_drop_filtering import _campaign, _drop
@@ -34,6 +35,12 @@ def campaign_data(required):
 
 def refresh_client(required):
     twitch, settings, auth, maintenance = _make_cache_test_client()
+    previous_data = campaign_data(60)
+    previous_data["id"], previous_data["timeBasedDrops"][0]["id"] = "old", "old-drop"
+    previous = DropsCampaign(twitch, previous_data, {})
+    twitch.inventory[:] = [previous]
+    twitch._campaigns = {previous.id: previous}
+    twitch._drops = dict(previous.timed_drops)
     data = campaign_data(required)
     twitch._state = State.INVENTORY_FETCH
     twitch.gui.status = SimpleNamespace(update=MagicMock())

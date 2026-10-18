@@ -392,6 +392,7 @@ class Twitch:
         self.change_state(State.EXIT)
         self._resume_mining.set()
         self._schedule_changed.set()
+        self._inventory_service.cancel_refresh_retry()
         if self._browser is not None:
             self._browser.request_stop()
 
@@ -431,6 +432,7 @@ class Twitch:
                 except aiohttp.ContentTypeError as exc:
                     raise RequestException(_.t["login"]["unexpected_content"]) from exc
         finally:
+            self._inventory_service.cancel_refresh_retry()
             await self._stop_mining_schedule()
             self._channel_service.clear_bans()
             self.diagnostics.stop_logs()
@@ -516,7 +518,7 @@ class Twitch:
                 for campaign in self.inventory:
                     if not campaign.upcoming:
                         for drop in campaign.drops:
-                            if drop.can_claim:
+                            if drop.can_claim and not drop.claim_pending:
                                 await drop.claim()
                 # figure out which games we want based on selected priorities
                 self.wanted_games.clear()

@@ -12,6 +12,7 @@ import pytest
 from src.api import GQLClient
 from src.config import ClientType, State
 from src.exceptions import GQLException
+from src.models.campaign import DropsCampaign
 from src.services.inventory_service import InventoryService
 from tests.test_priority_fallback import _settings
 from tests.test_watch_drop_filtering import _drop
@@ -178,7 +179,7 @@ async def test_incomplete_or_unexpected_batches_are_rejected_with_fixed_error(ki
 async def test_failed_refresh_preserves_previous_live_inventory_and_does_not_publish_partial_result():
     data = campaign_data("new")
     twitch = client(available=[metadata(data)], details=[{"data": {"user": None}}])
-    previous = object()
+    previous = DropsCampaign(twitch, campaign_data("previous"), {})
     twitch.inventory[:] = [previous]
     twitch._campaigns["previous"] = previous
     twitch._drops["previous-drop"] = previous

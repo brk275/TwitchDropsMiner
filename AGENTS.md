@@ -171,6 +171,23 @@ lang/                # Translation JSON files (20 languages)
   Traversal, batch-size and returned-ID failures reject before current model state is
   cleared or published. This is not an atomicity guarantee for later model or GUI errors.
   Tests: `tests/test_unavailable_campaign_details.py` and cancellation/cleanup coverage.
+- `InventoryService.fetch_inventory()` snapshots live campaign identity/revisions before
+  its first read. Refuse installation if any changed or a campaign still has a pending
+  `BaseDrop.claim()` result. Schedule one owned 60-second deferred wakeup through the
+  existing refresh queue, allowing normal policy/selection work between conflicts.
+  Do not transplant observations into replacement models or automatically replay claims.
+  A newer refresh or explicit cache clear retires the older service token, including its
+  later maintenance update. Cancel deferred wakeups on a new refresh, cache clear,
+  authentication cleanup, close and run exit. Mining-hours and queued refresh guards
+  remain authoritative when the wakeup fires. Per-drop claim counts cover the result
+  await, unwind on every
+  exception/cancellation, and release synchronously with settlement before notifications.
+  `GAMES_UPDATE` skips drops with `claim_pending`; explicit callers keep their existing
+  overlap behavior. Do not make the claim's own eligibility check reject its counted call.
+  This protects the publication boundary, not arbitrary retired-model use, backend stale
+  replies without a local transition, or all GUI/filesystem transactionality. Continuous
+  live changes may defer installation again; this is not a 24x7 recovery guarantee.
+  Regression coverage: `tests/test_inventory_refresh_races.py`.
 - `tests/test_deadline_inventory_integration.py` combines unavailable details,
   watch-requirement refusal and local wanted-queue lookup with direct observations,
   stale-poll guards and short-lived experimental contexts. Every refresh attempt

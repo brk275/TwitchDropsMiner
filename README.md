@@ -108,6 +108,9 @@ account-change failures remain distinct.
 
 Source builds require usable, error-free claim confirmations before marking a reward
 claimed. An invalid reply stays unconfirmed; this does not add automatic retries.
+Inventory refreshes superseded by live progress or pending claim results are discarded
+and retried after a minute, rather than replacing those models with an older snapshot
+or blocking normal game selection. Pending claims are not resent by policy updates.
 
 ## Quick start
 
