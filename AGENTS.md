@@ -406,7 +406,10 @@ lang/                # Translation JSON files (20 languages)
 - Message routing to registered callbacks
 - Topic compaction retains ownership of retired shutdown tasks until completion.
   Pool shutdown drains active and retired sockets, including retirements admitted
-  while it waits, before propagating a shutdown failure. Observe retired shutdown
+  while it waits, before propagating a shutdown failure. Shield owned joins from
+  caller cancellation, retain the first cancellation and propagate it only after
+  draining, including repeated cancellation and stops not yet started. Observe
+  retired shutdown
   failures without logging exception payloads. Socket shutdown cancels and drains its
   receive task and callbacks even if close/receive fails, then clears connection
   references and applies requested topic removal. `stop_nowait()` returns its owned

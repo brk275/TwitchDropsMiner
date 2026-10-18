@@ -370,3 +370,109 @@ async def test_background_retirement_failure_is_observed_and_log_omits_payload(r
     finally:
         await asyncio.gather(*retired, return_exceptions=True)
         loop.set_exception_handler(previous)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cancellations", [0, 1, 2])
+async def test_late_claim_retirement_is_drained_before_auth_cleanup_even_on_cancellation(runtime, cancellations):
+    twitch = runtime.twitch
+    entered, draining, release, late_entered, late_draining, late_release = [asyncio.Event() for _ in range(6)]
+    auth_cleared, pending_at_clear = asyncio.Event(), []
+    original_clear = twitch._auth_state.clear
+
+    def clear():
+        pending_at_clear.append(twitch._claim_requests)
+        original_clear()
+        auth_cleared.set()
+
+    twitch._auth_state.clear = clear
+
+    async def anchor(*args):
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            draining.set()
+            await release.wait()
+
+    async def query(operation):
+        late_entered.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            late_draining.set()
+            await late_release.wait()
+
+    twitch.gql_request = AsyncMock(side_effect=query)
+
+    async def claim(*args):
+        await runtime.owner.drop.claim()
+
+    async def change():
+        async with twitch.authentication_change():
+            assert twitch._claim_requests == 0
+
+    _, _, anchor_task = await attach(runtime, anchor)
+    await asyncio.wait_for(entered.wait(), 1)
+    replacement = asyncio.create_task(change())
+    late_task, retired = None, set()
+    observer = asyncio.create_task(auth_cleared.wait())
+    try:
+        await asyncio.wait_for(draining.wait(), 1)
+        _, topic, late_task = await attach(runtime, claim)
+        await asyncio.wait_for(late_entered.wait(), 1)
+        retired = retire(runtime.pool, topic)
+        await asyncio.wait_for(late_draining.wait(), 1)
+        assert twitch._claim_requests == 1 and runtime.owner.drop.claim_pending
+        for _ in range(cancellations):
+            replacement.cancel()
+            await asyncio.sleep(0)
+        release.set()
+        await asyncio.wait({observer}, timeout=0.02)
+        assert not auth_cleared.is_set() and not replacement.done()
+        assert twitch._auth_state.user_id == 42 and not late_task.done()
+        late_release.set()
+        result, = await asyncio.gather(replacement, return_exceptions=True)
+        assert isinstance(result, asyncio.CancelledError) if cancellations else result is None
+        assert pending_at_clear == [0] and late_task.cancelled()
+        assert twitch._claim_requests == 0 and not runtime.owner.drop.claim_pending
+        assert twitch.drop_history.total_count == 0 and not runtime.owner.drop.is_claimed
+        twitch.gql_request.assert_awaited_once()
+    finally:
+        release.set()
+        late_release.set()
+        observer.cancel()
+        anchor_task.cancel()
+        if late_task is not None:
+            late_task.cancel()
+        await asyncio.gather(anchor_task, *([late_task] if late_task else []),
+                             replacement, observer, *retired, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_pool_cancellation_before_stop_children_start_still_drains_them(runtime):
+    entered, draining, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+    async def callback(*args):
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            draining.set()
+            await release.wait()
+
+    _, _, callback_task = await attach(runtime, callback)
+    await asyncio.wait_for(entered.wait(), 1)
+    stop = asyncio.create_task(runtime.pool.stop())
+    asyncio.get_running_loop().call_soon(stop.cancel)
+    try:
+        await asyncio.wait_for(draining.wait(), 1)
+        assert not stop.done()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(stop, 1)
+        assert callback_task.cancelled()
+    finally:
+        release.set()
+        callback_task.cancel()
+        await asyncio.gather(callback_task, stop, return_exceptions=True)

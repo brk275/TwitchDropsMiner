@@ -124,6 +124,7 @@ claim-ready IDs are ignored without discarding a known ID or sending a claim req
 An unusable post-claim progress check no longer prevents the normal watch restart or
 inventory refresh. These advisory reads time out after five seconds; claims are not resent.
 Account changes also wait for callbacks from websockets removed during topic cleanup.
+Cancellation is propagated after owned socket shutdowns have drained.
 Socket shutdown errors no longer bypass cancellation of owned callbacks.
 
 ## Quick start
