@@ -1,6 +1,7 @@
 """Owned state-loop delivery with synthetic clocks/premises and no Twitch transport."""
 
 import asyncio
+import copy
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock
@@ -413,7 +414,7 @@ async def test_timer_does_not_wake_replacement_context(runtime, change):
         twitch._run_task = owner
 
 
-@pytest.mark.parametrize("operation", ["games", "inventory", "cache", "claim"])
+@pytest.mark.parametrize("operation", ["games", "inventory", "cache", "foreign_claim"])
 @pytest.mark.asyncio
 async def test_public_policy_refresh_and_claim_requests_immediately_retire_calendar(runtime, operation):
     async with runtime() as run:
@@ -422,8 +423,8 @@ async def test_public_policy_refresh_and_claim_requests_immediately_retire_calen
         old = run.scheduler.latest
         if operation == "games":
             run.twitch.request_games_update()
-        elif operation == "claim":
-            assert run.urgent.timed_drops["urgent"]._apply_claim_result(True)
+        elif operation == "foreign_claim":
+            assert copy.copy(run.urgent.timed_drops["urgent"])._apply_claim_result(True)
         else:
             Twitch.request_inventory_refresh(run.twitch, clear_cache=operation == "cache")
         assert old.cancelled and run.executor._reservation is None

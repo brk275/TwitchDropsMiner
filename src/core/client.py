@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from src.config import ClientInfo, GQLRequest, JsonType
     from src.config.settings import Settings
     from src.models.channel import Stream
-    from src.models.drop import TimedDrop
+    from src.models.drop import BaseDrop, TimedDrop
     from src.models.game import Game
     from src.services.deadline_queue import DeadlineCheckpointQueue
     from src.web.gui_manager import WebGUIManager
@@ -72,6 +72,7 @@ class Twitch:
         self._deadline_queue: DeadlineCheckpointQueue | None = None
         self._state_change = asyncio.Event()
         self._games_update_pending = False
+        self._deadline_claim_update_pending = False
         self._inventory_loaded = False
         self._inventory_refresh_pending = False
         self._clear_cache_pending = False
@@ -197,6 +198,7 @@ class Twitch:
             self.diagnostics.clear()
             self._inventory_service.clear_cached_state()
             self._inventory_loaded = False
+            self._deadline_claim_update_pending = False
             if self._state is not State.EXIT:
                 self._state = State.IDLE
             self._changing_auth = False
@@ -324,13 +326,29 @@ class Twitch:
         if self._state is State.EXIT:
             return False
         self.invalidate_deadline_context()
+        self._deadline_claim_update_pending = False
         self._games_update_pending = True
         self._schedule_changed.set()
         self._state_change.set()
         return True
 
+    def defer_deadline_claim(self, drop: BaseDrop) -> bool:
+        queue = getattr(self, "_deadline_queue", None)
+        if self._state is State.EXIT or queue is None or queue.request_claim(drop) is not True:
+            return False
+        self._deadline_claim_update_pending = True
+        return True
+
+    def owns_deadline_claim_followup(self, drop: BaseDrop) -> bool:
+        queue = getattr(self, "_deadline_queue", None)
+        return queue is not None and queue.owns_claim_followup(drop) is True
+
     def _activate_pending_games_update(self) -> None:
         """Prioritize a queued settings recalculation before the next wait."""
+        if getattr(self, "_deadline_claim_update_pending", False):
+            queue = getattr(self, "_deadline_queue", None)
+            if queue is None or queue.holds_claim_update() is not True:
+                self.request_games_update()
         if (
             self._games_update_pending
             and self.is_mining_time()
@@ -424,6 +442,7 @@ class Twitch:
         Called when the application is requested to close by the user,
         usually by the console or application window being closed.
         """
+        self._deadline_claim_update_pending = False
         self.change_state(State.EXIT)
         self._resume_mining.set()
         self._schedule_changed.set()

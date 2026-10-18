@@ -265,6 +265,10 @@ lang/                # Translation JSON files (20 languages)
   records first-transition history, and publishes inventory in that hook. Preserve
   cancellation propagation, failure/repeat behavior and one-time effects for overlapping
   confirmations; do not postpone persistence until optional notifications finish.
+  Synchronous policy/queue-hook failures must also preserve confirmed timed state and
+  first-transition history through finally cleanup. Unaccepted or interrupted deferral
+  still requests the ordinary games update before propagating the failure; do not
+  silently hide it, retry alerts or promise persistence after a filesystem error.
   Regression coverage: `tests/test_claim_state_order.py`. This does not add notification
   retries or guarantee persistence after a filesystem failure.
   Keep the campaign progress revision increment in the same synchronous transition:
@@ -352,6 +356,8 @@ lang/                # Translation JSON files (20 languages)
 - Successful unclaimed-to-claimed transitions request a queued games update so
   claiming the last wanted reward also releases campaigns with unwanted rewards
   remaining. Failed or repeated claims must not enqueue duplicate updates.
+  Only an explicitly attached experimental calendar may defer a recognized confirmed
+  claim's update until that same calendar completes or retires, as described below.
 - `tests/test_priority_fallback.py` and `tests/test_priority_fallback_frontend.py`
   cover both modes and their boundaries.
 - Games can also be added manually from the web settings search box. Exact and
@@ -927,7 +933,7 @@ progress to an ignored drop while the miner intentionally targets another reward
   wait for a lagging clock but never rewrite the original certificate's slots.
   Share monotonic high-water validation across executor and delegated guard reads;
   capture cannot reset the entry baseline or hide a transient reversal that recovers.
-  This does not integrate refresh/claim reentry, prove transport readiness or future
+  This does not integrate inventory replacement reentry, prove transport readiness or future
   bounds, enable automatic rescues or complete runtime/browser acceptance. Keep those
   requirements open. Tests: `tests/test_deadline_execution.py`.
 - `DeadlineCheckpointQueue` optionally delivers executor checkpoints inside the actual
@@ -956,11 +962,28 @@ progress to an ignored drop while the miner intentionally targets another reward
   Preserve GUI selection until ordinary policy consumes it, and skip ordinary automatic
   selection while a valid booked calendar handles the checkpoint, including idle gaps.
   Refusal/completion/cancellation returns to ordinary policy, never automatic rebasing.
-  Public claims/refresh cancel; safe claim/inventory reentry is still OPEN, not delivered
-  by synthetic claim flags in tests. Persisted controls, trusted premises, translated
-  rescue status and full runtime/browser acceptance also remain required. Tests use the
+  Unrecognized claims and inventory refreshes cancel. Persisted controls, trusted
+  premises, translated rescue status and full runtime/browser acceptance remain required. Tests use the
   real public run wrapper and child loop with fake transport and explicit hypothetical
   bounds in `tests/test_deadline_queue.py`; no live progress or deployment is established.
+- Confirmed claims on an admitted calendar can request continuation, not a new plan.
+  `BaseDrop` offers deferral only after a real successful local transition; the sender
+  performs no capture, proof, watch or stop. Recognize original indexed models and
+  certificate completion IDs, never a same-ID replacement or an unadmitted proposal.
+  The owned queue consumes bounded claim tuples with fresh context and original
+  UTC/monotonic settlement bounds; charge claim validation against those budgets too.
+  Keep the same certificate, original baseline/capture origin and every protected or
+  booked idle interval. Claim-normalized counters do not create direct observations.
+  `owns_deadline_claim_followup` skips legacy websocket restart/refresh only for that
+  current generation/model's queued or handled claim, not a generic success boolean.
+  `_deadline_claim_update_pending` retains ordinary policy work while a valid calendar
+  owns it. Completion/refusal/cancellation replays `request_games_update` before waiting;
+  generic policy/manual/refresh/renewal still cancels, and close/account replacement
+  discards old deferred work. Clear private claim bindings on every retirement.
+  No default construction or activation. Full inventory-model replacement recovery,
+  real future evidence, controls/status/UI and live/browser acceptance remain OPEN.
+  `tests/test_deadline_claim_continuation.py` exercises public claim/websocket paths
+  with fake GraphQL and controlled clocks, not actual Twitch credit or settlement.
 
 ### GraphQL Operations
 

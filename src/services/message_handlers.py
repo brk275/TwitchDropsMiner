@@ -209,6 +209,8 @@ class MessageHandlerService:
             drop.update_claim(message["data"]["drop_instance_id"])
             campaign = drop.campaign
             await drop.claim()
+            if self._twitch.owns_deadline_claim_followup(drop) is True:
+                return
             drop.display()
 
             # About 4-20s after claiming the drop, next drop can be started

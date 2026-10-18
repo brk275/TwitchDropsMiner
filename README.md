@@ -77,8 +77,10 @@ A source-only executor can follow those fixed slots with explicit future assumpt
 funded handoff allowances and fresh checkpoint checks. An optional source-only queue
 can deliver timer requests to the miner's own state loop; timers never switch channels.
 Session renewal retires its calendar and returns to ordinary game priorities.
-It is not constructed by default and has no real evidence provider, settings or claim
-reentry; automatic rescues remain unavailable.
+Recognized confirmed claims can continue that same calendar after owned checks;
+other inventory refreshes still retire it. It is not constructed by default and has
+no real evidence provider, settings or inventory reentry; automatic rescues remain
+unavailable.
 
 Source builds skip unavailable campaign details without creating empty campaigns.
 Known inventory data keeps priority over available catalog metadata. Missing campaigns
@@ -95,7 +97,8 @@ deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
 
 Source builds save confirmed claim history before waiting on dashboard or notification
-delivery. Interrupted alerts are not retried automatically.
+delivery, including when synchronous mining-policy delivery fails. Errors still
+propagate, and interrupted alerts are not retried automatically.
 
 Source builds show local counters separately from the last Twitch progress report.
 Its receipt time is local to the miner, not proof of ongoing mining or a claimed reward.

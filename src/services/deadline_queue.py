@@ -16,6 +16,7 @@ from src.services.deadline_inputs import _utc
 
 if TYPE_CHECKING:
     from src.core.client import Twitch
+    from src.models.drop import BaseDrop
 
 
 class _ScheduledCall(Protocol):
@@ -51,8 +52,9 @@ class DeadlineCheckpointQueue:
     Timer callbacks only set the state event. Generation, runner and account checks
     prevent retired callbacks from waking replacement work. Every ordinary context
     invalidation cancels the request/calendar; only the executor's own synchronous
-    watch/stop in its owned checkpoint may keep it alive. Claim/refresh reentry is
-    deliberately not implemented. Never auto-rebase an interrupted certificate.
+    watch/stop in its owned checkpoint may keep it alive. Recognized confirmed claims
+    request owned revalidation on the original calendar. Full inventory replacement
+    reentry is not implemented. Never auto-rebase an interrupted certificate.
     Injected schedulers, like call_later, must defer callbacks on this event loop.
     """
 
@@ -76,6 +78,8 @@ class DeadlineCheckpointQueue:
         self._active = False
         self._due = False
         self._zone: str | timezone | None = None
+        self._pending_claims: dict[str, BaseDrop] = {}
+        self._handled_claims: dict[str, BaseDrop] = {}
 
     def belongs_to(self, twitch: Twitch) -> bool:
         return self._twitch is twitch
@@ -90,6 +94,8 @@ class DeadlineCheckpointQueue:
         self._active = False
         self._due = False
         self._zone = None
+        self._pending_claims.clear()
+        self._handled_claims.clear()
         self._executor.cancel()
         if notify:
             self._twitch._state_change.set()
@@ -129,6 +135,24 @@ class DeadlineCheckpointQueue:
         self._pending = _Request(provider, horizon, local_timezone, decision_delay, dispatch_allowance)
         twitch._state_change.set()
         return True
+
+    def request_claim(self, drop: BaseDrop) -> bool:
+        if (self._execution_generation is not None or not self._active or self._scope is None
+                or not self._current_scope(self._scope)
+                or not self._executor.recognizes_claim(self._twitch, drop)):
+            return False
+        self._pending_claims[drop.id] = drop
+        self._due = True
+        self._twitch._state_change.set()
+        return True
+
+    def owns_claim_followup(self, drop: BaseDrop) -> bool:
+        return (self._active and self._scope is not None and self._current_scope(self._scope)
+                and (self._pending_claims.get(drop.id) is drop or self._handled_claims.get(drop.id) is drop)
+                and self._executor.recognizes_claim(self._twitch, drop))
+
+    def holds_claim_update(self) -> bool:
+        return bool(self._pending_claims or self._handled_claims) and self.active_checkpoint()
 
     def allows_invalidation(self, action: Literal["watch", "stop"] | None) -> bool:
         if action not in ("watch", "stop") or self._execution_generation is not self._generation:
@@ -170,7 +194,8 @@ class DeadlineCheckpointQueue:
                     dispatch_allowance=pending.dispatch_allowance,
                 )
             else:
-                step = self._executor.advance(self._twitch, enabled=True, local_timezone=self._zone)
+                step = self._executor.advance(self._twitch, enabled=True, local_timezone=self._zone,
+                                              confirmed_claims=tuple(self._pending_claims.values()))
             if generation is not self._generation:
                 return None
             if step.action in ("refused", "complete") or step.wake_at is None:
@@ -181,6 +206,8 @@ class DeadlineCheckpointQueue:
             if not self._current_scope(self._scope):
                 self.cancel()
                 return None
+            self._handled_claims.update(self._pending_claims)
+            self._pending_claims.clear()
             self._arm(step.wake_at)
             return step
         except BaseException:

@@ -190,7 +190,12 @@ class BaseDrop:
             self.campaign.progress_revision += 1
             # A mixed campaign can still earn unwanted rewards after its last
             # wanted claim. Rebuild policy so fallback can take over promptly.
-            self._twitch.request_games_update()
+            deferred = False
+            try:
+                deferred = self._twitch.defer_deadline_claim(self)
+            finally:
+                if deferred is not True:
+                    self._twitch.request_games_update()
         return newly_claimed
 
     async def claim(self) -> bool:
@@ -420,14 +425,17 @@ class TimedDrop(BaseDrop):
         return False
 
     def _apply_claim_result(self, result: bool) -> bool:
-        newly_claimed = super()._apply_claim_result(result)
-        if result:
-            self.real_current_minutes = self.required_minutes
-            self.extra_current_minutes = 0
-            if newly_claimed:
-                self._twitch.drop_history.record(self, self.campaign)
-        self._on_state_changed()
-        return newly_claimed
+        was_claimed = self.is_claimed
+        try:
+            return super()._apply_claim_result(result)
+        finally:
+            # Confirmed state survives synchronous policy/queue failures too.
+            if result and self.is_claimed:
+                self.real_current_minutes = self.required_minutes
+                self.extra_current_minutes = 0
+                if not was_claimed:
+                    self._twitch.drop_history.record(self, self.campaign)
+            self._on_state_changed()
 
     def display(self, *, countdown: bool = True, subone: bool = False) -> None:
         """Display this drop in the GUI with progress information."""

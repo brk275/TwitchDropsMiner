@@ -19,6 +19,7 @@ from src.services.deadline_planner import ConditionalDeadlinePlanner, PlanningAs
 
 if TYPE_CHECKING:
     from src.core.client import Twitch
+    from src.models.drop import BaseDrop
 
 
 PlanningProvider = Callable[[BoundDeadlineInputs], PlanningAssumptions | None]
@@ -228,14 +229,35 @@ class DeadlineCalendarExecutor:
                    and timedelta(0) <= now - drop.observed_at <= self._planner.max_observation_age
                    for drop in bound.inputs.drops)
 
+    def recognizes_claim(self, twitch: Twitch, drop: BaseDrop) -> bool:
+        """Recognize an intent's indexed original model, without capturing or acting."""
+        saved = self._reservation
+        if saved is None or saved.twitch is not twitch or not saved.admitted:
+            return False
+        try:
+            campaign = drop.campaign
+            if (drop.is_claimed is not True or drop._twitch is not twitch or campaign._twitch is not twitch
+                    or twitch._drops.get(drop.id) is not drop
+                    or twitch._campaigns.get(campaign.id) is not campaign
+                    or not any(item is drop for item in saved.objects)
+                    or not any(item is campaign for item in saved.objects)):
+                return False
+            key = DeadlineInputAdapter._key(campaign.id, drop.id)
+            return any(item.drop_id == key for item in saved.certificate.completions)
+        except (AttributeError, KeyError, TypeError, ValueError):
+            return False
+
     def advance(self, twitch: Twitch, *, enabled: bool = False,
-                local_timezone: str | timezone | None = None) -> CalendarStep:
+                local_timezone: str | timezone | None = None,
+                confirmed_claims: tuple[BaseDrop, ...] = ()) -> CalendarStep:
         if enabled is not True:
             return self._refuse("disabled")
         saved = self._reservation
         if saved is None or saved.twitch is not twitch:
             return self._refuse("superseded")
         try:
+            if type(confirmed_claims) is not tuple or len(confirmed_claims) > 256:
+                return self._refuse("invalid_context")
             now, tick = self._time()
             if not self._consistent(saved, now, tick):
                 return self._refuse("clock_changed")
@@ -264,6 +286,16 @@ class DeadlineCalendarExecutor:
             next_required = next((item for item in remaining_connections
                                   if models[item.drop_id].is_claimed is not True), None)
             latest = None if next_required is None else next_required.connect_at + saved.allowance
+            claimed_ids: set[str] = set()
+            for claimed in confirmed_claims:
+                if not self.recognizes_claim(twitch, claimed):
+                    return self._refuse("superseded")
+                key = DeadlineInputAdapter._key(claimed.campaign.id, claimed.id)
+                if key in claimed_ids:
+                    return self._refuse("invalid_context")
+                claimed_ids.add(key)
+                completion = next(item for item in certificate.completions if item.drop_id == key)
+                latest = completion.claim_ready_at if latest is None else min(latest, completion.claim_ready_at)
             checked = self._check(saved, bound, twitch, local_timezone, latest=latest)
             if checked is not None:
                 return self._refuse(checked)

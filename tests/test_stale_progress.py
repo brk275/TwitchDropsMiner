@@ -62,6 +62,7 @@ def mining_state():
         is_mining_time=lambda: True,
         watching_channel=selected,
         request_games_update=MagicMock(),
+        defer_deadline_claim=MagicMock(return_value=False),
         print=MagicMock(),
         drop_history=MagicMock(),
     )
