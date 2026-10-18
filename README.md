@@ -43,9 +43,12 @@ Inventory supports **All / Linked / Not Linked** account-link filters. Settings 
 default-off option to mine campaigns reported as Not Linked; read its warning and
 check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-override).
 
-Source builds choose local campaign guesses from the runtime wanted queue and update
-every eligible reward's fallback estimate before requesting a channel switch at the
-estimate limit. These estimates are not Twitch-confirmed progress.
+Source builds poll progress about once a minute while successfully watching and ignore
+replies superseded by newer observations or inventory reloads. Fresh eligible readings
+replace fallback estimates even after the local estimate limit. Other eligibility
+checks and the estimate cap remain. Local campaign guesses use the runtime wanted queue;
+estimates update every eligible reward before testing the limit and are not
+Twitch-confirmed progress.
 
 Source builds reuse shared prerequisite branches when evaluating which drops to mine,
 avoiding repeated work in campaigns with complex reward dependencies.

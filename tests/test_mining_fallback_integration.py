@@ -7,8 +7,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.config import MAX_EXTRA_MINUTES, State
+from src.exceptions import GQLException
 from src.models.channel import Channel
 from src.services.inventory_service import InventoryService
+from src.services.message_handlers import MessageHandlerService
 from src.services.watch_service import WatchService
 from src.utils.async_helpers import AwaitableValue
 from tests.test_drop_ignore_policy import _drop
@@ -110,3 +112,67 @@ def test_policy_and_expiry_changes_do_not_fall_back_to_an_unwanted_campaign(mini
     assert unwanted.can_earn(current)
     assert client._inventory_service.get_active_campaign(current) is None
     assert client.wanted_games == [wanted.game]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response", ["fresh", "stale", "null", "error", "timeout"])
+@pytest.mark.parametrize("observed", [0, 10, 11])
+async def test_entire_estimate_batch_recovers_without_accepting_an_old_poll(
+    mining_pair, monkeypatch, response, observed,
+):
+    client, wanted, unwanted, current = mining_pair
+    capped = [wanted.timed_drops[key] for key in ("base", "parallel")]
+    for drop in capped:
+        drop.real_current_minutes = 10
+        drop.extra_current_minutes = MAX_EXTRA_MINUTES - 1
+    wanted.bump_minutes(current)
+    assert all(drop.extra_current_minutes == MAX_EXTRA_MINUTES for drop in capped)
+    assert not wanted.can_earn(current)
+    assert client._inventory_service.get_active_campaign(current) is None
+    assert unwanted.can_earn(current)
+    client.change_state.reset_mock()
+    revision = wanted.progress_revision
+
+    async def progress_query(operation):
+        if response != "fresh":
+            await MessageHandlerService(client).process_drops(1, {
+                "type": "drop-progress", "data": {
+                    "drop_id": "parallel", "current_progress_min": observed,
+                    "required_progress_min": 200,
+                },
+            })
+        if response == "error":
+            raise GQLException("controlled query failure")
+        if response == "timeout":
+            raise TimeoutError
+        session = None if response == "null" else {
+            "dropID": "parallel", "currentMinutesWatched": observed if response == "fresh" else 9,
+        }
+        return {"data": {"currentUser": {"dropCurrentSession": session}}}
+
+    client.gql_request = AsyncMock(side_effect=progress_query)
+    client.gui.progress.minute_almost_done.return_value = False
+    monkeypatch.setattr(Channel, "send_watch", AsyncMock(side_effect=[True, asyncio.CancelledError()]))
+    clock = [0]
+    monkeypatch.setattr("src.services.watch_service.monotonic", lambda: clock[0])
+    watcher = WatchService(client)
+
+    async def sleep_once(delay):
+        clock[0] = 20
+
+    watcher.watch_sleep = sleep_once
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(watcher.watch_loop(), 1)
+
+    client.gql_request.assert_awaited_once()
+    assert [(drop.real_current_minutes, drop.extra_current_minutes) for drop in capped] == [
+        (observed, 0), (observed, 0),
+    ]
+    assert wanted.progress_revision > revision
+    assert wanted.can_earn(current)
+    assert client._inventory_service.get_active_campaign(current) is wanted
+    assert all(wanted.timed_drops[key].real_current_minutes == 0 for key in ("left", "right"))
+    assert unwanted.timed_drops["other"].current_minutes == 0
+    client.request_games_update.assert_called_once_with()
+    client.change_state.assert_not_called()
+    client.drop_history.record.assert_not_called()
