@@ -44,8 +44,8 @@ def test_inventory_records_direct_minutes_including_zero(minutes):
     }
 
 
-@pytest.mark.parametrize("minutes", [MISSING, None, True, False, "7", -1, 61, 1.5])
-def test_missing_or_invalid_inventory_reading_is_unknown_not_confirmed_zero(minutes):
+@pytest.mark.parametrize("minutes", [MISSING, None, 61])
+def test_missing_or_out_of_bounds_inventory_reading_is_unknown_not_confirmed_zero(minutes):
     drop = make_campaign(minutes).timed_drops["drop"]
 
     assert drop.observed_minutes is None

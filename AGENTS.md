@@ -265,6 +265,16 @@ lang/                # Translation JSON files (20 languages)
   inventory/index/GUI state at this failure boundary. Preserve valid claim/progress
   normalization and estimate semantics. This is not general model/GUI transactionality
   or automatic retry/auth recovery. Tests: `tests/test_drop_watch_requirements.py`.
+- Validate non-null inventory `self.currentMinutesWatched` before base construction:
+  only a plain nonnegative integer is admitted. Reject booleans, floats, strings,
+  containers, integer subclasses and negatives with a fixed `MinerException`, not
+  coercion or a zero fallback. This refuses replacement before old model/index/GUI
+  state is cleared. Missing/null remains unknown with the existing local zero default;
+  nonnegative integers above the requirement retain legacy counter behavior but do
+  not become direct observations. Preserve claimed-counter normalization without
+  manufacturing a reading. Malformed self-node/claim-field parsing, later GUI errors
+  and automatic retry/shutdown recovery are not covered by this guard. Regressions:
+  `tests/test_inventory_progress_types.py`, using the real inventory serializer.
 - `TimedDrop.update_minutes()` accepts only a plain integer before arithmetic or
   state changes. Ignore booleans, floats (including NaN/infinity), strings,
   containers and integer subclasses without coercion, counter/estimate mutation

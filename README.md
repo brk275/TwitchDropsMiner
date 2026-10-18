@@ -118,6 +118,7 @@ Outstanding claim results also delay inventory rebuilding after a cache clear.
 The dashboard shows local counters separately from the last Twitch progress report.
 Its receipt time is local to the miner, not proof of ongoing mining or a claimed reward.
 Estimated remaining time changes with miner updates, not a browser-only countdown.
+Malformed inventory minute values are rejected before replacing the current inventory.
 
 ## Quick start
 
