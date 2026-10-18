@@ -116,7 +116,7 @@ class Websocket:
         if self._handle_task is None or self._handle_task.done():
             self._handle_task = asyncio.create_task(self._handle())
 
-    async def stop(self, *, remove: bool = False):
+    async def stop(self, *, remove: bool = False) -> None:
         """
         Stop the websocket connection.
 
@@ -125,32 +125,41 @@ class Websocket:
         """
         async with self._state_lock:
             self._closed.set()
-            ws = self._ws.get_with_default(None)
-            if ws is not None:
-                self.set_status(_.t["gui"]["websocket"]["disconnecting"])
-                await ws.close()
-            if self._handle_task is not None:
-                with suppress(asyncio.TimeoutError, asyncio.CancelledError):
-                    await asyncio.wait_for(self._handle_task, timeout=2)
-                self._handle_task = None
-            callbacks = tuple(self._callback_tasks)
-            for task in callbacks:
-                task.cancel()
-            await asyncio.gather(*callbacks, return_exceptions=True)
-            if remove:
-                self.topics.clear()
-                self._topics_changed.set()
-                # TODO: WebsocketStatusManager doesn't have a remove() method yet
-                # self._twitch.gui.websockets.remove(self._idx)
+            try:
+                ws = self._ws.get_with_default(None)
+                if ws is not None:
+                    self.set_status(_.t["gui"]["websocket"]["disconnecting"])
+                    await ws.close()
+                if self._handle_task is not None:
+                    with suppress(asyncio.TimeoutError, asyncio.CancelledError):
+                        await asyncio.wait_for(self._handle_task, timeout=2)
+            finally:
+                # Close failures must not leave authenticated callbacks running.
+                tasks = tuple(self._callback_tasks)
+                if self._handle_task is not None:
+                    tasks += (self._handle_task,)
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                try:
+                    await asyncio.gather(*tasks, return_exceptions=True)
+                finally:
+                    self._handle_task = None
+                    self._ws.clear()
+                    if remove:
+                        self.topics.clear()
+                        self._topics_changed.set()
+                        # TODO: WebsocketStatusManager doesn't have a remove() method yet
+                        # self._twitch.gui.websockets.remove(self._idx)
 
-    def stop_nowait(self, *, remove: bool = False):
+    def stop_nowait(self, *, remove: bool = False) -> asyncio.Task[None]:
         """
         Stop the websocket connection without waiting.
 
         Args:
             remove: If True, clear topics and remove from GUI
         """
-        asyncio.create_task(self.stop(remove=remove))
+        return asyncio.create_task(self.stop(remove=remove))
 
     async def _backoff_connect(self, ws_url: str, **kwargs):
         """
