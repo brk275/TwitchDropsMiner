@@ -76,6 +76,9 @@ Source builds skip unavailable campaign details without creating empty campaigns
 Known inventory data keeps priority over available catalog metadata. Missing campaigns
 are tried again on the next refresh; malformed detail batches still reject the refresh.
 
+Source builds reject invalid watch-time requirements before replacing inventory.
+Zero remains a valid non-watch requirement; invalid values are not converted to zero.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
