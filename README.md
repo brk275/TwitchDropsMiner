@@ -47,6 +47,9 @@ Source builds choose local campaign guesses from the runtime wanted queue and up
 every eligible reward's fallback estimate before requesting a channel switch at the
 estimate limit. These estimates are not Twitch-confirmed progress.
 
+Source builds reuse shared prerequisite branches when evaluating which drops to mine,
+avoiding repeated work in campaigns with complex reward dependencies.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).

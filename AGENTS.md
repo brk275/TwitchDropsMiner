@@ -374,6 +374,13 @@ skipped, while shared prerequisites required by an allowed reward remain mineabl
 and skipped drops are never counted as claimed. Twitch can still award simultaneous
 progress to an ignored drop while the miner intentionally targets another reward.
 
+`DropIgnorePolicy.evaluate()` reuses immutable prerequisite branch results only within
+one evaluation, avoiding repeated expansion of shared dependency graphs. Preserve
+cycle, missing-parent, non-watch and ignore behavior. Claimed prerequisites short-circuit
+before cycle checks. Never mutate cached branch sets or retain them across evaluations;
+claim and policy changes must be reflected on the next call. Regression coverage in
+`tests/test_drop_ignore_policy.py` includes dense fan-in and changes between calls.
+
 ### State Machine Flow
 
 1. **IDLE** - Waiting for campaigns or user action
@@ -555,6 +562,9 @@ progress to an ignored drop while the miner intentionally targets another reward
   generator leaves later rewards unchanged. Preserve eligibility and the estimate cap,
   request at most one channel switch per batch, and display only after the batch.
   Regression coverage: `tests/test_campaign_estimates.py`.
+  `tests/test_mining_fallback_integration.py` exercises the actual watch loop with
+  selected/unselected campaigns, shared prerequisites and estimate-limit handoff;
+  authoritative readings must remain distinct from fallback estimates.
   Playlist/transport, lifecycle, and controlled-clock regressions live in
   `tests/test_playlist_watch.py`, `tests/test_watch_transport.py`, and
   `tests/test_watch_poll_cadence.py`.
