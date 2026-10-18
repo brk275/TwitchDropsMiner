@@ -148,6 +148,14 @@ lang/                # Translation JSON files (20 languages)
 
 - `ChannelService`: Channel management and selection logic
 - `InventoryService`: Campaign and drop inventory operations
+- `InventoryService.get_active_campaign(channel)` honors an explicit channel even
+  when another is currently watched; only an omitted channel uses the watched value.
+  Restrict local campaign guesses to `wanted_games`, including enabled runtime
+  fallback games, then preserve shortest remaining time and real earning/ACL gates.
+  Special Events/IRL must not win a local estimate when outside that queue. This is
+  not proof of Twitch allocation and must not suppress authoritative observations
+  for other campaigns. Keep lookup free of selection/settings/progress mutation.
+  Regressions: `tests/test_active_campaign_selection.py`.
 - `WatchService`: Drop mining watch payload logic
 - `MaintenanceService`: Periodic maintenance tasks
 - `MessageHandlerService`: Websocket message routing and handling

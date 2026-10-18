@@ -69,6 +69,9 @@ future channel availability and claim timing still require explicit assumptions.
 Optional captures include current channel eligibility and priorities, not future uptime,
 transport readiness or evidence that all eligible drops receive credit together.
 
+Source builds choose local campaign guesses from the runtime wanted queue. These
+fallback estimates are not Twitch-confirmed progress.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).

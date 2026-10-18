@@ -245,9 +245,9 @@ class InventoryService:
         """
         Determine the active campaign for a given channel (or watching channel).
 
-        Returns the campaign with the least remaining minutes that can be earned
-        on the specified channel. This is used to determine which drop is actively
-        being progressed.
+        Returns the wanted campaign with the least remaining minutes that can be
+        earned on the specified channel. An explicit channel takes precedence over
+        the watched channel. This is a local guess, not confirmed Twitch allocation.
 
         Args:
             channel: The channel to check (defaults to watching channel)
@@ -258,14 +258,14 @@ class InventoryService:
         if not self._twitch.wanted_games:
             return None
 
-        watching_channel = self._twitch.watching_channel.get_with_default(channel)
+        watching_channel = channel if channel is not None else self._twitch.watching_channel.get_with_default(None)
         if watching_channel is None:
             # if we aren't watching anything, we can't earn any drops
             return None
 
         campaigns: list[DropsCampaign] = []
         for campaign in self._twitch.inventory:
-            if campaign.can_earn(watching_channel):
+            if campaign.game in self._twitch.wanted_games and campaign.can_earn(watching_channel):
                 campaigns.append(campaign)
 
         if campaigns:
