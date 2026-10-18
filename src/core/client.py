@@ -242,12 +242,24 @@ class Twitch:
         await self.login_browser.stop()
         await self.session_controller.stop()
         self.stop_watching()
-        if self._watching_task is not None:
-            self._watching_task.cancel()
-            self._watching_task = None
-        if self._mnt_task is not None:
-            self._mnt_task.cancel()
-            self._mnt_task = None
+        tasks = tuple({task for task in (self._watching_task, self._mnt_task)
+                       if task is not None and task is not asyncio.current_task()})
+        for task in tasks:
+            if not task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+                task.cancel()
+        pending = asyncio.gather(*tasks, return_exceptions=True)
+        cancellation: asyncio.CancelledError | None = None
+        while True:
+            try:
+                await asyncio.shield(pending)
+                break
+            except asyncio.CancelledError as exc:
+                # Caller cancellation must not interrupt owned cleanup a second time.
+                if cancellation is None:
+                    cancellation = exc
+        self._watching_task = self._mnt_task = None
+        if cancellation is not None:
+            raise cancellation
         await self._stop_mining_schedule()
         # stop websocket and close HTTP session
         await self.websocket.stop(clear_topics=True)

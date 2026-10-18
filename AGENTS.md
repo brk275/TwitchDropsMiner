@@ -138,6 +138,15 @@ lang/                # Translation JSON files (20 languages)
 
 **src/core/client.py** - Central client (`Twitch` class):
 
+- Final shutdown joins current watch and maintenance tasks before closing browser/HTTP
+  transports or clearing identity/models. Retain ownership references until the join
+  completes, shield it from repeated caller cancellation and re-raise the first
+  cancellation before later teardown. A later shutdown call can finish teardown.
+  Observe task failures without skipping transport cleanup; never recancel an owner
+  already draining. Exclude the calling task to avoid self-join. This covers final
+  shutdown after the runtime has exited, not arbitrary concurrent worker replacement
+  or a hard cleanup deadline. Regressions: `tests/test_shutdown_mining_ownership.py`.
+
 - State machine: IDLE, INVENTORY_FETCH, GAMES_UPDATE, CHANNELS_CLEANUP, CHANNELS_FETCH, CHANNEL_SWITCH, EXIT
 - Composes `_AuthState`, `HTTPClient`, and `GQLClient`
 - Delegates to service layer for business logic

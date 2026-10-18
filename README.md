@@ -61,6 +61,9 @@ Existing integer correction bounds remain unchanged.
 Source builds wait for owned websocket callbacks to finish shutting down before
 replacing an account, including sockets removed during topic cleanup. Cancellation
 is propagated after cleanup; unresponsive cleanup can still delay shutdown.
+Final shutdown also joins current watch and maintenance tasks before closing their
+transports or clearing account state. Cancellation during this join waits for task
+cleanup before propagating; a later shutdown call can finish transport teardown.
 
 Source builds reject invalid watch-time requirements before replacing inventory.
 Zero remains a valid non-watch requirement; invalid values are not converted to zero.
