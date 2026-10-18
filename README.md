@@ -91,6 +91,9 @@ see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
 Source builds save confirmed claim history before waiting on dashboard or notification
 delivery. Interrupted alerts are not retried automatically.
 
+Unusable returned progress replies are skipped while playlist polling continues.
+They do not add estimated minutes; the next valid reply can update progress normally.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash
