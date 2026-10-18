@@ -211,6 +211,15 @@ lang/                # Translation JSON files (20 languages)
 - Composes individual managers for different UI concerns (status, console, channels, campaigns, inventory, login, settings, cache)
 - Uses `WebSocketBroadcaster` for real-time Socket.IO updates
 - Pure asyncio, no tkinter dependency
+- `CampaignProgressManager` never publishes claimed drops as active work. Clear only
+  the exact currently displayed model when its claim is redisplayed; an older model
+  with identical IDs must not clear its replacement. Reconnect snapshots omit drops
+  claimed since the last display without broadcasting or mutating claim state.
+  Explicit `update(None, ...)` uses the normal stop event. Unclaimed local counters,
+  even at 100%, are not claim confirmation. Regression coverage:
+  `tests/test_claimed_progress_display.py` includes real websocket claim continuations.
+  Stopping also zeros the cached countdown used by watch-loop fallback polling;
+  ignored claims for other models must preserve the current countdown.
 
 **src/web/app.py** - FastAPI application:
 

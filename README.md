@@ -43,6 +43,11 @@ Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
 
+Source builds omit claimed rewards from the active progress display. A late claim
+update for another reward leaves the current reward visible; claim history and
+inventory remain available separately.
+Stopping the active display keeps progress polling ready for the next reward.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash

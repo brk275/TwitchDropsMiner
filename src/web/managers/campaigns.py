@@ -28,8 +28,16 @@ class CampaignProgressManager:
 
         Args:
             drop: The drop currently being mined, or None if no active drop
-            remaining_seconds: Seconds remaining until the next progress minute
+            remaining_seconds: Estimated seconds remaining for this drop
         """
+        if drop is None:
+            self.stop_timer()
+            return
+        if drop.is_claimed:
+            # A late claim for an older model must not clear its replacement.
+            if self._current_drop is drop:
+                self.stop_timer()
+            return
         self._current_drop = drop
         self._remaining_seconds = remaining_seconds
         if drop:
@@ -53,6 +61,7 @@ class CampaignProgressManager:
     def stop_timer(self):
         """Stop the progress timer and clear the current drop."""
         self._current_drop = None
+        self._remaining_seconds = 0
         asyncio.create_task(self._broadcaster.emit("drop_progress_stop", {}))
 
     def minute_almost_done(self) -> bool:
@@ -69,7 +78,7 @@ class CampaignProgressManager:
         Returns:
             Dictionary with drop progress data, or None if no active drop
         """
-        if self._current_drop is None:
+        if self._current_drop is None or self._current_drop.is_claimed:
             return None
 
         drop = self._current_drop
