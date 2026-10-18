@@ -64,6 +64,9 @@ see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
 
 Unusable returned progress replies are skipped while playlist polling continues.
 They do not add estimated minutes; the next valid reply can update progress normally.
+This includes malformed containers and error metadata rejected by the GraphQL client.
+Automatic service-error retries are restricted to known persisted read-only requests.
+Writes and mixed batches remain unconfirmed after ambiguous failures instead of replaying.
 
 Source builds save confirmed claim history before waiting on dashboard or notification
 delivery. Interrupted alerts are not retried automatically.

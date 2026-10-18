@@ -546,6 +546,28 @@ claim and policy changes must be reflected on the next call. Regression coverage
   cleanup. Use synchronization rather than sleeps or weaker assertions. This test
   change does not alter production close behavior or guarantee real-browser delivery.
 
+### GraphQL Reply Validation
+
+- `GQLClient._response_rows()` validates single-object replies or object batches
+  matching the request count captured before dispatch. Validate all rows before
+  normalization or retry. Present `errors` must be nonempty lists of objects with
+  nonempty string messages; legacy error/message fields must be nonempty strings.
+  `GQLInvalidResponse` is a fixed GQLException subtype. Map only imported dispatch
+  SessionError RESPONSE to it, not auth-validation or ordinary HTTP exceptions.
+  Watch polling skips these failures without estimating, then accepts later valid
+  progress. Claims stay unconfirmed. Imported auth-rejection checks refuse malformed
+  message types without changing definitive rejection/data/path guards.
+  Known persisted reads retain existing service-error retry timing and limits. The
+  shared `GQLRetryPolicy` preserves ImportedSession's read fingerprint allowlist;
+  mutations, unknown requests and mixed batches never get service-error retries.
+  Deep-copy request payloads before dispatch and recheck safety after retry waits and
+  authentication validation. Optional response operation labels cannot authorize replay.
+  Server-error path traversal, HTTP/JSON parsing and debug logging are unchanged.
+  This does not validate operation data, normalize
+  server-error paths, redact all logs or guarantee exactly-once requests.
+  Regression coverage: `tests/test_gql_reply_validation.py` and
+  `tests/test_gql_retry_safety.py`.
+
 ### Dashboard authentication
 
 - `src/web/auth.py` owns optional password-only dashboard protection, separate from Twitch

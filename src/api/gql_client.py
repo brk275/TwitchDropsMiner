@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from copy import deepcopy
 from itertools import chain
 from typing import TYPE_CHECKING, overload
 
-from src.exceptions import GQLException, MinerException
+from src.api.gql_retry_policy import GQLRetryPolicy
+from src.auth.session_bundle import SessionError
+from src.exceptions import GQLException, GQLInvalidResponse, MinerException
 from src.utils import ExponentialBackoff, RateLimiter
 
 
@@ -89,6 +92,10 @@ class GQLClient:
         RuntimeError
             If the retry loop is broken unexpectedly
         """
+        ops = deepcopy(ops)
+        expected_count = len(ops) if isinstance(ops, list) else None
+        retry_allowed = GQLRetryPolicy.can_retry(ops)
+        retrying = False
         gql_logger.debug(f"GQL Request: {ops}")
         backoff = ExponentialBackoff(maximum=60)
         # Flag to retry the request once for specific errors
@@ -97,11 +104,18 @@ class GQLClient:
         for delay in backoff:
             async with self._qgl_limiter:
                 auth_state = await self._auth_state.validate()
+                if retrying and (not retry_allowed or not GQLRetryPolicy.can_retry(ops)):
+                    raise GQLException("Automatic retry is unsafe for this GraphQL request")
                 response_json: JsonType | list[JsonType]
                 if auth_state.browser_active is True:
                     browser = auth_state._twitch._browser
                     assert browser is not None
-                    response_json = await browser.gql(ops)
+                    try:
+                        response_json = await browser.gql(ops)
+                    except SessionError as error:
+                        if error.code == "RESPONSE":
+                            raise GQLInvalidResponse() from None
+                        raise
                 else:
                     async with self.http_client.request(
                         "POST",
@@ -115,7 +129,7 @@ class GQLClient:
             orig_response = response_json
 
             # Normalize to list for unified error handling
-            response_list = response_json if isinstance(response_json, list) else [response_json]
+            response_list = self._response_rows(response_json, expected_count)
 
             force_retry: bool = False
             for response_json in response_list:
@@ -123,13 +137,22 @@ class GQLClient:
                 if "errors" in response_json:
                     for error_dict in response_json["errors"]:
                         if "message" in error_dict:
+                            if error_dict["message"] in (
+                                "service error", "PersistedQueryNotFound", "service timeout",
+                                "service unavailable", "context deadline exceeded",
+                            ) and (not retry_allowed or not GQLRetryPolicy.can_retry(ops)):
+                                raise GQLException("Automatic retry is unsafe for this GraphQL request")
                             if single_retry and error_dict["message"] in (
                                 "service error",
                                 "PersistedQueryNotFound",
                             ):
+                                extensions = response_json.get("extensions")
+                                operation_name = extensions.get("operationName") if isinstance(extensions, dict) else None
+                                if not isinstance(operation_name, str) or not operation_name:
+                                    operation_name = "unknown"
                                 logger.error(
                                     f"Retrying a {error_dict['message']} for "
-                                    f"{response_json['extensions']['operationName']}"
+                                    f"{operation_name}"
                                 )
                                 single_retry = False
                                 if delay < 5:
@@ -163,9 +186,37 @@ class GQLClient:
             else:
                 return orig_response
 
+            retrying = True
             await asyncio.sleep(delay)
 
         raise RuntimeError("Retry loop was broken")
+
+    @staticmethod
+    def _response_rows(response: object, expected_count: int | None) -> list[JsonType]:
+        """Validate container/error shapes before traversing or normalizing any row."""
+        if expected_count is None:
+            if not isinstance(response, dict):
+                raise GQLInvalidResponse()
+            rows = [response]
+        else:
+            if (not isinstance(response, list) or len(response) != expected_count
+                    or any(not isinstance(row, dict) for row in response)):
+                raise GQLInvalidResponse()
+            rows = response
+        for row in rows:
+            if "errors" in row:
+                errors = row["errors"]
+                if (not isinstance(errors, list) or not errors
+                        or any(not isinstance(error, dict)
+                               or not isinstance(error.get("message"), str)
+                               or not error["message"] for error in errors)):
+                    raise GQLInvalidResponse()
+            if "error" in row and (
+                not isinstance(row["error"], str) or not row["error"]
+                or not isinstance(row.get("message"), str) or not row["message"]
+            ):
+                raise GQLInvalidResponse()
+        return rows
 
     @staticmethod
     def merge_data(primary_data: JsonType, secondary_data: JsonType) -> JsonType:

@@ -96,3 +96,10 @@ class GQLException(RequestException):
 
     def __init__(self, message: str):
         super().__init__(message)
+
+
+class GQLInvalidResponse(GQLException):
+    """A malformed structured reply is not evidence for estimated progress."""
+
+    def __init__(self):
+        super().__init__("Invalid GraphQL response container or error metadata")

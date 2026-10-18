@@ -14,7 +14,7 @@ from time import monotonic
 from typing import TYPE_CHECKING, NoReturn
 
 from src.config import CALL, GQL_OPERATIONS, WATCH_INTERVAL
-from src.exceptions import GQLException
+from src.exceptions import GQLException, GQLInvalidResponse
 from src.i18n import _
 from src.utils import task_wrapper
 
@@ -243,6 +243,8 @@ class WatchService:
                         ),
                         timeout=5,
                     )
+                except GQLInvalidResponse:
+                    continue
                 except (GQLException, TimeoutError):
                     reading = None
                 else:

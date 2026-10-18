@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
+from src.api.gql_retry_policy import GQLRetryPolicy
 from src.auth.browser_session import BrowserIdentity, BrowserSession
 from src.auth.server_seed import SDKCookie, ServerSeed
 from src.auth.session_bundle import PrivateSessionFile, SessionBundle, SessionError
@@ -183,15 +184,6 @@ class ImportedSession:
     """Replace complete validated contexts atomically and wait at expiry."""
 
     _RETRY_DELAYS = (1.0, 2.0)
-    _READ_QUERIES = frozenset(
-        (GQL_OPERATIONS[name]["operationName"],
-         GQL_OPERATIONS[name]["extensions"]["persistedQuery"]["sha256Hash"])
-        for name in (
-            "GetStreamInfo", "ChannelPointsContext", "Inventory", "CurrentDrop",
-            "Campaigns", "CampaignDetails", "AvailableDrops", "PlaybackAccessToken",
-            "GameDirectory", "SlugRedirect", "NotificationsList",
-        )
-    )
 
     def __init__(
         self, path: Path, *, transport: SessionTransport | None = None,
@@ -452,27 +444,14 @@ class ImportedSession:
         return (
             isinstance(row, dict) and "data" not in row
             and isinstance(row.get("errors"), list) and bool(row["errors"])
-            and all(isinstance(error, dict) and error.get("message") in {
+            and all(isinstance(error, dict) and isinstance(error.get("message"), str) and error["message"] in {
                 "failed integrity check", "invalid oauth token",
             } and "path" not in error for error in row["errors"])
         )
 
-    @classmethod
-    def _safe_read(cls, operation: Any) -> bool:
-        """Only exact known persisted reads may be replayed after an ambiguous failure."""
-        try:
-            if not isinstance(operation, dict) or not set(operation) <= {"operationName", "variables", "extensions"}:
-                return False
-            extensions = operation["extensions"]
-            if not isinstance(extensions, dict) or set(extensions) != {"persistedQuery"}:
-                return False
-            query = extensions["persistedQuery"]
-            if (not isinstance(query, dict) or set(query) != {"version", "sha256Hash"}
-                    or type(query["version"]) is not int or query["version"] != 1):
-                return False
-            return (operation["operationName"], query["sha256Hash"]) in cls._READ_QUERIES
-        except (KeyError, TypeError):
-            return False
+    @staticmethod
+    def _safe_read(operation: Any) -> bool:
+        return GQLRetryPolicy.is_safe_read(operation)
 
     async def _wait_retry(self, delay: float) -> None:
         if self._stopping:
