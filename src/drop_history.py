@@ -278,13 +278,21 @@ class DropHistory:
         if not isinstance(rows, list):
             logger.warning("Invalid history entries, ignoring file.")
             return
+        seen: set[str] = set()
+        invalid = duplicates = 0
         for row in rows:
             entry = self._parse_entry(row)
-            if entry is not None:
+            if entry is None:
+                invalid += 1
+            elif entry["id"] in seen:
+                duplicates += 1
+            else:
+                seen.add(entry["id"])
                 self._entries.append(entry)
-        skipped = len(rows) - len(self._entries)
-        if skipped:
-            logger.warning("Ignored %d invalid history entries.", skipped)
+        if invalid:
+            logger.warning("Ignored %d invalid history entries.", invalid)
+        if duplicates:
+            logger.warning("Ignored %d duplicate history entries.", duplicates)
         logger.debug("Loaded %d history entries.", len(self._entries))
 
     def _save(self) -> bool:

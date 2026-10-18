@@ -25,7 +25,8 @@ services operated for other users are outside its support scope.
 - Skip channels while Twitch reports an active ban, including temporary bans.
 - Sign in inside the dashboard; TDM saves and renews your session automatically.
 - Review claimed-drop history, export it to CSV, and receive Telegram or Discord notifications.
-- Source builds skip malformed saved history records without blocking startup; keep
+- Source builds skip malformed saved history records and keep only the first valid
+  record per drop ID without rewriting the file at startup; keep
   a backup of `data/drop_history.json` before repairing it or recording new claims.
 - Source builds omit private credentials and message bodies from Telegram failure logs
   and test-connection errors.

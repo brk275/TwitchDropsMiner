@@ -1278,6 +1278,12 @@ preserve their instant. CSV attachment names use UTF-8 percent encoding with an 
 fallback. History text is defined in `gui.history` for every locale and rendered as text.
 Tests cover persistence, filtering, Unicode exports, offsets, and translated UI behavior.
 Validate the persisted history envelope and every row before publishing entries.
+After validation, keep the first valid row for each exact drop ID in insertion order.
+Invalid rows must not reserve IDs; duplicate records must not inflate counts, filters,
+statistics or CSV/API results. Do not normalize opaque IDs or deduplicate by names or
+benefits. Log separate aggregate invalid/duplicate counts without row values. Loading
+never rewrites the file; a later normal save persists the accepted unique records.
+Regressions: `tests/test_history_duplicate_loading.py`.
 Skip malformed rows while preserving valid insertion order; require aware claim times
 and normalize them to UTC without inventing dates or claim fields. Loading never
 rewrites the original file. A later normal save writes the accepted records plus new
