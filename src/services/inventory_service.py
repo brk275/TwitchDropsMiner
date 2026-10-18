@@ -150,6 +150,27 @@ class InventoryService:
             campaigns[campaign_id] = record
         return campaigns
 
+    @staticmethod
+    def _claimed_benefits_by_id(records: Any) -> dict[str, datetime]:
+        """Validate award evidence before it can affect inferred claim state."""
+        if not isinstance(records, list):
+            raise GQLException("Invalid claimed benefit history")
+        benefits: dict[str, datetime] = {}
+        for record in records:
+            benefit_id = record.get("id") if isinstance(record, dict) else None
+            raw_stamp = record.get("lastAwardedAt") if isinstance(record, dict) else None
+            if (not isinstance(benefit_id, str) or not benefit_id.strip()
+                    or not isinstance(raw_stamp, str)):
+                raise GQLException("Invalid claimed benefit history")
+            try:
+                stamp = isoparse(raw_stamp)
+            except (ValueError, OverflowError):
+                raise GQLException("Invalid claimed benefit history") from None
+            if stamp.tzinfo is None or stamp.utcoffset() is None:
+                raise GQLException("Invalid claimed benefit history")
+            benefits[benefit_id] = stamp
+        return benefits
+
     async def fetch_inventory(self) -> None:
         """
         Fetch the complete inventory including campaigns and drops.
@@ -171,9 +192,7 @@ class InventoryService:
         inventory_data = self._campaigns_by_id(inventory["dropCampaignsInProgress"])
 
         # this contains claimed benefit edge IDs, not drop IDs
-        claimed_benefits: dict[str, datetime] = {
-            b["id"]: isoparse(b["lastAwardedAt"]) for b in inventory["gameEventDrops"]
-        }
+        claimed_benefits = self._claimed_benefits_by_id(inventory["gameEventDrops"])
 
         # fetch general available campaigns data (campaigns)
         response = await self._twitch.gql_request(GQL_OPERATIONS["Campaigns"])

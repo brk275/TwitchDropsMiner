@@ -157,6 +157,15 @@ lang/                # Translation JSON files (20 languages)
 
 - `ChannelService`: Channel management and selection logic
 - `InventoryService`: Campaign and drop inventory operations
+- Admit claimed benefit history only as a list of objects with nonblank string IDs
+  and parseable timezone-aware `lastAwardedAt` strings. Empty lists are valid; null,
+  false/zero/string/object collections and malformed rows/timestamps raise a fixed
+  redacted `GQLException` before catalog/detail requests or inventory/GUI/maintenance
+  replacement. Preserve exact opaque IDs, timezone offsets and existing last-row-wins
+  duplicate handling. Do not fabricate timestamps, claims or history, skip malformed
+  entries silently, retry these errors or broaden auth recovery. This does not validate
+  every inventory field or make later GUI publication transactional. Tests:
+  `tests/test_claimed_benefit_admission.py`.
 - Inventory and catalog campaign collections accept only lists of objects with unique,
   nonblank string IDs, or explicit null using the existing empty-list fallback. Reject
   false/zero/empty strings/objects and malformed or duplicate rows with fixed redacted
