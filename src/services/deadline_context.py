@@ -131,6 +131,10 @@ class DeadlineContextGuard:
             raise _Refusal("invalid_context")
         return float(tick)
 
+    def retire(self) -> None:
+        """Release the current private binding without reading or changing a client."""
+        self._capture = None
+
     @staticmethod
     def _zone(value: str | timezone | None) -> tuple:
         if value is None or type(value) is str:

@@ -774,7 +774,7 @@ progress to an ignored drop while the miner intentionally targets another reward
   Reserve upper work, claim waits and setup for the target's ancestor chain, then ALL
   higher/equal-ranked wanted rewards and their ancestors. Fixed UTC slots intersect
   individual, channel and mining windows; reconnect setup earns no credit. Each setup
-  and claim latency may vary independently anywhere within its bound. The future executor
+  and claim latency may vary independently anywhere within its bound. Any executor
   must follow the reserved calendar, not substitute the adaptive greedy policy or move
   later work earlier. Existing `current_channel_id` means an already established stream;
   unknown readiness must pay setup. Claim bounds assume successful settlement, not merely
@@ -844,7 +844,7 @@ progress to an ignored drop while the miner intentionally targets another reward
   Future consumers must revalidate synchronously immediately before action with no
   intervening await, and still enforce real eligibility, current policy and coverage.
   Current context is not proof of transport readiness, future uptime, allocation,
-  successful claims or selector equivalence. No executor, enabled setting, UI or live
+  successful claims or selector equivalence. No integrated executor, enabled setting, UI or live
   scheduler is delivered here. Tests: `tests/test_deadline_context.py`.
 - `src/services/deadline_channels.py` adds optional point-in-time channel inputs through
   `DeadlineContextGuard.capture(include_channels=True)`, still disabled by default.
@@ -905,6 +905,31 @@ progress to an ignored drop while the miner intentionally targets another reward
   not a live executor, freshness lease, persisted setting, activation or safe queue
   capability. Future consumers must revalidate evidence/policy/time and execution
   bounds immediately before acting. Tests: `tests/test_deadline_decision_delay.py`.
+- `DeadlineCalendarExecutor` is a source-only, explicitly enabled conditional consumer,
+  not connected to production selection, timers, settings or the dashboard. Only the
+  serialized CHANNEL_SWITCH owner may reserve/advance it; enum state is not ownership.
+  Explicit future coverage/allocation/successful timing assumptions are still required.
+  Add dispatch allowance to every setup upper bound, keep the original snapshot and
+  baseline, and never start later work early after a fast claim. Every actual watch/stop
+  is synchronous after fresh context validation. Refuse missed slots, stale reports,
+  changed identity/policy, queued work or clock discontinuities. Cancellation releases
+  private bindings, never changes manual selection or claims a reward. The caller must
+  handle ordinary-policy fallback; wake_at is not permission for a timer to act.
+  Bind runtime wanted-game ordering too. Keep sampled wall-clock high-water separate
+  from conservative deadline time; charge final reservation validation/fingerprinting.
+  Already-claimed later fragments remain booked idle time. Stops may consume booked
+  idle time before the next connection, but must retire a missed remaining calendar
+  before acting; use post-validation time for fragment bookkeeping and wake requests.
+  Conservative upper age only closes deadline/freshness budgets. A not-before or
+  unclaimed work-end boundary requires both sampled UTC and origin-relative elapsed
+  time to have reached it; never use upper age to open a slot or shorten its work.
+  Keep prevalidation monotonic samples when checking reversals. Wake requests may
+  wait for a lagging clock but never rewrite the original certificate's slots.
+  Share monotonic high-water validation across executor and delegated guard reads;
+  capture cannot reset the entry baseline or hide a transient reversal that recovers.
+  This does not integrate refresh/claim reentry, prove transport readiness or future
+  bounds, enable automatic rescues or complete runtime/browser acceptance. Keep those
+  requirements open. Tests: `tests/test_deadline_execution.py`.
 
 ### GraphQL Operations
 
