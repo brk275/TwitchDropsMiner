@@ -761,12 +761,12 @@ of unattended collection during persistent outages or a transactional GUI refres
   normalization or retry. Present `errors` must be nonempty lists of objects with
   nonempty string messages; legacy error/message fields must be nonempty strings.
   `GQLInvalidResponse` is a fixed GQLException subtype. Map only imported dispatch
-  SessionError RESPONSE to it, not auth-validation or ordinary HTTP exceptions.
+  SessionError RESPONSE to it, not auth-validation or ordinary transport exceptions.
   Imported dispatch SessionError REQUEST becomes a fixed ordinary GQLException
   except safe-read transient exhaustion (`SessionRequestExhausted`), which becomes
   `GQLRequestFailed` for bounded inventory recovery. Do not retry again in GQLClient;
   ambiguous mutations remain unconfirmed. Preserve other session codes, initial
-  authentication failures, ordinary HTTP exceptions and cancellation unchanged.
+  authentication failures, ordinary transport exceptions and cancellation unchanged.
   Regression coverage: `tests/test_gql_request_failures.py`.
   Watch polling skips invalid replies/RESPONSE without estimating, then accepts
   later valid progress. REQUEST retains guarded request-failure estimation, which
@@ -778,7 +778,14 @@ of unattended collection during persistent outages or a transactional GUI refres
   Deep-copy request payloads before dispatch and recheck safety after retry waits and
   authentication validation. Optional response operation labels cannot authorize replay.
   Server-error normalization uses the checked path helper documented below.
-  HTTP/JSON parsing and debug logging are unchanged. This does not validate operation
+  At the HTTP response.json boundary only, JSONDecodeError, UnicodeDecodeError and
+  aiohttp ContentTypeError become GQLInvalidResponse without retry or raw context.
+  Preserve original decoding failures for HTTP401/403 and leave authentication,
+  browser/session failures, request/context entry/exit errors, cancellation and other
+  exceptions unchanged. Watch polling skips these unusable bodies without estimating
+  and can accept the next valid reading; claims remain unconfirmed without replay.
+  Regressions: tests/test_gql_http_decoding.py with real loopback aiohttp responses.
+  Debug logging is unchanged. This does not validate operation
   data, redact all logs or guarantee exactly-once requests.
   Regression coverage: `tests/test_gql_reply_validation.py` and
   `tests/test_gql_retry_safety.py`.

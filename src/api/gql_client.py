@@ -10,7 +10,10 @@ import asyncio
 import logging
 from copy import deepcopy
 from itertools import chain
+from json import JSONDecodeError
 from typing import TYPE_CHECKING, overload
+
+from aiohttp import ContentTypeError
 
 from src.api.gql_retry_policy import GQLRetryPolicy
 from src.auth.session_bundle import SessionError, SessionRequestExhausted
@@ -127,7 +130,12 @@ class GQLClient:
                         json=ops,
                         headers=auth_state.headers(user_agent=self._client_type.USER_AGENT, gql=True),
                     ) as response:
-                        response_json = await response.json()
+                        try:
+                            response_json = await response.json()
+                        except (JSONDecodeError, UnicodeDecodeError, ContentTypeError):
+                            if response.status in (401, 403):
+                                raise
+                            raise GQLInvalidResponse() from None
 
             gql_logger.debug(f"GQL Response: {response_json}")
             orig_response = response_json
