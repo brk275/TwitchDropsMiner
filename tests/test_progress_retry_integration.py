@@ -8,7 +8,7 @@ import pytest
 
 from src.auth.session_bundle import SessionError
 from src.config import GQL_OPERATIONS
-from src.exceptions import ExitRequest, GQLException
+from src.exceptions import ExitRequest, GQLException, GQLInvalidResponse
 from src.services.message_handlers import MessageHandlerService
 from tests.test_current_drop_responses import response
 from tests.test_gql_retry_safety import MESSAGES, failure
@@ -222,7 +222,7 @@ SESSION_CODES = ("REQUEST", "AUTH", "STALE", "ACCOUNT_MISMATCH", "RESPONSE", "ID
 @pytest.mark.asyncio
 @pytest.mark.parametrize("code", SESSION_CODES)
 @pytest.mark.parametrize("in_auth", [False, True])
-async def test_only_imported_dispatch_request_errors_become_fixed_gql_failures(gql, code, in_auth, caplog):
+async def test_only_imported_dispatch_request_and_response_errors_become_fixed_gql_failures(gql, code, in_auth, caplog):
     client, read, sleep, operations = gql
     error = SessionError(code)
     error.args = ("private test-only upstream detail",)
@@ -230,11 +230,15 @@ async def test_only_imported_dispatch_request_errors_become_fixed_gql_failures(g
         client._auth_state.validate.side_effect = error
     else:
         read.side_effect = error
-    translated = client._auth_state.browser_active and not in_auth and code == "REQUEST"
-    with pytest.raises(GQLException if translated else SessionError) as caught:
+    translated = client._auth_state.browser_active and not in_auth and code in ("REQUEST", "RESPONSE")
+    error_type = GQLInvalidResponse if translated and code == "RESPONSE" else GQLException if translated else SessionError
+    with pytest.raises(error_type) as caught:
         await client.request(GQL_OPERATIONS["Inventory"])
     if translated:
-        assert str(caught.value) == "Authenticated GraphQL request failed (SESSION_REQUEST)"
+        assert str(caught.value) == (
+            "Invalid GraphQL response container or error metadata" if code == "RESPONSE"
+            else "Authenticated GraphQL request failed (SESSION_REQUEST)"
+        )
         assert caught.value.__cause__ is None and caught.value.__suppress_context__
         assert "private" not in str(caught.value)
         assert not any("private" in record.getMessage() for record in caplog.records)

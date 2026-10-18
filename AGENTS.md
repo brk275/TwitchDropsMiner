@@ -950,12 +950,33 @@ progress to an ignored drop while the miner intentionally targets another reward
 - At the `browser.gql()` boundary only, map `SessionError("REQUEST")` to a fixed
   `GQLException` so watch fallback and failed claims use their existing request-error
   paths. ImportedSession already owns bounded transport retries; do not add outer
-  retries, clear authentication or replay writes here. Preserve other session codes,
+  retries, clear authentication or replay writes here. Except the separate RESPONSE
+  classification below, preserve other session codes,
   errors from initial auth validation, cancellation, exit and unrelated exceptions.
   Integration coverage: `tests/test_progress_retry_integration.py` uses the real
   client/watch/domain paths with mocked HTTP/browser IO and a loopback HTTP peer.
   Retries must retain pre-query observation/claim revision guards; a retry wait
   does not authorize stale progress, estimated evidence or duplicate local history.
+- `GQLClient._response_rows()` validates single-object replies or object batches
+  matching the original snapshotted request count, including the empty-batch control.
+  Validate every row's present `errors` as a nonempty list of objects with nonempty
+  string messages, and legacy `error`/`message` fields as nonempty strings, before
+  traversal, row normalization or retry. Optional retry extensions may be absent or
+  malformed; use a safe label without changing known-read retry limits or delays.
+  `GQLInvalidResponse` is a fixed `GQLException` subtype. Also map only imported
+  `SessionError("RESPONSE")` at browser dispatch to it, not initial auth or HTTP
+  SessionErrors. Watch polling skips that reply without estimated minutes, revision
+  changes or evidence refresh, then permits the next valid poll. Claims use the
+  existing failed-request path without recording success or adding a retry.
+  Keep REQUEST fallback and other session/cancellation/exit behavior unchanged.
+  This is container/error-metadata validation, not an operation-specific data schema,
+  general JSON parser, all-error batch atomicity, global log redaction or exactly-once
+  guarantee. Preserve the existing server-error path helper and ordinary error types.
+  ImportedSession's earlier auth-rejection check must type-check messages before set
+  membership. Malformed messages are not definitive auth rejections; retain the exact
+  all-messages/no-data/no-path conditions and let reply validation reject the metadata.
+  Regression coverage: `tests/test_gql_response_containers.py`, including malformed
+  later rows, no-estimation recovery and a loopback imported-session HTTP peer.
 
 Persisted operations are defined in `src/config/operations.py` as `GQL_OPERATIONS`; raw GraphQL payloads such as `sendSpadeEvents` use `GQLQuery`:
 

@@ -444,7 +444,7 @@ class ImportedSession:
         return (
             isinstance(row, dict) and "data" not in row
             and isinstance(row.get("errors"), list) and bool(row["errors"])
-            and all(isinstance(error, dict) and error.get("message") in {
+            and all(isinstance(error, dict) and isinstance(error.get("message"), str) and error["message"] in {
                 "failed integrity check", "invalid oauth token",
             } and "path" not in error for error in row["errors"])
         )

@@ -94,6 +94,8 @@ delivery. Interrupted alerts are not retried automatically.
 Unusable returned progress replies are skipped while playlist polling continues.
 They do not add estimated minutes; the next valid reply can update progress normally.
 Skipping a reply does not refresh direct evidence or reverse a confirmed claim.
+This includes malformed reply containers and error metadata rejected at the
+GraphQL client boundary.
 
 Source builds report unusable GraphQL server-error paths as request failures instead
 of path-traversal errors. Expected request errors can still use the existing estimated
