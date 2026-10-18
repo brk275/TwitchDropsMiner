@@ -58,6 +58,10 @@ avoiding repeated work in campaigns with complex reward dependencies.
 Source builds ignore non-integer minute updates from live progress events and polling.
 Existing integer correction bounds remain unchanged.
 
+Source builds wait for owned websocket callbacks to finish shutting down before
+replacing an account, including sockets removed during topic cleanup. Cancellation
+is propagated after cleanup; unresponsive cleanup can still delay shutdown.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).

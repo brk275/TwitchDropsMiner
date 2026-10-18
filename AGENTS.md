@@ -335,6 +335,20 @@ lang/                # Translation JSON files (20 languages)
 - Topics: User.Drops, User.Notifications, Channel.StreamState, Channel.StreamUpdate
 - Automatic reconnection with exponential backoff
 - Message routing to registered callbacks
+- Topic compaction retains ownership of retired shutdown tasks until completion.
+  Pool shutdown drains active and retired sockets, including retirements admitted
+  while it waits, before propagating a failure. Shield owned joins from caller
+  cancellation and propagate the first cancellation only after draining all groups.
+  Socket shutdown cancels and drains receive/callback tasks even if close fails,
+  then clears connection references and applies requested topic removal.
+  `stop_nowait()` returns a joinable task; observe retired shutdown failures without
+  logging exception payloads. Do not replay cancelled claims or replace auth state
+  before old callbacks drain. These are cooperative barriers, not hard deadlines or
+  guaranteed physical closure after failed I/O. Regression coverage:
+  `tests/test_websocket_shutdown_ownership.py`, using only current-main test helpers.
+  `tests/test_websocket_claim_retirement.py` combines this barrier with confirmed
+  claims and persisted history during dashboard/notification cancellation. Cleanup
+  must observe the old identity; do not undo a confirmed claim or replay its request.
 
 **src/config/settings.py** - Application settings:
 

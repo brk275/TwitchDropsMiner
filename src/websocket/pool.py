@@ -37,6 +37,7 @@ class WebsocketPool:
         self._twitch: Twitch = twitch
         self._running = asyncio.Event()
         self.websockets: list[Websocket] = []
+        self._retired_stop_tasks: set[asyncio.Task[None]] = set()
 
     @property
     def running(self) -> bool:
@@ -60,7 +61,34 @@ class WebsocketPool:
             clear_topics: If True, clear all topics and remove websockets from GUI
         """
         self._running.clear()
-        await asyncio.gather(*(ws.stop(remove=clear_topics) for ws in self.websockets))
+        pending = asyncio.gather(
+            *(ws.stop(remove=clear_topics) for ws in self.websockets),
+            *tuple(self._retired_stop_tasks),
+            return_exceptions=True,
+        )
+        results: list[BaseException | None] = []
+        cancellation: asyncio.CancelledError | None = None
+        while True:
+            try:
+                results.extend(await asyncio.shield(pending))
+            except asyncio.CancelledError as exc:
+                # The caller may leave only after owned shutdown work has drained.
+                if cancellation is None:
+                    cancellation = exc
+                continue
+            if not self._retired_stop_tasks:
+                break
+            pending = asyncio.gather(*tuple(self._retired_stop_tasks), return_exceptions=True)
+        if cancellation is not None:
+            raise cancellation
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
+
+    def _retired_stop_done(self, task: asyncio.Task[None]) -> None:
+        self._retired_stop_tasks.discard(task)
+        if not task.cancelled() and task.exception() is not None:
+            logger.error("Failed to stop a retired websocket")
 
     def add_topics(self, topics: abc.Iterable[WebsocketTopic]):
         """
@@ -126,7 +154,9 @@ class WebsocketPool:
             if count <= (len(self.websockets) - 1) * WS_TOPICS_LIMIT:
                 ws = self.websockets.pop()
                 recycled_topics.extend(ws.topics.values())
-                ws.stop_nowait(remove=True)
+                task = ws.stop_nowait(remove=True)
+                self._retired_stop_tasks.add(task)
+                task.add_done_callback(self._retired_stop_done)
             else:
                 break
         if recycled_topics:
