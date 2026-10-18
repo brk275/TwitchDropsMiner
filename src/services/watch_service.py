@@ -20,7 +20,6 @@ from src.utils import task_wrapper
 
 
 if TYPE_CHECKING:
-    from src.config import JsonType
     from src.core.client import Twitch
     from src.models import TimedDrop
     from src.models.channel import Channel
@@ -169,6 +168,28 @@ class WatchService:
             await asyncio.wait_for(self._twitch._watching_restart.wait(), timeout=delay)
         self._twitch._watching_restart.clear()
 
+    @staticmethod
+    def _current_drop_reading(context: object) -> tuple[str, int] | None:
+        """Distinguish an explicitly empty session from an unusable response."""
+        if not isinstance(context, dict) or "error" in context:
+            raise ValueError("Invalid current-drop response")
+        errors = context.get("errors")
+        if errors is not None and (not isinstance(errors, list) or errors):
+            raise ValueError("Invalid current-drop response")
+        data = context.get("data")
+        user = data.get("currentUser") if isinstance(data, dict) else None
+        if not isinstance(user, dict) or "dropCurrentSession" not in user:
+            raise ValueError("Invalid current-drop response")
+        session = user["dropCurrentSession"]
+        if session is None:
+            return None
+        if not isinstance(session, dict):
+            raise ValueError("Invalid current-drop response")
+        drop_id, minutes = session.get("dropID"), session.get("currentMinutesWatched")
+        if not isinstance(drop_id, str) or not drop_id or type(minutes) is not int:
+            raise ValueError("Invalid current-drop response")
+        return drop_id, minutes
+
     @task_wrapper(critical=True)
     async def watch_loop(self) -> NoReturn:
         """
@@ -221,19 +242,23 @@ class WatchService:
                         ),
                         timeout=5,
                     )
-                    drop_data: JsonType | None = context["data"]["currentUser"][
-                        "dropCurrentSession"
-                    ]
                 except (GQLException, TimeoutError):
-                    drop_data = None
+                    reading = None
+                else:
+                    try:
+                        reading = self._current_drop_reading(context)
+                    except ValueError:
+                        # An unusable reply is not evidence for an estimated minute.
+                        continue
 
                 if not channel._watch_current(stream):
                     continue
 
-                if drop_data is not None:
-                    gql_drop: TimedDrop | None = self._twitch._drops.get(drop_data["dropID"])
+                if reading is not None:
+                    drop_id, minutes = reading
+                    gql_drop: TimedDrop | None = self._twitch._drops.get(drop_id)
                     if gql_drop is not None and gql_drop.can_earn(channel):
-                        gql_drop.update_minutes(drop_data["currentMinutesWatched"])
+                        gql_drop.update_minutes(minutes)
                         drop_text: str = (
                             f"{gql_drop.name} ({gql_drop.campaign.game}, "
                             f"{gql_drop.current_minutes}/{gql_drop.required_minutes})"
