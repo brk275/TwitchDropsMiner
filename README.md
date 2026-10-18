@@ -72,6 +72,10 @@ transport readiness or evidence that all eligible drops receive credit together.
 Source builds choose local campaign guesses from the runtime wanted queue. These
 fallback estimates are not Twitch-confirmed progress.
 
+Source builds skip unavailable campaign details without creating empty campaigns.
+Known inventory data keeps priority over available catalog metadata. Missing campaigns
+are tried again on the next refresh; malformed detail batches still reject the refresh.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
