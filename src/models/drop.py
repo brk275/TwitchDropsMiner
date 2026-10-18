@@ -392,6 +392,8 @@ class TimedDrop(BaseDrop):
 
     def update_minutes(self, new_minutes: int) -> None:
         """Update the current watched minutes for this drop."""
+        if type(new_minutes) is not int:
+            return
         # Even an unchanged observation supersedes an older in-flight poll.
         self.campaign.progress_revision += 1
         if not self.can_reconcile_progress():

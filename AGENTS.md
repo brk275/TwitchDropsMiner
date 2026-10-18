@@ -210,6 +210,19 @@ lang/                # Translation JSON files (20 languages)
 **src/models/drop.py** - Drop types:
 
 - `TimedDrop`: Drops with minute requirements and progress
+- `TimedDrop.update_minutes()` accepts only a plain integer before arithmetic or
+  state changes. Ignore booleans, floats (including NaN/infinity), strings,
+  containers and integer subclasses without coercion, counter/estimate mutation
+  or a counter-change event from this method. Transports may still display the
+  unchanged state. Preserve existing integer correction/clamping, unchanged-reading
+  and unequal-sibling underflow behavior. This guards live update values, not
+  inventory ingestion, already-corrupt models or whole transport payload shapes.
+  Regressions: `tests/test_progress_reading_types.py`, including real websocket
+  handling and watch-loop polling followed by a valid reading.
+  Refuse invalid types before advancing the campaign revision, so they cannot retire
+  a valid pending poll or suppress its existing null/error/timeout fallback.
+  `tests/test_numeric_progress_ordering.py` covers rejected values and valid integer
+  supersession, including unchanged and clamped readings.
 - `BaseDrop`: Base class with claim logic
 - Precondition chains for sequential drops
 
@@ -573,7 +586,7 @@ claim and policy changes must be reflected on the next call. Regression coverage
   If a sibling delta would underflow, retain its real minutes but still clear eligible
   estimates immediately; an identical second observation must not recover it again.
   Regression coverage: `tests/test_progress_reconciliation.py`.
-- `DropsCampaign.progress_revision` advances on every `TimedDrop.update_minutes()`
+- `DropsCampaign.progress_revision` advances on every plain-integer `TimedDrop.update_minutes()`
   observation, including unchanged values, and before awaiting notification work on a
   successful claim transition. Sibling progress shares this revision. CurrentDrop polling
   snapshots drop identity and campaign revision before awaiting Twitch; discard replies

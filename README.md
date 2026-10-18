@@ -53,6 +53,9 @@ Twitch-confirmed progress.
 Source builds reuse shared prerequisite branches when evaluating which drops to mine,
 avoiding repeated work in campaigns with complex reward dependencies.
 
+Source builds ignore non-integer minute updates from live progress events and polling.
+Existing integer correction bounds remain unchanged.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
