@@ -210,6 +210,9 @@ directory's access permissions (ACLs); Unix file-mode numbers do not verify thos
 permissions. On Linux/macOS, session files use owner-only permissions. Keep the data
 directory writable so session changes can be saved.
 
+Settings saves use atomic replacement to avoid partial JSON files after a write
+failure. Keep the data directory writable, not just `settings.json`.
+
 ## Updating Docker
 
 ### With docker run
