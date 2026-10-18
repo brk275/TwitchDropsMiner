@@ -159,6 +159,14 @@ lang/                # Translation JSON files (20 languages)
 - `WatchService`: Drop mining watch payload logic
 - `MaintenanceService`: Periodic maintenance tasks
 - `MessageHandlerService`: Websocket message routing and handling
+- Claim-ready cooldown polling reuses `WatchService._current_drop_reading()` and the
+  watch poll's five-second request timeout. Unusable returned data, GQLException
+  (including GQLInvalidResponse), or timeout ends only this advisory wait, then runs
+  the existing campaign eligibility-based restart/refresh decision. It does not
+  resend the claim, update progress, infer completion or alter the four-second initial
+  delay, eight-read cap or two-second same-ID waits. Catch parser ValueError separately
+  from query/model exceptions; cancellation, auth/account failures and unexpected
+  errors retain their existing propagation. Tests: `tests/test_claim_followup_reliability.py`.
 
 
 **src/models/channel.py** - Channel and Stream:

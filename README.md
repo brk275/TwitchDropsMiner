@@ -79,6 +79,9 @@ claimed. An invalid reply stays unconfirmed; this does not add automatic retries
 Source builds report unusable GraphQL server-error paths as request failures instead
 of path-traversal errors. This does not add automatic retries or guarantee progress.
 
+Unusable post-claim progress checks no longer prevent the normal watch restart or
+inventory refresh. These advisory reads time out after five seconds; claims are not resent.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash
