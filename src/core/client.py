@@ -241,13 +241,13 @@ class Twitch:
         await self.login_browser.stop()
         await self.session_controller.stop()
         self.stop_watching()
-        if self._watching_task is not None:
-            self._watching_task.cancel()
-            self._watching_task = None
-        if self._mnt_task is not None:
-            self._mnt_task.cancel()
-            self._mnt_task = None
         await self._stop_mining_schedule()
+        # Stop the schedule before collecting workers so it cannot restart watching.
+        tasks = [task for task in (self._watching_task, self._mnt_task) if task is not None]
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        self._watching_task = self._mnt_task = None
         # stop websocket and close HTTP session
         await self.websocket.stop(clear_topics=True)
         await self._stop_channel_tasks()

@@ -129,6 +129,9 @@ permissions. On Linux/macOS, session files use owner-only permissions.
 
 ## Updating Docker
 
+Allow a graceful stop when updating: TDM waits for its watch and maintenance workers
+before closing their connections. Keep the shutdown grace period in the examples.
+
 ### With docker run
 
 For the `docker run` setup above, run this from the **same folder** so `${PWD}/data`

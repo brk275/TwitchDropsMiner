@@ -143,6 +143,13 @@ lang/                # Translation JSON files (20 languages)
 - Delegates to service layer for business logic
 - Drop progress monitoring via periodic "watch" payloads
 - Manages WebsocketPool and maintenance tasks
+- Shutdown stops the mining-hours schedule, then cancels and joins the tracked
+  watch and maintenance workers before closing websocket/HTTP resources or clearing
+  account state. Keep worker references until the join succeeds so interrupted
+  shutdown retains ownership for retry. Worker exceptions are collected during
+  teardown; cancellation of shutdown still propagates. This is not a hard timeout
+  or recovery from failures earlier in shutdown. Regressions:
+  `tests/test_shutdown_workers.py`.
 
 **src/services/** - Business logic layer (fully implemented):
 
