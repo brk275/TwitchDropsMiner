@@ -339,6 +339,16 @@ lang/                # Translation JSON files (20 languages)
   TimedDrop, repeated/later claims and loopback imported-session GQL dispatch.
   `tests/test_claim_confirmation_ordering.py` combines rejected/accepted responses
   with campaign revisions, persisted history and pending CurrentDrop replies.
+- Chain-minute totals reuse only cycle-free subtotals within one property evaluation.
+  A subtotal truncated by a cycle depends on its ancestor path and must not be reused
+  on another path. Required totals still include claimed work; remaining totals stop
+  at claimed nodes. Preserve missing-parent handling, supplied visited prefixes and
+  negative remaining values rather than clamping them. No persistent cache: progress,
+  estimates and claim changes must be reflected on the next read. The shared ignore
+  evaluator has different graph semantics and is not a substitute for this calculation.
+  Regression coverage: `tests/test_chain_minute_work.py`, including active-campaign sorting.
+  `tests/test_chain_minute_reliability.py` combines shared totals with real progress
+  updates, estimates and persisted confirmed claims during cancelled delivery.
 
 **src/web/gui_manager.py** - Web GUI:
 

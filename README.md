@@ -82,6 +82,9 @@ malformed history rejects the refresh without replacing known inventory.
 Campaign drop lists also reject malformed entries and duplicate drop IDs before
 replacement, rather than silently losing a reward.
 
+Source builds reuse shared acyclic prerequisite work when calculating reward-chain
+minutes, including the remaining totals used to select an active campaign.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
