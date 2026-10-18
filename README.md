@@ -48,7 +48,7 @@ replies superseded by newer observations or inventory reloads. Fresh eligible re
 replace fallback estimates even after the local estimate limit. Other eligibility
 checks and the estimate cap remain.
 Fallback estimates update all eligible rewards before testing the limit; they are
-not Twitch-confirmed progress.
+not Twitch-confirmed progress. Local campaign guesses stay within the runtime wanted queue.
 
 Claim rewards promptly. Source builds can attempt existing claim IDs for up to 14 days
 after campaign end, following the [Twitch API guide](https://dev.twitch.tv/docs/drops/technical-guide/#can-claims-occur-after-the-campaign-ends).
@@ -68,9 +68,6 @@ Read-only model inputs preserve direct readings and project configured mining ho
 future channel availability and claim timing still require explicit assumptions.
 Optional captures include current channel eligibility and priorities, not future uptime,
 transport readiness or evidence that all eligible drops receive credit together.
-
-Source builds choose local campaign guesses from the runtime wanted queue. These
-fallback estimates are not Twitch-confirmed progress.
 
 Source builds skip unavailable campaign details without creating empty campaigns.
 Known inventory data keeps priority over available catalog metadata. Missing campaigns

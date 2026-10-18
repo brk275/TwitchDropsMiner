@@ -158,8 +158,9 @@ lang/                # Translation JSON files (20 languages)
   Regressions: `tests/test_active_campaign_selection.py`.
 - `InventoryService.fetch_campaigns()` skips explicit null `user.dropCampaign` nodes,
   including the GQL client's handled server-error nullification. Never construct new
-  campaigns from catalog-only metadata. Validate batch size, requested unique string
-  IDs and required response traversal; malformed/missing user/data or unexpected IDs
+  campaigns from catalog-only metadata. Validate response batch size, required
+  traversal and unique returned string IDs belonging to the requested set;
+  malformed/missing user/data or unexpected IDs
   raise a fixed redacted `GQLException`, not an empty successful result. Preserve
   cancellation and safe-read retry rules. Match non-null results by ID, not array order.
   Before detail fan-out, merge available catalog metadata only into matching inventory
@@ -170,6 +171,15 @@ lang/                # Translation JSON files (20 languages)
   Traversal, batch-size and returned-ID failures reject before current model state is
   cleared or published. This is not an atomicity guarantee for later model or GUI errors.
   Tests: `tests/test_unavailable_campaign_details.py` and cancellation/cleanup coverage.
+- `tests/test_deadline_inventory_integration.py` combines unavailable details,
+  watch-requirement refusal and local wanted-queue lookup with direct observations,
+  stale-poll guards and short-lived experimental contexts. Every refresh attempt
+  through `Twitch.fetch_inventory()` retires prior context bindings, including a
+  failure that leaves old models installed. A rejected refresh alone is not a newer
+  minute observation; normal poll reconciliation remains possible for unchanged
+  models. Tests use explicit caller-handled failures, not production retry/shutdown
+  recovery. Claims must not turn normalized minutes into direct progress, and null
+  new details must not create placeholder models or evidence of complete coverage.
 - `WatchService`: Drop mining watch payload logic
 - `MaintenanceService`: Periodic maintenance tasks
 - `MessageHandlerService`: Websocket message routing and handling
