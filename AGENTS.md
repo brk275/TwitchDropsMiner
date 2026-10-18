@@ -653,8 +653,8 @@ progress to an ignored drop while the miner intentionally targets another reward
   successful claim transition. Sibling progress shares this revision. CurrentDrop polling
   snapshots drop identity and campaign revision before awaiting Twitch; discard replies
   superseded by observations, claims or model replacement/removal without estimating a
-  minute. Snapshot the fallback campaign before the request too; null, errored or timed-out
-  replies may estimate only against that same campaign and unchanged revision. Fresh
+  minute. Snapshot the fallback campaign before the request too; explicit null sessions
+  and GQLException/timeouts may estimate only against that same campaign and unchanged revision. Fresh
   polls can still correct progress downward. Keep this separate from estimated-minute
   bumps. Regression coverage: `tests/test_stale_progress.py`.
   Reject other minute types before revision changes as well as counter arithmetic;
@@ -686,6 +686,11 @@ progress to an ignored drop while the miner intentionally targets another reward
   not harden every malformed HTTP/GraphQL response before it reaches the service.
   Regression coverage: `tests/test_current_drop_responses.py`, including real-model
   recovery, mocked-HTTP GQLClient paths, no-estimation and cancellation controls.
+  On the experimental integration, validated tuples still pass captured model/revision
+  checks, `can_reconcile_progress()` and `source="current_drop"`. Unusable replies do
+  not advance revisions, refresh direct evidence, undo claims or estimate progress.
+  Combined regressions in `tests/test_progress_response_integration.py` cover newer
+  websocket/claim observations, replacement, capped recovery and bound-context effects.
 
 ### Experimental Deadline Forecasting
 
