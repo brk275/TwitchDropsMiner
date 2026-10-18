@@ -53,6 +53,10 @@ class InventoryService:
         self._refresh_token = object()
         self._refresh_retry: asyncio.TimerHandle | None = None
 
+    @property
+    def refresh_retry_pending(self) -> bool:
+        return self._refresh_retry is not None
+
     def cancel_refresh_retry(self) -> None:
         """Retire the owned deferred wakeup on refresh, cache clear or shutdown."""
         if self._refresh_retry is not None:
@@ -65,6 +69,7 @@ class InventoryService:
 
     def _defer_refresh(self) -> None:
         if self._refresh_retry is None and self._twitch._state is not State.EXIT:
+            self._twitch.invalidate_deadline_context()
             self._refresh_retry = asyncio.get_running_loop().call_later(60, self._retry_refresh)
 
     def _clear_inventory_state(self) -> None:

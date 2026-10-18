@@ -18,6 +18,7 @@ from src.services.deadline_inputs import (
     ProjectionReason,
     _utc,
 )
+from src.services.inventory_service import InventoryService
 
 
 if TYPE_CHECKING:
@@ -142,15 +143,22 @@ class DeadlineContextGuard:
     @staticmethod
     def _context(twitch: Twitch, now: datetime) -> _Context:
         auth = twitch._auth_state
+        inventory_service = twitch._inventory_service
         flags = (twitch._changing_auth, twitch._games_update_pending,
                  twitch._inventory_refresh_pending, twitch._clear_cache_pending)
         if (any(type(flag) is not bool for flag in flags)
                 or type(twitch._inventory_loaded) is not bool
+                or type(twitch._claim_requests) is not int or twitch._claim_requests < 0
+                or not isinstance(inventory_service, InventoryService)
+                or inventory_service._twitch is not twitch
+                or type(inventory_service.refresh_retry_pending) is not bool
+                or type(inventory_service._refresh_token) is not object
                 or type(auth.user_id) is not int or auth.user_id <= 0
                 or type(auth.context_epoch) is not object
                 or type(twitch._deadline_context_epoch) is not object):
             raise _Refusal("invalid_context")
-        if (any(flags) or not twitch._inventory_loaded or auth._logged_in.is_set() is not True
+        if (any(flags) or twitch._claim_requests or inventory_service.refresh_retry_pending
+                or not twitch._inventory_loaded or auth._logged_in.is_set() is not True
                 or twitch._state is not State.CHANNEL_SWITCH or twitch.is_mining_time() is not True):
             raise _Refusal("inactive")
         manual = twitch.is_manual_mode()
@@ -173,6 +181,7 @@ class DeadlineContextGuard:
         watched = twitch.watching_channel.get_with_default(None)
         objects: list[object] = [twitch, auth, settings, inventory, channels,
                                  twitch._campaigns, twitch._drops, watched,
+                                 inventory_service, inventory_service._refresh_token,
                                  auth.context_epoch, twitch._deadline_context_epoch]
         for service in (getattr(twitch, "_channel_service", None), getattr(twitch, "_watch_service", None)):
             objects.extend((service, getattr(service, "_twitch", None)))
@@ -269,7 +278,7 @@ class DeadlineContextGuard:
                 return ContextResult(result.reason)
             inputs = result.inputs
             channels = self._channels.capture(twitch, inputs) if include_channels else None
-            if include_channels and not context.matches(self._context(twitch, now)):
+            if not context.matches(self._context(twitch, now)):
                 return ContextResult("superseded")
             edges = (*context.boundaries,
                      *(edge for window in inputs.mining_windows for edge in (window.starts_at, window.ends_at)))
@@ -296,7 +305,7 @@ class DeadlineContextGuard:
         saved, self._capture = self._capture, None
         if enabled is not True:
             return "disabled"
-        if saved is None or bound is not saved.bound:
+        if saved is None or bound is not saved.bound or twitch is not saved.context.objects[0]:
             return "superseded"
         try:
             now = _utc(now)

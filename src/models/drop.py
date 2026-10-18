@@ -198,14 +198,15 @@ class BaseDrop:
         return newly_claimed
 
     async def claim(self) -> bool:
-        pending = self.campaign._pending_claims
-        pending[self.id] = pending.get(self.id, 0) + 1
-        try:
-            result = await self._claim()
-        finally:
-            pending[self.id] -= 1
-            if not pending[self.id]:
-                del pending[self.id]
+        with self._twitch.claim_request():
+            pending = self.campaign._pending_claims
+            pending[self.id] = pending.get(self.id, 0) + 1
+            try:
+                result = await self._claim()
+            finally:
+                pending[self.id] -= 1
+                if not pending[self.id]:
+                    del pending[self.id]
         # Commit confirmed state before an optional notification can be cancelled.
         if self._apply_claim_result(result):
             claim_text = (

@@ -863,7 +863,16 @@ progress to an ignored drop while the miner intentionally targets another reward
   not an execution capability, eligibility grant or baseline/availability certificate.
   Capture/validation both default off; require authenticated, loaded, quiescent
   CHANNEL_SWITCH state, open mining hours, no pending refresh/policy work and no manual
-  targets or selected channel. Each new capture or failed validation retires the old
+  targets or selected channel. Require zero client-owned claim result awaits and no
+  deferred inventory refresh wakeup, including claims whose campaign was retired. `Twitch.claim_request()`
+  tracks only the result boundary and unwinds on errors/cancellation; it does not
+  change claim/progress/selection state. Claim attempts and new deferred wakeups
+  retire the client context epoch even if they later finish without model changes.
+  Bind the real InventoryService owner/identity/read token, reject unknown activity
+  state, and recheck context after input projection with or without channel inputs.
+  Regressions: `tests/test_deadline_pending_work.py`. These checks do not authorize
+  live steering, settle retired claims onto new models or prove backend freshness.
+  Each new capture or failed validation retires the old
   binding. Inspect the pending selected ID without consuming it, including dangling
   IDs; the normal state machine owns the consuming GUI getter. Restored values cannot
   revive a refusal. Never serialize the private context

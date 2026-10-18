@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import OrderedDict, abc, deque
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager, contextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from time import time
@@ -73,6 +73,7 @@ class Twitch:
         self._inventory_loaded = False
         self._inventory_refresh_pending = False
         self._clear_cache_pending = False
+        self._claim_requests = 0
         self.wanted_games: list[Game] = []
         self.inventory: list[DropsCampaign] = []
         self._drops: dict[str, TimedDrop] = {}
@@ -283,6 +284,16 @@ class Twitch:
     def invalidate_deadline_context(self) -> None:
         """Retire experimental captures without changing mining policy or state."""
         self._deadline_context_epoch = object()
+
+    @contextmanager
+    def claim_request(self) -> abc.Iterator[None]:
+        """Track result awaits even if their campaign is removed from inventory."""
+        self._claim_requests += 1
+        try:
+            self.invalidate_deadline_context()
+            yield
+        finally:
+            self._claim_requests -= 1
 
     def request_games_update(self) -> bool:
         """Queue a mining-policy recalculation without racing the active state step."""

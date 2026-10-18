@@ -24,6 +24,7 @@ from tests.test_drop_ignore_policy import _drop
 
 def client(*, hours=None):
     twitch = object.__new__(Twitch)
+    twitch._claim_requests = 0
     twitch.settings = SimpleNamespace(
         games_to_watch=["High", "Urgent"], drop_name_blacklist=[],
         mining_benefits={"DIRECT_ENTITLEMENT": True}, allow_unlinked_campaigns=False,

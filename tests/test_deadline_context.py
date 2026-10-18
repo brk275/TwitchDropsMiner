@@ -14,6 +14,7 @@ from src.auth.browser_session import BrowserIdentity
 from src.config import State
 from src.models.channel import Channel, Stream
 from src.services.deadline_context import DeadlineContextGuard
+from src.services.inventory_service import InventoryService
 from src.utils.async_helpers import AwaitableValue
 from src.web.gui_manager import WebGUIManager
 from src.web.managers.channels import ChannelListManager
@@ -41,7 +42,8 @@ def state():
     twitch._schedule_changed = asyncio.Event()
     twitch._watch_service = MagicMock()
     twitch.drop_history = MagicMock()
-    twitch._inventory_service = SimpleNamespace(fetch_inventory=AsyncMock())
+    twitch._inventory_service = InventoryService(twitch)
+    twitch._inventory_service.fetch_inventory = AsyncMock()
     item = campaign(twitch, "one", "High", minutes=0)
     twitch._campaigns = {item.id: item}
     twitch._drops = dict(item.timed_drops)

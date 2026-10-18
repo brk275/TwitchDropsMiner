@@ -22,6 +22,7 @@ def response(session):
 @pytest.fixture
 def mining():
     twitch = object.__new__(Twitch)
+    twitch._claim_requests = 0
     twitch.settings = SimpleNamespace(
         drop_name_blacklist=[], mining_benefits={"DIRECT_ENTITLEMENT": True},
         allow_unlinked_campaigns=False,

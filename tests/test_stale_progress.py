@@ -1,11 +1,12 @@
 """CurrentDrop responses must not overwrite observations received while polling."""
 
 import asyncio
-from types import SimpleNamespace
+from types import MethodType, SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.core.client import Twitch
 from src.exceptions import GQLException
 from src.models.campaign import DropsCampaign
 from src.services.watch_service import WatchService
@@ -65,6 +66,9 @@ def mining_state():
         print=MagicMock(),
         drop_history=MagicMock(),
     )
+    twitch._claim_requests = 0
+    twitch.invalidate_deadline_context = MethodType(Twitch.invalidate_deadline_context, twitch)
+    twitch.claim_request = MethodType(Twitch.claim_request, twitch)
     twitch.gui.broadcast_wanted_items_now = AsyncMock()
     campaign = make_campaign(twitch)
     channel.game = campaign.game

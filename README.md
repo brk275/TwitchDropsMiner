@@ -64,6 +64,8 @@ settlement time or loss of eligibility, without inventing additional watch progr
 Neither is connected to live mining or dashboard settings or covers unbounded uncertainty.
 Experimental captures also have short-lived context checks before reuse; these do not
 enable automatic rescues or establish future channel availability.
+Pending claim results and deferred inventory refreshes prevent experimental captures;
+finishing or cancelling that work does not restore an older capture.
 Read-only model inputs preserve direct readings and project configured mining hours;
 future channel availability and claim timing still require explicit assumptions.
 Optional captures include current channel eligibility and priorities, not future uptime,
