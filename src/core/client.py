@@ -178,15 +178,23 @@ class Twitch:
         self._changing_auth = True
         self._resume_mining.clear()
         try:
-            tasks = [task for task in (self._run_task, self._schedule_task, self._watching_task, self._mnt_task)
-                     if task is not None and task is not asyncio.current_task()]
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            self._schedule_task = self._watching_task = self._mnt_task = None
-            await self.websocket.stop(clear_topics=True)
-            await self._stop_channel_tasks()
-            await self.gui.login.stop_avatar()
+            drain = asyncio.create_task(self._drain_authentication_work(asyncio.current_task()))
+            cancellation: asyncio.CancelledError | None = None
+            while not drain.done():
+                try:
+                    await asyncio.shield(drain)
+                except asyncio.CancelledError as exc:
+                    if not drain.cancelled() and cancellation is None:
+                        cancellation = exc
+                except Exception:
+                    break
+            if cancellation is not None:
+                if not drain.cancelled():
+                    drain.exception()
+                raise cancellation
+            error = drain.result()
+            if error is not None:
+                raise error
             yield
         finally:
             self._auth_state.clear()
@@ -199,11 +207,34 @@ class Twitch:
             self._changing_auth = False
             self._resume_mining.set()
 
+    async def _drain_authentication_work(self, caller: asyncio.Task[Any] | None) -> BaseException | None:
+        """Own the complete old-account drain independently of caller cancellation."""
+        tasks: tuple[asyncio.Task[Any], ...] = tuple(dict.fromkeys(
+            task for task in (self._run_task, self._schedule_task, self._watching_task, self._mnt_task)
+            if task is not None and task is not caller
+        ))
+        for task in tasks:
+            if not task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        self._schedule_task = self._watching_task = self._mnt_task = None
+        error: BaseException | None = None
+        for cleanup in (partial(self.websocket.stop, clear_topics=True),
+                        self._stop_channel_tasks, self.gui.login.stop_avatar):
+            try:
+                await cleanup()
+            except (Exception, asyncio.CancelledError) as exc:
+                if error is None:
+                    error = exc
+        # Returning owned cancellation keeps it distinct from cancellation of the caller.
+        return error
+
     async def _stop_channel_tasks(self) -> None:
         """Drain online checks even after their pending display marker is cleared."""
         tasks = tuple(self._channel_tasks)
         for task in tasks:
-            task.cancel()
+            if not task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+                task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
     def _ensure_api_clients(self) -> None:

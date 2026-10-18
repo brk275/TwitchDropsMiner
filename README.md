@@ -64,6 +64,8 @@ is propagated after cleanup; unresponsive cleanup can still delay shutdown.
 Final shutdown also joins current watch and maintenance tasks before closing their
 transports or clearing account state. Cancellation during this join waits for task
 cleanup before propagating; a later shutdown call can finish transport teardown.
+Cancelled account replacement drains old workers, websocket callbacks, channel checks
+and avatar requests before clearing account state, without admitting the replacement.
 
 Source builds reject invalid watch-time requirements before replacing inventory.
 Zero remains a valid non-watch requirement; invalid values are not converted to zero.

@@ -587,6 +587,15 @@ of unattended collection during persistent outages or a transactional GUI refres
   await miner, watch, maintenance, websocket callbacks and tracked channel/UI tasks.
   Clear old topics and derived account state before resuming. Epoch/revision checks
   prevent delayed login or renewal from reinstalling credentials after logout.
+  Own the entire pre-admission drain in a shielded task. Remember first caller
+  cancellation and propagate it only after every drain phase, without yielding for
+  installation. Keep old identity and pause state until the drain finishes. Cancel
+  worker/channel/avatar owners once, including already-draining owners; exclude the
+  original caller from worker joining. After a websocket/channel/avatar drain error,
+  attempt remaining phases before surfacing the first error. Caller cancellation
+  takes precedence over observed drain errors. This is cooperative serialized account
+  replacement, not a hard deadline or rollback of a session already installed after
+  admission. Tests: `tests/test_auth_change_cancellation.py`.
 - The renewal worker rotates SDK state, normally five minutes before expiry, with
   bounded retries and same-account/freshness validation. Mining GraphQL stays in
   Python. Preserve safe-read retry rules; never replay ambiguous mutations.

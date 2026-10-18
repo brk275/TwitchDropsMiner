@@ -63,7 +63,8 @@ class LoginFormManager:
         self._avatar_url = None
         self._avatar_attempted = False
         for task in self._avatar_tasks:
-            task.cancel()
+            if not task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+                task.cancel()
 
     async def stop_avatar(self) -> None:
         """Drain account-specific requests before identity replacement or teardown."""
