@@ -178,6 +178,7 @@
             "actions": "İşlemler",
             "connection_quality": "Bağlantı kalitesi:",
             "minimum_refresh": "Minimum yenileme aralığı (dakika):",
+            "minimum_refresh_save_error": "Yenileme aralığı kaydedilemedi. Lütfen tekrar deneyin.",
             "telegram": {
                 "name": "Telegram Bildirimleri",
                 "description": "Drop talep ettiğinizde Telegram'da bildirim alın.",

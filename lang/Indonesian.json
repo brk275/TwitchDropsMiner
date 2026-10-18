@@ -178,6 +178,7 @@
             "actions": "Tindakan",
             "connection_quality": "Kualitas Koneksi:",
             "minimum_refresh": "Interval Refresh Minimum (menit):",
+            "minimum_refresh_save_error": "Tidak dapat menyimpan interval penyegaran. Silakan coba lagi.",
             "telegram": {
                 "name": "Notifikasi Telegram",
                 "description": "Terima notifikasi di Telegram ketika Anda mengklaim drop.",

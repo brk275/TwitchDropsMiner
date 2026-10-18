@@ -178,6 +178,7 @@
             "actions": "Akce",
             "connection_quality": "Kvalita připojení:",
             "minimum_refresh": "Minimální interval obnovení (minuty):",
+            "minimum_refresh_save_error": "Interval obnovení se nepodařilo uložit. Zkuste to znovu.",
             "telegram": {
                 "name": "Upozornění na Telegram",
                 "description": "Dostávejte upozornění na Telegram, když si nárokujete drops.",
