@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.config import MAX_EXTRA_MINUTES
+from src.config import GQL_OPERATIONS, MAX_EXTRA_MINUTES
 from src.exceptions import GQLException
 from src.models.channel import Channel
 from src.services.deadline_context import DeadlineContextGuard
@@ -61,6 +61,9 @@ async def run_poll(twitch, monkeypatch, replies, *, during=None, until=30, clock
         service = WatchService(twitch)
 
     async def ask(operation):
+        # Other API work in callbacks must not count as another progress poll.
+        if query is not None and operation.get("operationName") != GQL_OPERATIONS["CurrentDrop"]["operationName"]:
+            return await query(operation)
         requests.append(clock[0])
         if during is not None:
             await during(len(requests))

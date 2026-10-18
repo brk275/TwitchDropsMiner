@@ -271,6 +271,23 @@ lang/                # Translation JSON files (20 languages)
   cancelled notification delivery must not allow an older CurrentDrop reply to update
   sibling progress or create estimates. Claim-normalized counters are not direct minute
   observations. Integration coverage: `tests/test_claim_progress_integration.py`.
+- `BaseDrop._claim()` confirms only an object reply with no legacy root `error`,
+  absent/null/empty-list root and data `errors`, object data/claimDropRewards, and
+  exact string status `ELIGIBLE_FOR_ALL` or `DROP_INSTANCE_ALREADY_CLAIMED`.
+  Missing, malformed or errored confirmations return false without changing claim
+  state/history or retrying. False is unconfirmed, not proof that Twitch did not
+  execute the request; a later explicit attempt can still confirm it. Preserve early
+  claimed/ineligible returns, the existing GQLException catch and other exception/
+  cancellation propagation. This model-boundary validation does not harden earlier
+  transport/GraphQL processing or change claim grace/notification ordering.
+  Regression coverage: `tests/test_claim_response_shapes.py`, including BaseDrop,
+  TimedDrop, repeated/later claims and loopback imported-session GQL dispatch.
+  `tests/test_claim_confirmation_integration.py` composes actual claim parsing and
+  settlement with pending progress queries. A confirmed own/sibling claim supersedes
+  stale reads before GUI delivery; cancellation retains persisted history. Unconfirmed
+  claims do not manufacture revisions, claim state or minute evidence. Keep ordinary
+  query fallback distinct from invalid returned replies, and permit later explicit
+  confirmation without duplicate history or relabelled direct observations.
 
 **src/web/gui_manager.py** - Web GUI:
 

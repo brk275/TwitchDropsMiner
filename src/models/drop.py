@@ -254,18 +254,16 @@ class BaseDrop:
             # regardless of the error, we have to assume
             # the claiming operation has potentially failed
             return False
-        data = response["data"]
-        if "errors" in data and data["errors"]:
+        if (not isinstance(response, dict) or "error" in response
+                or response.get("errors") not in (None, [])):
             return False
-        elif "claimDropRewards" in data:
-            if not data["claimDropRewards"]:
-                return False
-            elif data["claimDropRewards"]["status"] in (
-                "ELIGIBLE_FOR_ALL",
-                "DROP_INSTANCE_ALREADY_CLAIMED",
-            ):
-                return True
-        return False
+        data = response.get("data")
+        if not isinstance(data, dict) or data.get("errors") not in (None, []):
+            return False
+        result = data.get("claimDropRewards")
+        return isinstance(result, dict) and isinstance(result.get("status"), str) and result["status"] in (
+            "ELIGIBLE_FOR_ALL", "DROP_INSTANCE_ALREADY_CLAIMED",
+        )
 
 
 class TimedDrop(BaseDrop):

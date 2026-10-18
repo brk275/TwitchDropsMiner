@@ -106,6 +106,9 @@ Writes and mixed batches fail without being automatically resent by that retry l
 Imported transport failures use normal request-error handling; authentication and
 account-change failures remain distinct.
 
+Source builds require usable, error-free claim confirmations before marking a reward
+claimed. An invalid reply stays unconfirmed; this does not add automatic retries.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash
