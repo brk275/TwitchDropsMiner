@@ -444,6 +444,13 @@ lang/                # Translation JSON files (20 languages)
 - Telegram alerts originate in the shared `BaseDrop.claim()` successful unclaimed-to-claimed
   transition, covering websocket, startup, and inventory-refresh claims without duplicate
   alerts for repeated events. Telegram failures must not change a successful Twitch claim.
+  Notifier and claim-wrapper logs must not include exception text, bot URLs, recipient
+  IDs, message text or response bodies. Retain fixed failure messages and numeric HTTP
+  status; existing diagnostics sanitize responses before retention. Keep cancellation,
+  the ten-second request timeout and no automatic notification retries unchanged.
+  The Telegram test API must use its generic failure response for unexpected errors,
+  never reflect exception text or stored credentials to the browser.
+  Regressions: `tests/test_telegram_error_redaction.py`, including loopback HTTP.
 - The Telegram form reuses the saved token when its input is blank. Clearing the chat ID
   and saving disables alerts. Test Connection waits for settings persistence before showing
   success; HTTP, network, and application save failures must remain visible as errors.

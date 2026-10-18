@@ -233,8 +233,8 @@ class BaseDrop:
             chat_id = self._twitch.settings.telegram_chat_id
             if bot_token and chat_id:
                 await TelegramNotifier(bot_token, chat_id, diagnostics=getattr(self._twitch, "diagnostics", None)).notify_drop_claimed(self)
-        except Exception as e:
-            logger.warning("Failed to send Telegram notification: %s", e)
+        except Exception:
+            logger.warning("Failed to send Telegram notification")
 
     async def _send_discord_notification(self) -> None:
         """Notify on the shared claim transition; transport failures cannot undo it."""

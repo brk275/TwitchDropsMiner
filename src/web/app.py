@@ -359,10 +359,10 @@ async def test_telegram(request: TelegramTestRequest):
                 "success": False,
                 "message": "Failed to connect to Telegram. Please check your bot token and chat ID."
             }
-    except Exception as e:
+    except Exception:
         return {
             "success": False,
-            "message": f"Telegram error: {str(e)}"
+            "message": "Failed to connect to Telegram. Please check your bot token and chat ID."
         }
 @app.get("/api/version")
 async def get_version():

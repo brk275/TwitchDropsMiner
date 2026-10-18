@@ -64,8 +64,8 @@ class TelegramNotifier:
             )
 
             return await self._send_message(message)
-        except Exception as e:
-            logger.warning(f"Failed to send Telegram notification: {e}")
+        except Exception:
+            logger.warning("Failed to send Telegram notification")
             return False
 
     async def notify_drop_progress(self, drop: TimedDrop) -> bool:
@@ -95,8 +95,8 @@ class TelegramNotifier:
             )
 
             return await self._send_message(message)
-        except Exception as e:
-            logger.warning(f"Failed to send Telegram progress notification: {e}")
+        except Exception:
+            logger.warning("Failed to send Telegram progress notification")
             return False
 
     async def test_connection(self) -> bool:
@@ -112,8 +112,8 @@ class TelegramNotifier:
         try:
             message = "✅ Telegram notification test successful!"
             return await self._send_message(message)
-        except Exception as e:
-            logger.warning(f"Telegram connection test failed: {e}")
+        except Exception:
+            logger.warning("Telegram connection test failed")
             return False
 
     async def _send_message(self, text: str) -> bool:
@@ -147,15 +147,15 @@ class TelegramNotifier:
                     if self.diagnostics is not None:
                         self.diagnostics.record_http("POST", url, response.status,
                                                      body=error_text[:self.diagnostics.MAX_BODY_BYTES + 1].encode("utf-8"))
-                    logger.warning(f"Telegram API error {response.status}: {error_text}")
+                    logger.warning("Telegram API error %s", response.status)
                     return False
         except asyncio.TimeoutError:
             if self.diagnostics is not None:
                 self.diagnostics.record("telegram", outcome="timeout")
             logger.warning("Telegram notification timeout")
             return False
-        except Exception as e:
+        except Exception:
             if self.diagnostics is not None:
                 self.diagnostics.record("telegram", outcome="connection")
-            logger.warning(f"Telegram notification error: {e}")
+            logger.warning("Telegram notification connection failed")
             return False
