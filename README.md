@@ -43,6 +43,9 @@ Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
 
+Source builds restrict GraphQL service-error retries to known read-only requests.
+Writes and mixed batches fail without being automatically resent by that retry layer.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash

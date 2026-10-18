@@ -543,6 +543,23 @@ progress to an ignored drop while the miner intentionally targets another reward
 
 ### GraphQL Operations
 
+- `GQLRetryPolicy` shares the existing exact persisted-read classifier between
+  ImportedSession's ambiguous-HTTP retries and GQLClient's service-error retries.
+  Accept only the original eleven operation-name/hash pairs and strict version-one
+  envelope; raw/unknown operations and all four catalog mutations are not retry-safe.
+  Never infer safety from a query name or expand this allowlist incidentally.
+- `GQLClient.request()` snapshots operations before awaiting, preserving nested
+  variables and batch membership. It gates all five existing service-retry messages
+  on the whole original request, before retry logging or sleep, and rechecks the
+  owned payload after auth before sending a later attempt. A successful mutation
+  elsewhere in a mixed batch must not be repeated. First sends/successful writes,
+  safe-read backoff/rate limits and existing definitive auth-rejection handling remain.
+  Unsafe retries raise a fixed `GQLException`, not response-derived details. This
+  does not return partial results, provide exactly-once execution, validate all raw
+  envelopes or harden generic HTTPClient/caller retry behavior. Existing debug logs
+  are not globally redacted by this change. Tests: `tests/test_gql_retry_safety.py`,
+  including mocked HTTP/browser branches and a loopback imported-session dispatch.
+
 Persisted operations are defined in `src/config/operations.py` as `GQL_OPERATIONS`; raw GraphQL payloads such as `sendSpadeEvents` use `GQLQuery`:
 
 - **Inventory** - Fetch in-progress campaigns and claimed benefits
