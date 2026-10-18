@@ -7,7 +7,7 @@ import pytest
 from aiohttp import ClientConnectionError
 
 from src.config import GQL_OPERATIONS
-from src.exceptions import GQLException
+from src.exceptions import GQLException, GQLRequestFailed
 from tests.test_current_drop_responses import counts, response, run_watch
 from tests.test_current_drop_responses import mining as mining
 from tests.test_imported_session_retry import immediate_delays, running_miner
@@ -28,7 +28,7 @@ async def test_exhausted_dispatch_is_recoverable_without_outer_replay(
         waited = immediate_delays(client._browser, monkeypatch)
         with pytest.raises(GQLException) as caught:
             await client.gql_request(operation)
-        assert type(caught.value) is GQLException
+        assert type(caught.value) is (GQLRequestFailed if sends == 3 else GQLException)
         assert str(caught.value) == "Authenticated GraphQL request failed (SESSION_REQUEST)"
         assert caught.value.__suppress_context__
         assert peer.calls == [operation] * sends
@@ -109,7 +109,7 @@ async def test_transport_exception_exhaustion_is_bounded_and_recovers(tmp_path, 
         operation = (GQL_OPERATIONS["NotificationsDelete"] if mutation else GQL_OPERATIONS["Inventory"])
         with pytest.raises(GQLException) as caught:
             await client.gql_request(operation)
-        assert type(caught.value) is GQLException
+        assert type(caught.value) is (GQLException if mutation else GQLRequestFailed)
         assert str(caught.value) == "Authenticated GraphQL request failed (SESSION_REQUEST)"
         assert caught.value.__suppress_context__
         assert attempts == [operation] * (1 if mutation else 3)

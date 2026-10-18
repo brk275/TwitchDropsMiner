@@ -98,6 +98,13 @@ class GQLException(RequestException):
         super().__init__(message)
 
 
+class GQLRequestFailed(GQLException):
+    """An imported-session dispatch exhausted its bounded transport attempts."""
+
+    def __init__(self):
+        super().__init__("Authenticated GraphQL request failed (SESSION_REQUEST)")
+
+
 class GQLInvalidResponse(GQLException):
     """A malformed structured reply is not evidence for estimated progress."""
 

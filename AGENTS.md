@@ -509,6 +509,18 @@ claim and policy changes must be reflected on the next call. Regression coverage
 
 ### State Machine Flow
 
+Inventory refresh recovery catches only `GQLRequestFailed`, the fixed GQLException
+subtype for `SessionRequestExhausted` after safe imported reads exhaust transient
+retries. Generic REQUEST, invalid JSON, TLS, non-5xx HTTP and ambiguous mutation
+failures do not qualify. Try at most three complete
+refreshes with 30/60-second waits. Preserve cancellation, authentication failures,
+malformed replies and model errors without retry. Do not retry claims or other state
+steps. Waits wake on EXIT or mining-hours closure without accelerating on unrelated
+state events; defer refresh until reopening. Keep successful inventory publication
+and ordinary request-level safe-read limits unchanged. Tests:
+`tests/test_inventory_refresh_recovery.py`. This is bounded recovery, not a promise
+of unattended collection during persistent outages or a transactional GUI refresh.
+
 1. **IDLE** - Waiting for campaigns or user action
 2. **INVENTORY_FETCH** - Fetch campaigns from GraphQL, claim completed drops
 3. **GAMES_UPDATE** - Determine wanted games based on priority/exclude lists
@@ -638,7 +650,8 @@ claim and policy changes must be reflected on the next call. Regression coverage
   `GQLInvalidResponse` is a fixed GQLException subtype. Map only imported dispatch
   SessionError RESPONSE to it, not auth-validation or ordinary HTTP exceptions.
   Imported dispatch SessionError REQUEST becomes a fixed ordinary GQLException
-  after the session's bounded transport retries. Do not retry again in GQLClient;
+  except safe-read transient exhaustion (`SessionRequestExhausted`), which becomes
+  `GQLRequestFailed` for bounded inventory recovery. Do not retry again in GQLClient;
   ambiguous mutations remain unconfirmed. Preserve other session codes, initial
   authentication failures, ordinary HTTP exceptions and cancellation unchanged.
   Regression coverage: `tests/test_gql_request_failures.py`.

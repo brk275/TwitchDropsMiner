@@ -18,7 +18,12 @@ import aiohttp
 from src.api.gql_retry_policy import GQLRetryPolicy
 from src.auth.browser_session import BrowserIdentity, BrowserSession
 from src.auth.server_seed import SDKCookie, ServerSeed
-from src.auth.session_bundle import PrivateSessionFile, SessionBundle, SessionError
+from src.auth.session_bundle import (
+    PrivateSessionFile,
+    SessionBundle,
+    SessionError,
+    SessionRequestExhausted,
+)
 from src.config import GQL_OPERATIONS, ClientType
 from src.exceptions import ExitRequest, LoginException
 
@@ -489,8 +494,10 @@ class ImportedSession:
                     if self._stopping:
                         raise ExitRequest() from None
                     candidates = body if batch else [body]
-                    if retries >= len(self._RETRY_DELAYS) or not all(self._safe_read(op) for op in candidates):
+                    if not all(self._safe_read(op) for op in candidates):
                         raise
+                    if retries >= len(self._RETRY_DELAYS):
+                        raise SessionRequestExhausted() from None
                     delay = self._RETRY_DELAYS[retries]
                     retries += 1
                     self._updated.clear()

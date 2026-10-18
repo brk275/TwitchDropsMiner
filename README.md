@@ -80,8 +80,10 @@ They do not add estimated minutes; the next valid reply can update progress norm
 This includes malformed containers and error metadata rejected by the GraphQL client.
 Automatic service-error retries are restricted to known persisted read-only requests.
 Writes and mixed batches remain unconfirmed after ambiguous failures instead of replaying.
-Imported-session request failures use normal GraphQL recovery after bounded transport
-retries, without adding another retry loop. Authentication failures remain separate.
+Imported-session inventory reads get up to two additional refresh attempts after
+exhausting transport retries, waiting 30 and 60 seconds. Persistent failures still
+surface; cancellation and mining hours interrupt the waits. Malformed replies and
+authentication failures are not retried, and claims are not replayed.
 
 Source builds save confirmed claim history before waiting on dashboard or notification
 delivery. Interrupted alerts are not retried automatically.

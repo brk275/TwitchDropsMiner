@@ -45,6 +45,13 @@ class SessionError(LoginException):
         return self
 
 
+class SessionRequestExhausted(SessionError):
+    """A safe read exhausted the imported session's transient retry budget."""
+
+    def __init__(self):
+        super().__init__("REQUEST")
+
+
 class PrivateSessionFile:
     """Atomic JSON storage with POSIX owner-only mode and inherited Windows ACLs.
 

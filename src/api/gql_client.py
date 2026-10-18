@@ -13,8 +13,8 @@ from itertools import chain
 from typing import TYPE_CHECKING, overload
 
 from src.api.gql_retry_policy import GQLRetryPolicy
-from src.auth.session_bundle import SessionError
-from src.exceptions import GQLException, GQLInvalidResponse, MinerException
+from src.auth.session_bundle import SessionError, SessionRequestExhausted
+from src.exceptions import GQLException, GQLInvalidResponse, GQLRequestFailed, MinerException
 from src.utils import ExponentialBackoff, RateLimiter
 
 
@@ -113,6 +113,8 @@ class GQLClient:
                     try:
                         response_json = await browser.gql(ops)
                     except SessionError as error:
+                        if isinstance(error, SessionRequestExhausted):
+                            raise GQLRequestFailed() from None
                         if error.code == "RESPONSE":
                             raise GQLInvalidResponse() from None
                         if error.code == "REQUEST":

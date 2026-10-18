@@ -30,6 +30,7 @@ from src.diagnostics import Diagnostics
 from src.drop_history import DropHistory
 from src.exceptions import (
     ExitRequest,
+    GQLRequestFailed,
     RequestException,
 )
 from src.i18n import _
@@ -429,6 +430,37 @@ class Twitch:
             await self.helper.stop()
             await self.session_controller.stop()
 
+    async def _wait_inventory_retry(self, delay: float) -> None:
+        """Wait out backoff without delaying shutdown or mining-hours closure."""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + delay
+        while self._state is not State.EXIT and self.is_mining_time():
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                return
+            self._state_change.clear()
+            try:
+                await asyncio.wait_for(self._state_change.wait(), timeout=remaining)
+            except TimeoutError:
+                return
+
+    async def _fetch_inventory_with_recovery(self) -> bool:
+        """Retry only exhausted imported transport reads, with a finite budget."""
+        for attempt in range(3):
+            if self._state is State.EXIT:
+                return False
+            if not self.is_mining_time():
+                self._inventory_refresh_pending = True
+                return False
+            try:
+                await self.fetch_inventory()
+                return True
+            except GQLRequestFailed:
+                if attempt == 2:
+                    raise
+                await self._wait_inventory_retry(30 * (attempt + 1))
+        return False
+
     async def _run(self) -> None:
         """
         Main method that runs the whole client.
@@ -491,7 +523,8 @@ class Twitch:
                     self._inventory_service.clear_cached_state()
                 # ensure the websocket is running
                 await self.websocket.start()
-                await self.fetch_inventory()
+                if not await self._fetch_inventory_with_recovery():
+                    continue
                 self._inventory_loaded = True
                 self.gui.set_games({campaign.game for campaign in self.inventory})
                 # Broadcast unwanted items (based on settings)
