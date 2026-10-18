@@ -242,6 +242,15 @@ lang/                # Translation JSON files (20 languages)
   inventory/index/GUI state at this failure boundary. Preserve valid claim/progress
   normalization and estimate semantics. This is not general model/GUI transactionality
   or automatic retry/auth recovery. Tests: `tests/test_drop_watch_requirements.py`.
+- `TimedDrop.update_minutes()` accepts only a plain integer before arithmetic or
+  state changes. Ignore booleans, floats (including NaN/infinity), strings,
+  containers and integer subclasses without coercion, counter/estimate mutation
+  or a counter-change event from this method. Transports may still display the
+  unchanged state. Preserve existing integer correction/clamping, unchanged-reading
+  and unequal-sibling underflow behavior. This guards live update values, not
+  inventory ingestion, already-corrupt models or whole transport payload shapes.
+  Regressions: `tests/test_progress_reading_types.py`, including real websocket
+  handling and watch-loop polling followed by a valid reading.
 - `BaseDrop`: Base class with claim logic
 - `BaseDrop.can_claim` bounds attempts for an existing, unclaimed ID to strictly less
   than 14 days after the campaign end, not the individual reward end. This follows the
@@ -633,8 +642,8 @@ progress to an ignored drop while the miner intentionally targets another reward
   If a sibling delta would underflow, retain its real minutes but still clear eligible
   estimates immediately; an identical second observation must not recover it again.
   Regression coverage: `tests/test_progress_reconciliation.py`.
-- `DropsCampaign.progress_revision` advances on every `TimedDrop.update_minutes()`
-  observation, including unchanged values, and before awaiting notification work on a
+- `DropsCampaign.progress_revision` advances on plain-integer `TimedDrop.update_minutes()`
+  calls, including unchanged values, and before awaiting notification work on a
   successful claim transition. Sibling progress shares this revision. CurrentDrop polling
   snapshots drop identity and campaign revision before awaiting Twitch; discard replies
   superseded by observations, claims or model replacement/removal without estimating a
@@ -642,6 +651,12 @@ progress to an ignored drop while the miner intentionally targets another reward
   replies may estimate only against that same campaign and unchanged revision. Fresh
   polls can still correct progress downward. Keep this separate from estimated-minute
   bumps. Regression coverage: `tests/test_stale_progress.py`.
+  Reject other minute types before revision changes as well as counter arithmetic;
+  rejected values must not refresh direct evidence, clear estimates or supersede a
+  valid pending poll. Existing out-of-range integer corrections still advance the
+  revision without inventing in-range direct evidence. Preserve this branch's valid
+  unchanged-reading and underflow estimate recovery. Combined regressions:
+  `tests/test_progress_type_integration.py`.
   `tests/test_progress_integration.py` also covers unchanged observations recovering
   capped rewards during pending polls: superseded session/null/error/timeout replies
   must not undo recovery or estimate another minute, while a fresh downward poll works.

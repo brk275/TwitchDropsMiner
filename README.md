@@ -76,6 +76,9 @@ are tried again on the next refresh; malformed detail batches still reject the r
 Source builds reject invalid watch-time requirements before replacing inventory.
 Zero remains a valid non-watch requirement; invalid values are not converted to zero.
 
+Source builds ignore non-integer minute updates from live progress events and polling.
+Existing integer correction bounds remain unchanged.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
