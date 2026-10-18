@@ -95,6 +95,11 @@
             "reconnecting": "重新连接中..."
         },
         "progress": {
+            "local_progress": "本地：{current} / {required} 分钟",
+            "reported_progress": "Twitch 报告：{current} / {required} 分钟",
+            "no_reported_progress": "暂无 Twitch 进度报告",
+            "report_received": "接收时间：{time}",
+            "estimated_remaining": "预计剩余时间：{time}",
             "name": "掉宝活动进度",
             "drop": "掉宝奖励:",
             "game": "游戏名称:",

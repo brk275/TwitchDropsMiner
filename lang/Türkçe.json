@@ -95,6 +95,11 @@
             "reconnecting": "Yeniden bağlanılıyor..."
         },
         "progress": {
+            "local_progress": "Yerel: {current} / {required} dk",
+            "reported_progress": "Twitch bildirimi: {current} / {required} dk",
+            "no_reported_progress": "Twitch ilerleme bildirimi yok",
+            "report_received": "Alınma: {time}",
+            "estimated_remaining": "Tahmini kalan süre: {time}",
             "name": "Drop İlerlemesi",
             "drop": "Drop:",
             "game": "Oyun:",

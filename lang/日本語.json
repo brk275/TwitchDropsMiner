@@ -95,6 +95,11 @@
             "reconnecting": "再接続中..."
         },
         "progress": {
+            "local_progress": "ローカル: {current} / {required} 分",
+            "reported_progress": "Twitch の報告: {current} / {required} 分",
+            "no_reported_progress": "Twitch の進捗報告なし",
+            "report_received": "受信日時: {time}",
+            "estimated_remaining": "推定残り時間: {time}",
             "name": "キャンペーン進行状況",
             "drop": "ドロップ：",
             "game": "ゲーム：",

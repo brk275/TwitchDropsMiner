@@ -95,6 +95,11 @@
             "reconnecting": "Přepojování..."
         },
         "progress": {
+            "local_progress": "Místně: {current} / {required} min",
+            "reported_progress": "Hlášení Twitch: {current} / {required} min",
+            "no_reported_progress": "Žádné hlášení průběhu z Twitch",
+            "report_received": "Přijato: {time}",
+            "estimated_remaining": "Odhad zbývajícího času: {time}",
             "name": "Průběh Dropu",
             "drop": "Drop Odměny:",
             "game": "Hra:",

@@ -95,6 +95,11 @@
             "reconnecting": "Переподключение..."
         },
         "progress": {
+            "local_progress": "Локально: {current} / {required} мин",
+            "reported_progress": "Данные Twitch: {current} / {required} мин",
+            "no_reported_progress": "Нет данных о прогрессе от Twitch",
+            "report_received": "Получено: {time}",
+            "estimated_remaining": "Примерно осталось: {time}",
             "name": "Ход кампании",
             "drop": "Drop:",
             "game": "Игра:",

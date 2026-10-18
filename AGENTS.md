@@ -632,6 +632,21 @@ progress to an ignored drop while the miner intentionally targets another reward
   expose the same field. Diagnosis adds strictly projected `observed_minutes`; legacy
   `reported_minutes` still includes sibling inference. Never export source free text.
   Regression coverage: `tests/test_progress_observation.py` and `tests/test_diagnostics.py`.
+  The active-drop dashboard distinguishes its local counter/estimated remaining time
+  from this direct reading and the miner's receipt time. Render zero as known and
+  absent/malformed metadata as no report; never infer it from counters, siblings or
+  claim normalization. Keep receipt text/data cleared across drop changes and stops,
+  use safe text DOM APIs, and redraw active labels when language changes. Do not run
+  a browser countdown that implies credit between server updates. These labels are
+  not freshness, current Twitch allocation, successful mining or claim guarantees.
+  All 20 locale files and GUIProgress must retain matching keys/placeholders.
+  Tests: `tests/test_reported_progress_frontend.py`; include rendered desktop/mobile
+  checks with fake data only. Static asset changes require the release workflow's
+  version/cache-key bump before deployment; do not independently publish a release.
+  `tests/test_deadline_progress_display.py` composes real drop observations, progress
+  payloads, DOM rendering and conditional planning. A readable old report is not a
+  planning freshness lease; missing/stale readings refuse planning even when local
+  counters advance. Keep model replacement and stop handling free of retained receipts.
   Combined regressions in `tests/test_progress_observation_integration.py` ensure
   stale replies and estimate recovery cannot rewrite direct-reading provenance.
   Record accepted readings before publishing counter changes, but after reconciliation

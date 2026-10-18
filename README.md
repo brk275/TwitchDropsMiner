@@ -91,6 +91,10 @@ see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
 Source builds save confirmed claim history before waiting on dashboard or notification
 delivery. Interrupted alerts are not retried automatically.
 
+Source builds show local counters separately from the last Twitch progress report.
+Its receipt time is local to the miner, not proof of ongoing mining or a claimed reward.
+Estimated remaining time changes with miner updates, not a browser-only countdown.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash

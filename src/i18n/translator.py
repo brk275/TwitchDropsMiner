@@ -119,6 +119,11 @@ class GUIWebsocket(TypedDict):
 
 
 class GUIProgress(TypedDict):
+    local_progress: str
+    reported_progress: str
+    no_reported_progress: str
+    report_received: str
+    estimated_remaining: str
     name: str
     drop: str
     game: str
