@@ -68,6 +68,9 @@ Read-only model inputs preserve direct readings and project configured mining ho
 future channel availability and claim timing still require explicit assumptions.
 Optional captures include current channel eligibility and priorities, not future uptime,
 transport readiness or evidence that all eligible drops receive credit together.
+A source-only planning adapter checks conditional calendars against those current routes
+and discards results if the captured state changes or expires during calculation.
+It still requires explicit future assumptions and does not enable automatic switching.
 
 Source builds skip unavailable campaign details without creating empty campaigns.
 Known inventory data keeps priority over available catalog metadata. Missing campaigns

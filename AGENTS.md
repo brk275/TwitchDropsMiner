@@ -851,6 +851,28 @@ progress to an ignored drop while the miner intentionally targets another reward
   Retain manual/pending-selection precedence without consuming the GUI getter. The
   current snapshot is not a complete live adapter, executor, enabled setting or UI.
   Tests: `tests/test_deadline_channels.py`, including actual mocked CHANNEL_SWITCH steps.
+- `src/services/deadline_planner.py` joins guarded real-model/channel captures with
+  explicit `PlanningAssumptions` and the continuous fixed-calendar certificate builder.
+  It remains source-only, default off and disconnected from live selection/settings/UI.
+  The caller must own the serialized checkpoint and supply trusted UTC/monotonic clocks.
+  Missing assumptions or any coverage declaration other than boolean True yields
+  no certificate.
+  Current eligibility is not evidence of future uptime, exhaustive baseline routes,
+  successful claim bounds or simultaneous credit. Keep those premises explicit.
+  Validate timing record IDs exactly, preserve direct readings and nominal mining
+  windows, and require immediate credit routes to match real eligibility, priority,
+  insertion order and ACL metadata. Do not omit watchable fallback-only work, merge
+  conflicting same-ID tracked/current objects or authorize a currently unknown route.
+  Future-only windows are hypotheses, not discoveries. First-slot work must be
+  eligible on a current known route. A watched object alone never waives setup cost.
+  Revalidate the original context after computation, including refusals and malformed
+  input paths; processing cannot extend the clipped lifetime. Cancellation propagates.
+  Observations are checked as of capture, not leased through result expiry.
+  Results contain no private runtime binding; `valid_until` is a context limit, not
+  an execution capability or permission to reuse a calendar whose start time passed.
+  Actual future baseline equivalence, availability/allocation evidence, safe queued
+  execution/reentry, persisted controls, translations and end-to-end acceptance remain
+  required. Tests: `tests/test_deadline_planner.py`.
 
 ### GraphQL Operations
 
