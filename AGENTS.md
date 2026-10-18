@@ -634,7 +634,8 @@ progress to an ignored drop while the miner intentionally targets another reward
   Forecast candidates use supplied `channel_order` (then ID for deterministic ties),
   not a new implicit ACL sort. `ViewingWindow.acl_based` is strictly boolean;
   optional `mining_priority` is an explicit `(0|1, 0..MAX_INT)` tuple, not future proof.
-  Without it the conditional priority follows the highest-ranked ready credited game.
+  Without it the conditional priority follows the highest-ranked watchable reward's
+  game, including completed work waiting on its supplied claim settlement.
   With it channel priority remains separate from reward rank, including cross-category
   Special Events/IRL and selected-before-fallback tiers. These are supplied assumptions,
   not a live routing adapter. Fixed-calendar certificates accept only absent or
@@ -644,6 +645,17 @@ progress to an ignored drop while the miner intentionally targets another reward
   remain unproven; sharing this predicate does not deliver a live scheduler.
   Tests: `tests/test_deadline_channel_policy.py`, including real-model pointwise
   special-category/fallback checks and the original comparison truth table.
+- Conditional baseline watchability includes completed but unclaimed drops until
+  their explicit successful-claim settlement time, subject to the same declared
+  windows/prerequisite and priority/ACL rules. Separate channel occupancy from
+  positive remaining-work credit; never add minutes while waiting on a claim.
+  Expiry/offline can release occupancy before settlement; mining pauses do not
+  settle claims. Detours return to ranked work after their target watch work, not
+  after all claim waits. Tests in `tests/test_deadline_claim_occupancy.py` include
+  real `Twitch._run()` CHANNEL_SWITCH checkpoints with explicit settlement input.
+  These checkpoints do not prove event cadence, network claim success, complete
+  future availability/allocation or full live baseline equivalence. No live policy
+  or user setting is added.
 - Reject unknown/stale progress, unknown allocation, malformed dependency graphs,
   overlapping contradictory channel windows, naive datetimes, incomplete horizons and
   exhausted budgets. Normalize aware timestamps to UTC before arithmetic. Input limits:

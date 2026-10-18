@@ -255,7 +255,7 @@ def test_already_claimed_ancestor_needs_no_progress_or_timing_alternatives():
 
 def test_incomplete_horizon_refusal_reports_the_union_of_all_baselines():
     state = snapshot(reward("high", 1, 4, 1), reward("urgent", 2, 2, 1))
-    state = replace(state, horizon=NOW + timedelta(minutes=3))
+    state = replace(state, horizon=NOW + timedelta(minutes=3, seconds=20))
     options = timing(state, progress={"high": (ZERO, timedelta(minutes=3))})
     result = analyze(state, options)
     assert result.reason == "incomplete_horizon" and result.plan is None

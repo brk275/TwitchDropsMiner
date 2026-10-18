@@ -469,17 +469,22 @@ class DeadlineForecaster:
             window_count = len(state.viewing_windows)
             budget.spend(1 + len(drops) * max(1, window_count) + len(boundaries)
                          + window_count * max(1, window_count.bit_length()))
-            ready = frozenset(
+            watchable = frozenset(
                 key for key, duration in remaining.items()
-                if duration > timedelta(0) and drops[key].starts_at <= time < drops[key].ends_at
+                if (duration > timedelta(0) or claim_ready.get(key, time) > time)
+                and drops[key].starts_at <= time < drops[key].ends_at
                 and all(parent in claim_ready and claim_ready[parent] <= time for parent in drops[key].prerequisite_ids)
             )
+            ready = frozenset(key for key in watchable if remaining[key] > timedelta(0))
             choices = []
             if any(window.starts_at <= time < window.ends_at for window in state.mining_windows):
                 for window in state.viewing_windows:
-                    credits = window.drop_ids.intersection(ready)
-                    if window.starts_at <= time < window.ends_at and credits:
-                        game = min((drops[key].game_id for key in credits), key=ranks.__getitem__)
+                    eligible = window.drop_ids.intersection(watchable)
+                    if window.starts_at <= time < window.ends_at and eligible:
+                        # The real selector can retain completed, unclaimed work.
+                        # Occupancy is distinct from additional watch-time credit.
+                        credits = eligible.intersection(ready)
+                        game = min((drops[key].game_id for key in eligible), key=ranks.__getitem__)
                         choices.append(_Choice(
                             window.channel_id, game, credits, time, window.channel_order,
                             window.acl_based, window.mining_priority or (0, ranks[game]),
@@ -509,7 +514,7 @@ class DeadlineForecaster:
                 time = min(end, setup_until)
                 continue
             duration = end - time
-            if active is not None:
+            if active is not None and active.credits:
                 duration = min(duration, *(remaining[key] for key in active.credits))
                 for key in active.credits:
                     remaining[key] -= duration

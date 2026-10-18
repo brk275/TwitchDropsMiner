@@ -100,7 +100,7 @@ def test_equal_priority_only_promotes_non_acl_current_to_acl(current_acl, candid
     assert run.first.channel_id == expected
     assert run.earned[expected] == NOW + timedelta(hours=1)
     other = "z" if expected == "a" else "a"
-    assert run.earned[other] == NOW + timedelta(hours=2)
+    assert run.earned[other] == NOW + timedelta(hours=2, seconds=20)
 
 
 @pytest.mark.parametrize("candidate_priority,current_priority,expected", [
@@ -130,7 +130,7 @@ def test_no_eligible_current_initially_uses_supplied_order_not_acl_sort(current)
     assert run.first.channel_id == "z"
     # At the next conditional decision, the ACL candidate can promote that stream.
     assert run.earned["a"] == NOW + timedelta(minutes=70)
-    assert run.earned["z"] == NOW + timedelta(minutes=135)
+    assert run.earned["z"] == NOW + timedelta(minutes=135, seconds=20)
 
 
 def test_adjacent_window_acl_change_preempts_current_without_free_setup():
@@ -144,7 +144,7 @@ def test_adjacent_window_acl_change_preempts_current_without_free_setup():
     run = simulate(state, setup=timedelta(minutes=5))
     assert run.first.channel_id == "z"
     assert run.earned["a"] == NOW + timedelta(minutes=95)
-    assert run.earned["z"] == NOW + timedelta(minutes=130)
+    assert run.earned["z"] == NOW + timedelta(minutes=130, seconds=20)
 
 
 def test_mining_pause_releases_current_preference_and_requires_reconnect_setup():
@@ -157,7 +157,7 @@ def test_mining_pause_releases_current_preference_and_requires_reconnect_setup()
         MiningWindow(NOW + timedelta(hours=1), state.horizon),
     ))
     run = simulate(state, setup=timedelta(minutes=5))
-    assert run.earned == {"a": NOW + timedelta(minutes=125), "z": NOW + timedelta(minutes=160)}
+    assert run.earned == {"a": NOW + timedelta(minutes=125), "z": NOW + timedelta(minutes=160, seconds=20)}
 
 
 @pytest.mark.parametrize("strict", [True, False])

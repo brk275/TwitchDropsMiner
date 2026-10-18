@@ -59,6 +59,8 @@ ranked baseline, including explicitly supplied finite timing alternatives. A sep
 builder conditionally certifies fixed schedules under explicit continuous timing bounds.
 Conditional routing retains healthy streams on priority ties, except for ACL promotion;
 explicit channel priorities can represent special-category and fallback cases.
+The conditional baseline retains completed, unclaimed work until its supplied claim
+settlement time or loss of eligibility, without inventing additional watch progress.
 Neither is connected to live mining or dashboard settings or covers unbounded uncertainty.
 Experimental captures also have short-lived context checks before reuse; these do not
 enable automatic rescues or establish future channel availability.
