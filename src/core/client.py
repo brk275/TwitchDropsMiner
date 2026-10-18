@@ -54,6 +54,7 @@ if TYPE_CHECKING:
     from src.models.channel import Stream
     from src.models.drop import TimedDrop
     from src.models.game import Game
+    from src.services.deadline_queue import DeadlineCheckpointQueue
     from src.web.gui_manager import WebGUIManager
 
 
@@ -68,6 +69,7 @@ class Twitch:
         # State management
         self._state: State = State.IDLE
         self._deadline_context_epoch = object()
+        self._deadline_queue: DeadlineCheckpointQueue | None = None
         self._state_change = asyncio.Event()
         self._games_update_pending = False
         self._inventory_loaded = False
@@ -237,6 +239,7 @@ class Twitch:
 
     async def shutdown(self) -> None:
         start_time = time()
+        self.invalidate_deadline_context()
         self._channel_service.clear_bans()
         self.diagnostics.stop_logs()
         await self.helper.stop()
@@ -280,9 +283,41 @@ class Twitch:
             self._state = state
         self._state_change.set()
 
-    def invalidate_deadline_context(self) -> None:
+    def invalidate_deadline_context(self, *, watch_action: Literal["watch", "stop"] | None = None) -> None:
         """Retire experimental captures without changing mining policy or state."""
-        self._deadline_context_epoch = object()
+        queue = getattr(self, "_deadline_queue", None)
+        cancel_queue = queue is not None and queue.allows_invalidation(watch_action) is not True
+        try:
+            if queue is not None and cancel_queue:
+                queue.cancel()
+        finally:
+            self._deadline_context_epoch = object()
+
+    def _set_deadline_queue(self, queue: DeadlineCheckpointQueue | None) -> None:
+        if queue is not None and queue.belongs_to(self) is not True:
+            raise ValueError("Invalid checkpoint queue owner")
+        if queue is getattr(self, "_deadline_queue", None):
+            return
+        self.invalidate_deadline_context()
+        self._deadline_queue = queue
+        self._state_change.set()
+
+    def _deadline_runner_current(self) -> bool:
+        """Check ownership and propagate the owned runner's pending cancellation."""
+        runner = asyncio.current_task()
+        if runner is not self._run_task:
+            return False
+        if runner is not None and runner.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+            raise asyncio.CancelledError
+        return True
+
+    async def _wait_for_state_change(self) -> None:
+        self._activate_pending_inventory_refresh()
+        self._activate_pending_games_update()
+        queue = getattr(self, "_deadline_queue", None)
+        if queue is not None and queue.pending_checkpoint():
+            self._state_change.set()
+        await self._state_change.wait()
 
     def request_games_update(self) -> bool:
         """Queue a mining-policy recalculation without racing the active state step."""
@@ -431,6 +466,7 @@ class Twitch:
                 except aiohttp.ContentTypeError as exc:
                     raise RequestException(_.t["login"]["unexpected_content"]) from exc
         finally:
+            self.invalidate_deadline_context()
             await self._stop_mining_schedule()
             self._channel_service.clear_bans()
             self.diagnostics.stop_logs()
@@ -729,6 +765,29 @@ class Twitch:
                     watching_channel,
                 )
             elif self._state is State.CHANNEL_SWITCH:
+                queue = getattr(self, "_deadline_queue", None)
+                if queue is not None:
+                    step = queue.checkpoint()
+                    if not self._deadline_runner_current():
+                        return
+                    # Cancellation may return None after a callback changed state.
+                    if self._state is not State.CHANNEL_SWITCH:
+                        continue
+                    if step is not None:
+                        if step.action == "watch":
+                            queued_channel = self.watching_channel.get_with_default(None)
+                            if (queued_channel is not None
+                                    and (queued_campaign := self.get_active_campaign(queued_channel)) is not None
+                                    and (queued_drop := queued_campaign.first_drop) is not None):
+                                queued_drop.display(countdown=False, subone=True)
+                        if not self._deadline_runner_current():
+                            return
+                        # A synchronous display callback can retire or replace the queue.
+                        if not queue.active_checkpoint() or queue is not self._deadline_queue:
+                            continue
+                        self._state_change.clear()
+                        await self._wait_for_state_change()
+                        continue
                 self.gui.status.update(_.t["gui"]["status"]["switching"])
 
                 # Determine the best channel to watch
@@ -804,9 +863,7 @@ class Twitch:
             # A request can arrive while a state performs asynchronous work or
             # after that state clears the event. Re-apply it before waiting so
             # the request cannot be overwritten by the state's normal transition.
-            self._activate_pending_inventory_refresh()
-            self._activate_pending_games_update()
-            await self._state_change.wait()
+            await self._wait_for_state_change()
 
     def can_watch(self, channel: Channel) -> bool:
         """Delegate to WatchService."""
@@ -819,12 +876,12 @@ class Twitch:
     def watch(self, channel: Channel, *, update_status: bool = True) -> None:
         """Delegate to WatchService."""
         if self.is_mining_time():
-            self.invalidate_deadline_context()
+            self.invalidate_deadline_context(watch_action="watch")
             self._watch_service.watch(channel, update_status=update_status)
 
     def stop_watching(self) -> None:
         """Delegate to WatchService."""
-        self.invalidate_deadline_context()
+        self.invalidate_deadline_context(watch_action="stop")
         self._watch_service.stop_watching()
 
     def restart_watching(self) -> None:

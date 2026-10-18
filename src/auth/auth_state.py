@@ -83,6 +83,7 @@ class _AuthState:
         self._use_browser_identity(identity)
 
     def _use_browser_identity(self, identity: BrowserIdentity) -> None:
+        self._twitch.invalidate_deadline_context()
         self.context_epoch = object()
         client_info = ClientInfo(
             ClientType.WEB.CLIENT_URL, ClientType.WEB.CLIENT_ID, identity.user_agent,

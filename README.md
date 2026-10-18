@@ -74,8 +74,11 @@ It still requires explicit future assumptions and does not enable automatic swit
 Conditional plans can reserve calculation time before their first slot; missed budgets
 or readings that will be stale at that start prevent a delayed plan from being returned.
 A source-only executor can follow those fixed slots with explicit future assumptions,
-funded handoff allowances and fresh checkpoint checks. It is not wired to production
-selection, timers or settings; automatic rescues remain unavailable.
+funded handoff allowances and fresh checkpoint checks. An optional source-only queue
+can deliver timer requests to the miner's own state loop; timers never switch channels.
+Session renewal retires its calendar and returns to ordinary game priorities.
+It is not constructed by default and has no real evidence provider, settings or claim
+reentry; automatic rescues remain unavailable.
 
 Source builds skip unavailable campaign details without creating empty campaigns.
 Known inventory data keeps priority over available catalog metadata. Missing campaigns

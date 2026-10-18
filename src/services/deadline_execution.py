@@ -7,6 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from time import monotonic
+from types import CoroutineType
 from typing import TYPE_CHECKING, Literal
 
 from src.services.deadline_certificate import RescueCertificate
@@ -18,6 +19,9 @@ from src.services.deadline_planner import ConditionalDeadlinePlanner, PlanningAs
 
 if TYPE_CHECKING:
     from src.core.client import Twitch
+
+
+PlanningProvider = Callable[[BoundDeadlineInputs], PlanningAssumptions | None]
 
 
 @dataclass(frozen=True)
@@ -51,8 +55,9 @@ class DeadlineCalendarExecutor:
     """Follow, never shorten or greedily replace, a conditional fixed calendar.
 
     Only a caller owning serialized CHANNEL_SWITCH checkpoints may call these
-    synchronous methods. No runtime constructs this class. There is no setting,
-    timer, automatic reevaluation, refresh recovery or future-premise provider.
+    synchronous methods. Normal application settings do not construct this class.
+    An explicitly attached checkpoint queue can drive it; no automatic evidence
+    provider, refresh recovery or production activation is supplied.
     wake_at is a request for a future checkpoint, not permission for a timer to
     switch channels. Each checkpoint must explicitly remain enabled.
 
@@ -136,13 +141,17 @@ class DeadlineCalendarExecutor:
 
     def reserve(self, twitch: Twitch, *, horizon: datetime,
                 assumptions: PlanningAssumptions | None = None, enabled: bool = False,
+                provider: PlanningProvider | None = None,
                 local_timezone: str | timezone | None = None,
                 decision_delay: timedelta = timedelta(seconds=3),
                 dispatch_allowance: timedelta = timedelta(seconds=2)) -> CalendarStep:
         self.cancel()
         if enabled is not True:
             return CalendarStep("disabled", "refused")
+        provider_running = False
         try:
+            if provider is not None and (assumptions is not None or not callable(provider)):
+                return self._refuse("invalid_snapshot")
             if (not isinstance(decision_delay, timedelta) or not timedelta(0) < decision_delay
                     or not isinstance(dispatch_allowance, timedelta)
                     or not timedelta(0) < dispatch_allowance <= timedelta(seconds=5)
@@ -157,6 +166,16 @@ class DeadlineCalendarExecutor:
             latest = now + decision_delay + dispatch_allowance
             if latest >= bound.valid_until:
                 return self._refuse("expired")
+            if provider is not None:
+                provider_running = True
+                candidate: object = provider(bound)
+                provider_running = False
+                if isinstance(candidate, CoroutineType):
+                    candidate.close()
+                    return self._refuse("invalid_snapshot")
+                if candidate is not None and not isinstance(candidate, PlanningAssumptions):
+                    return self._refuse("invalid_snapshot")
+                assumptions = candidate
             if assumptions is None:
                 return self._refuse("unknown_coverage")
             if not isinstance(assumptions, PlanningAssumptions):
@@ -191,9 +210,18 @@ class DeadlineCalendarExecutor:
                                              twitch._deadline_context_epoch, after, finished, effective)
             return CalendarStep("rescue", "reserved", planned.certificate.slots[0].connect_at)
         except _Decline as exc:
+            if provider_running:
+                self.cancel()
+                raise
             return self._refuse(exc.reason)
         except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
+            if provider_running:
+                self.cancel()
+                raise
             return self._refuse("invalid_context")
+        except BaseException:
+            self.cancel()
+            raise
 
     def _fresh(self, bound: BoundDeadlineInputs, now: datetime) -> bool:
         return all(drop.observed_at is not None

@@ -906,7 +906,7 @@ progress to an ignored drop while the miner intentionally targets another reward
   capability. Future consumers must revalidate evidence/policy/time and execution
   bounds immediately before acting. Tests: `tests/test_deadline_decision_delay.py`.
 - `DeadlineCalendarExecutor` is a source-only, explicitly enabled conditional consumer,
-  not connected to production selection, timers, settings or the dashboard. Only the
+  not constructed by production settings or the dashboard. Only the
   serialized CHANNEL_SWITCH owner may reserve/advance it; enum state is not ownership.
   Explicit future coverage/allocation/successful timing assumptions are still required.
   Add dispatch allowance to every setup upper bound, keep the original snapshot and
@@ -930,6 +930,37 @@ progress to an ignored drop while the miner intentionally targets another reward
   This does not integrate refresh/claim reentry, prove transport readiness or future
   bounds, enable automatic rescues or complete runtime/browser acceptance. Keep those
   requirements open. Tests: `tests/test_deadline_execution.py`.
+- `DeadlineCheckpointQueue` optionally delivers executor checkpoints inside the actual
+  registered `Twitch._run_task` CHANNEL_SWITCH loop. Normal construction leaves
+  `_deadline_queue=None`; there is no setting, automatic evidence provider or activation.
+  Queue intent, not a precomputed plan. The synchronous bounded provider consumes fresh
+  immutable inputs inside the original capture budget; it must do no I/O or mutation.
+  Reject malformed and native coroutine results, propagate unexpected failure/cancellation
+  after retiring private bindings, and reject reentrant requests while executing.
+  Provider-raised validation-shaped exceptions are failures too; distinguish the callback
+  boundary from internal snapshot refusals without resetting capture or timing budgets.
+  Timers only set the state event, with bounded resampling and generation/account/runner
+  guards. Never execute watch/stop from a timer or an unregistered caller. General
+  policy/state/auth/refresh/manual/restart invalidations cancel; only owned executor
+  watch/stop can retain the calendar. Cancel before changing the client epoch, but change
+  that epoch in finally even if cancellation fails. Replay accepted intent after event
+  clearing, and check cancellation/replacement after synchronous display callbacks.
+  Recheck state, runner ownership and cancellation after every checkpoint return, including
+  None, before ordinary fallback. Reentrant watch/stop callbacks must not erase EXIT/IDLE
+  requests or give a retired/cancelling runner one last ordinary selection action.
+  Use the same runner check after display even if the callback detached the queue;
+  never rely on queue presence in the next iteration to retire that old runner.
+  Browser identity adoption also invalidates before rotating the auth epoch: same-account
+  imported-session renewal can retain the existing runner and must wake normal fallback,
+  not leave a retired lower-ranked watch waiting forever on a cancelled timer.
+  Preserve GUI selection until ordinary policy consumes it, and skip ordinary automatic
+  selection while a valid booked calendar handles the checkpoint, including idle gaps.
+  Refusal/completion/cancellation returns to ordinary policy, never automatic rebasing.
+  Public claims/refresh cancel; safe claim/inventory reentry is still OPEN, not delivered
+  by synthetic claim flags in tests. Persisted controls, trusted premises, translated
+  rescue status and full runtime/browser acceptance also remain required. Tests use the
+  real public run wrapper and child loop with fake transport and explicit hypothetical
+  bounds in `tests/test_deadline_queue.py`; no live progress or deployment is established.
 
 ### GraphQL Operations
 
