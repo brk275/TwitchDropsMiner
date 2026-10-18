@@ -90,12 +90,15 @@ class CertifiedDeadlineForecaster(DeadlineForecaster):
     that no safe rescue exists. Windows/allocation and successful bounded claims
     remain explicit assumptions. Windows must exhaust possible baseline credit
     routes, not merely provide guaranteed capacity for the reserved schedule.
+    not_before reserves a later first connection without rebasing observations or
+    the baseline. All reserved work/setup/claims must still fit the original windows.
     There is no live eligibility adapter or steering.
     """
 
     def certify(self, snapshot: ForecastSnapshot, timing: TimingBounds, *,
                 enabled: bool = False, manual_override: bool = False,
-                baseline_complete: bool = False) -> CertificateResult:
+                baseline_complete: bool = False,
+                not_before: datetime | None = None) -> CertificateResult:
         if enabled is not True:
             return CertificateResult("disabled")
         if type(manual_override) is not bool:
@@ -106,6 +109,9 @@ class CertifiedDeadlineForecaster(DeadlineForecaster):
             return CertificateResult("unknown_coverage")
         try:
             state = self._prepare(snapshot)
+            available_from = state.now if not_before is None else self._utc(not_before)
+            if not state.now <= available_from < state.horizon:
+                return CertificateResult("invalid_snapshot")
             budget = _Budget(self.max_steps)
             work, setup = self._bounds(state, timing, frozenset(drop.id for drop in snapshot.drops))
             drops = {drop.id: drop for drop in state.drops}
@@ -135,10 +141,11 @@ class CertifiedDeadlineForecaster(DeadlineForecaster):
                     ranks[drops[key].game_id], drops[key].ends_at, key,
                 )))
                 try:
-                    slots, completed = self._schedule(state, drops, work, setup, roots, budget)
+                    slots, completed = self._schedule(state, drops, work, setup, roots, budget,
+                                                      not_before=available_from)
                 except _NoSchedule:
                     continue
-                if slots and slots[0].connect_at == state.now:
+                if slots and slots[0].connect_at == available_from:
                     return CertificateResult("rescue", RescueCertificate(
                         target.id, blocker.id, protected, tuple(slots), tuple(completed),
                     ))
@@ -207,7 +214,8 @@ class CertifiedDeadlineForecaster(DeadlineForecaster):
 
     def _schedule(self, state: ForecastSnapshot, drops: dict[str, ForecastDrop],
                   work: dict[str, _DropBounds], setup: DurationBounds,
-                  roots: tuple[str, ...], budget: _Budget) -> tuple[list[WorkSlot], list[Completion]]:
+                  roots: tuple[str, ...], budget: _Budget, *,
+                  not_before: datetime) -> tuple[list[WorkSlot], list[Completion]]:
         ordered: list[str] = []
         seen: set[str] = set()
 
@@ -224,7 +232,7 @@ class CertifiedDeadlineForecaster(DeadlineForecaster):
             visit(key)
         slots: list[WorkSlot] = []
         completed: list[Completion] = []
-        cursor = state.now
+        cursor = not_before
         for key in ordered:
             drop = drops[key]
             cursor = max(cursor, drop.starts_at)

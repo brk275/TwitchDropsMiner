@@ -71,6 +71,8 @@ transport readiness or evidence that all eligible drops receive credit together.
 A source-only planning adapter checks conditional calendars against those current routes
 and discards results if the captured state changes or expires during calculation.
 It still requires explicit future assumptions and does not enable automatic switching.
+Conditional plans can reserve calculation time before their first slot; missed budgets
+or readings that will be stale at that start prevent a delayed plan from being returned.
 
 Source builds skip unavailable campaign details without creating empty campaigns.
 Known inventory data keeps priority over available catalog metadata. Missing campaigns

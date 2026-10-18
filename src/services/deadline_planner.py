@@ -17,7 +17,7 @@ from src.services.deadline_certificate import (
 from src.services.deadline_channels import DeadlineChannelInputs
 from src.services.deadline_context import BoundDeadlineInputs, ContextReason, DeadlineContextGuard
 from src.services.deadline_forecast import ForecastReason, ForecastSnapshot, ViewingWindow, _Decline
-from src.services.deadline_inputs import ProjectionError
+from src.services.deadline_inputs import ProjectionError, _utc
 
 
 if TYPE_CHECKING:
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 
 PlanningReason = ContextReason | ForecastReason | Literal["checkpoint_mismatch"]
+MAX_DECISION_DELAY = timedelta(seconds=15)
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,8 @@ class ConditionalDeadlinePlanner(CertifiedDeadlineForecaster):
     No runtime invokes this planner. Its result is not an execution capability and
     must never be reused to act without fresh policy, context and eligibility checks.
     Observation freshness is checked as of capture; valid_until is not a freshness lease.
+    An explicit decision_delay reserves a future calendar start and requires direct
+    readings still within the age bound then. It does not authorize queued execution.
     An existing watched object does not establish transport readiness: every first
     slot pays its supplied setup bound, even on the currently watched channel.
     """
@@ -56,24 +59,33 @@ class ConditionalDeadlinePlanner(CertifiedDeadlineForecaster):
     def __init__(self, *, clock: Callable[[], float] = monotonic,
                  utc_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)):
         super().__init__()
-        self._guard = DeadlineContextGuard(clock=clock)
+        self._guard = DeadlineContextGuard(clock=clock, max_age=MAX_DECISION_DELAY)
         self._utc_clock = utc_clock
 
     def plan(self, twitch: Twitch, *, horizon: datetime,
              assumptions: PlanningAssumptions | None = None, enabled: bool = False,
-             local_timezone: str | timezone | None = None) -> ConditionalPlanningResult:
+             local_timezone: str | timezone | None = None,
+             decision_delay: timedelta | None = None) -> ConditionalPlanningResult:
         if enabled is not True:
             return ConditionalPlanningResult("disabled")
         try:
+            if decision_delay is not None and (
+                not isinstance(decision_delay, timedelta) or not timedelta(0) < decision_delay <= MAX_DECISION_DELAY
+            ):
+                return ConditionalPlanningResult("invalid_context")
+            now = _utc(self._utc_clock())
+            not_before = None if decision_delay is None else now + decision_delay
             captured = self._guard.capture(
-                twitch, now=self._utc_clock(), horizon=horizon, enabled=True,
-                local_timezone=local_timezone, include_channels=True,
+                twitch, now=now, horizon=horizon, enabled=True,
+                local_timezone=local_timezone, include_channels=True, expires_at=not_before,
             )
             if captured.bound is None:
                 return ConditionalPlanningResult(captured.reason)
             bound = captured.bound
+            if not_before is not None and bound.valid_until < not_before:
+                return ConditionalPlanningResult("expired")
             try:
-                result = self._plan(bound, assumptions)
+                result = self._plan(bound, assumptions, not_before=not_before)
             except (ProjectionError, _Decline, _PlanningRefusal) as exc:
                 result = ConditionalPlanningResult(exc.reason)
             except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
@@ -91,7 +103,8 @@ class ConditionalDeadlinePlanner(CertifiedDeadlineForecaster):
             return ConditionalPlanningResult("invalid_context")
 
     def _plan(self, bound: BoundDeadlineInputs,
-              assumptions: PlanningAssumptions | None) -> ConditionalPlanningResult:
+              assumptions: PlanningAssumptions | None, *,
+              not_before: datetime | None = None) -> ConditionalPlanningResult:
         if assumptions is None:
             return ConditionalPlanningResult("unknown_coverage")
         if not isinstance(assumptions, PlanningAssumptions):
@@ -111,12 +124,17 @@ class ConditionalDeadlinePlanner(CertifiedDeadlineForecaster):
             claims[item.drop_id] = self._duration(item.claim_delay, timedelta(days=1)).upper
         snapshot = bound.inputs.to_forecast(claim_delays=claims, viewing_windows=assumptions.viewing_windows)
         state = self._prepare(snapshot)
+        if not_before is not None and any(
+            drop.observed_at is None or not_before - self._utc(drop.observed_at) > self.max_observation_age
+            for drop in state.drops
+        ):
+            return ConditionalPlanningResult("unknown_progress")
         if bound.channels is None:
             return ConditionalPlanningResult("unknown_coverage")
         mismatch = self._match_current_routes(state, bound.channels)
         if mismatch is not None:
             raise _PlanningRefusal(mismatch)
-        result = self.certify(state, timing, enabled=True, baseline_complete=True)
+        result = self.certify(state, timing, enabled=True, baseline_complete=True, not_before=not_before)
         if result.certificate is not None:
             first = result.certificate.slots[0]
             routes = (*bound.channels.candidates, bound.channels.watching)

@@ -112,6 +112,7 @@ class DeadlineContextGuard:
     cannot establish quiescence for direct concurrent service calls outside it.
     No runtime invokes this guard and no settings enable it. Each refusal latches;
     restored values cannot revive a rejected or superseded capture.
+    Optional expires_at only shortens the same exclusive UTC/monotonic lifetime.
     """
 
     def __init__(self, *, max_age: timedelta = timedelta(seconds=15),
@@ -249,7 +250,8 @@ class DeadlineContextGuard:
         return _Context(tuple(objects), _freeze(values), tuple(boundaries))
 
     def capture(self, twitch: Twitch, *, now: datetime, horizon: datetime, enabled: bool = False,
-                local_timezone: str | timezone | None = None, include_channels: bool = False) -> ContextResult:
+                local_timezone: str | timezone | None = None, include_channels: bool = False,
+                expires_at: datetime | None = None) -> ContextResult:
         self._capture = None
         if enabled is not True:
             return ContextResult("disabled")
@@ -257,6 +259,9 @@ class DeadlineContextGuard:
             return ContextResult("invalid_context")
         try:
             now = _utc(now)
+            deadline = None if expires_at is None else _utc(expires_at)
+            if deadline is not None and deadline <= now:
+                return ContextResult("expired")
             started, zone = self._tick(), self._zone(local_timezone)
             context = self._context(twitch, now)
             result = self._adapter.capture(twitch, now=now, horizon=horizon, local_timezone=local_timezone)
@@ -269,6 +274,8 @@ class DeadlineContextGuard:
             edges = (*context.boundaries,
                      *(edge for window in inputs.mining_windows for edge in (window.starts_at, window.ends_at)))
             until = min(now + self._max_age, inputs.horizon, *(edge for edge in edges if edge > now))
+            if deadline is not None:
+                until = min(until, deadline)
             finished = self._tick()
             elapsed = finished - started
             if not 0 <= elapsed < (until - now).total_seconds():

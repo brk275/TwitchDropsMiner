@@ -873,6 +873,23 @@ progress to an ignored drop while the miner intentionally targets another reward
   Actual future baseline equivalence, availability/allocation evidence, safe queued
   execution/reentry, persisted controls, translations and end-to-end acceptance remain
   required. Tests: `tests/test_deadline_planner.py`.
+- Fixed-calendar `certify(not_before=...)` can reserve a future first connection,
+  without shifting snapshot time, refreshing observations or changing baseline proof.
+  Charge the wait against target/protected deadlines, mining/channel windows, every
+  setup and claim wait. First connection must match the reserved instant exactly;
+  a delayed calendar does not inherit current transport readiness. Omitted/equal
+  starts retain the original hypothetical as-of-capture semantics.
+- `ConditionalDeadlinePlanner.plan(decision_delay=...)` accepts a strictly positive
+  allowance up to 15 seconds, matching its maximum context age. Guard `expires_at`
+  clips but never extends the exclusive UTC/monotonic context lifetime. Reject a
+  reservation beyond an earlier known model boundary, charge capture/proof/validation
+  work to the original allowance, and discard missed budgets without a certificate.
+  Explicit delayed plans require direct readings within the age bound at the booked
+  start; never manufacture progress during calculation. Future first slots must still
+  pass current real eligibility and identity checks. This is a calendar reservation,
+  not a live executor, freshness lease, persisted setting, activation or safe queue
+  capability. Future consumers must revalidate evidence/policy/time and execution
+  bounds immediately before acting. Tests: `tests/test_deadline_decision_delay.py`.
 
 ### GraphQL Operations
 
