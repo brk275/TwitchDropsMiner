@@ -1198,8 +1198,7 @@ The application uses a web-based interface accessible via browser:
   `tests/test_channel_watching_snapshot.py`.
   The frontend replaces channel rows when an initial-state channel list is present,
   including an empty list, so reconnect cannot retain removed watched channels.
-  Preserve omitted/null partial-event handling and incremental events; console
-  snapshot behavior is unchanged. Regressions:
+  Preserve omitted/null partial-event handling and incremental events. Regressions:
   `tests/test_channel_snapshot_frontend.py`. Release/cache-key bump required before
   deploying the changed app.js through the authorized release workflow.
   Initial-state campaign lists likewise replace browser inventory, including empty
@@ -1208,6 +1207,12 @@ The application uses a web-based interface accessible via browser:
   campaign/drop events and batch updates. This changes display synchronization only,
   not campaign eligibility, progress, claims or server inventory. Regressions:
   `tests/test_inventory_snapshot_frontend.py`.
+- Full `initial_state.console` lists replace the displayed rolling history, including
+  an empty list, instead of replaying old lines on reconnect. Preserve literal text,
+  repeated real messages, live append events, omitted/null partial-event handling and
+  the existing 1,000-line limit. Do not deduplicate log text or change backend logging.
+  Regressions: `tests/test_console_snapshot_frontend.py`. An authorized release/cache-key
+  bump is required before deployment of the changed frontend asset.
 - Uses WebSocketBroadcaster to push real-time updates to connected clients via Socket.IO
 - Pure async/await implementation
 

@@ -222,7 +222,7 @@ socket.on('initial_state', (data) => {
             div.textContent = line;
             fragment.appendChild(div);
         });
-        consoleEl.appendChild(fragment);
+        consoleEl.replaceChildren(fragment);
         consoleEl.scrollTop = consoleEl.scrollHeight;
         while (consoleEl.children.length > 1000) {
             consoleEl.removeChild(consoleEl.firstChild);
