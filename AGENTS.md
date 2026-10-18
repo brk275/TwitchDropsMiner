@@ -598,6 +598,21 @@ claim and policy changes must be reflected on the next call. Regression coverage
   Playlist/transport, lifecycle, and controlled-clock regressions live in
   `tests/test_playlist_watch.py`, `tests/test_watch_transport.py`, and
   `tests/test_watch_poll_cadence.py`.
+- `WatchService._current_drop_reading()` validates returned CurrentDrop envelopes,
+  nested user/session objects, nonempty string IDs and plain-integer minutes. An
+  explicit error-free null session retains existing estimated fallback; malformed
+  or errored replies skip that poll without progress updates or estimated bumps.
+  Keep playlist/minute cadence, stream freshness, model eligibility and integer
+  clamping intact. Do not trust partial data accompanying errors or log the reply.
+  Catch parser failures only at that boundary, not exceptions from model updates or
+  arbitrary transport failures. Existing GQLException/timeout fallback, cancellation
+  and critical-task handling for unexpected failures remain unchanged. This does
+  not harden every malformed HTTP/GraphQL response before it reaches the service.
+  Regression coverage: `tests/test_current_drop_responses.py`, including real-model
+  recovery, mocked-HTTP GQLClient paths, no-estimation and cancellation controls.
+  `tests/test_mining_fallback_integration.py` combines unusable replies with capped
+  batches and websocket observations, asserting unchanged state until the next fresh
+  poll, continued playlist cadence, no critical shutdown and no owned task leaks.
 
 ### GraphQL Operations
 

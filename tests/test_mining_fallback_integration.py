@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.config import MAX_EXTRA_MINUTES, State
+from src.core.client import Twitch
 from src.exceptions import GQLException
 from src.models.channel import Channel
 from src.services.inventory_service import InventoryService
@@ -176,3 +177,109 @@ async def test_entire_estimate_batch_recovers_without_accepting_an_old_poll(
     client.request_games_update.assert_called_once_with()
     client.change_state.assert_not_called()
     client.drop_history.record.assert_not_called()
+
+
+@pytest.fixture
+def response_mining_pair(mining_pair):
+    source, wanted, unwanted, current = mining_pair
+    client = object.__new__(Twitch)
+    for key in ("settings", "gui", "inventory", "wanted_games", "watching_channel", "_drops", "is_mining_time"):
+        setattr(client, key, getattr(source, key))
+    client.close = MagicMock()
+    client.print = MagicMock()
+    client.drop_history = MagicMock()
+    client.change_state = MagicMock()
+    client.request_games_update = MagicMock()
+    client._inventory_service = InventoryService(client)
+    current._twitch = client
+    for campaign in client.inventory:
+        campaign._twitch = client
+        for drop in campaign.drops:
+            drop._twitch = client
+    return client, wanted, unwanted, current
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("broken", [
+    "root_null", "root_list", "user_null", "missing_minutes", "boolean_minutes",
+    "session_list", "partial_error", "invalid_errors",
+])
+@pytest.mark.parametrize("capped", [False, True])
+@pytest.mark.parametrize("websocket", [False, True])
+async def test_unusable_reply_preserves_state_and_next_poll_recovers(
+    response_mining_pair, monkeypatch, caplog, broken, capped, websocket,
+):
+    client, wanted, unwanted, current = response_mining_pair
+    eligible = [wanted.timed_drops[key] for key in ("base", "parallel")]
+    for drop in eligible:
+        drop.real_current_minutes = 10
+        drop.extra_current_minutes = MAX_EXTRA_MINUTES if capped else 2
+    session = {"dropID": "parallel", "currentMinutesWatched": 12}
+    reply = {"data": {"currentUser": {"dropCurrentSession": session}}}
+    if broken == "root_null":
+        reply = None
+    elif broken == "root_list":
+        reply = []
+    elif broken == "user_null":
+        reply["data"]["currentUser"] = None
+    elif broken == "missing_minutes":
+        del session["currentMinutesWatched"]
+    elif broken == "boolean_minutes":
+        session["currentMinutesWatched"] = True
+    elif broken == "session_list":
+        reply["data"]["currentUser"]["dropCurrentSession"] = []
+    elif broken == "partial_error":
+        reply["errors"] = [{"message": "private-progress-marker"}]
+    else:
+        reply["errors"] = False
+
+    def state():
+        return (
+            tuple((drop.real_current_minutes, drop.extra_current_minutes) for drop in wanted.drops),
+            wanted.progress_revision, client.request_games_update.call_count,
+            client.gui.inv.update_drop.call_count,
+        )
+
+    requests, after_observation, clock = [], [], [0]
+
+    async def query(operation):
+        requests.append(clock[0])
+        if len(requests) == 1:
+            if websocket:
+                await MessageHandlerService(client).process_drops(1, {"type": "drop-progress", "data": {
+                    "drop_id": "parallel", "current_progress_min": 11, "required_progress_min": 200,
+                }})
+            after_observation.append(state())
+            return reply
+        assert state() == after_observation[0]
+        return {"data": {"currentUser": {"dropCurrentSession": {
+            "dropID": "parallel", "currentMinutesWatched": 9,
+        }}}}
+
+    client.gql_request = AsyncMock(side_effect=query)
+    client.gui.progress.minute_almost_done.return_value = False
+    monkeypatch.setattr(Channel, "send_watch", AsyncMock(return_value=True))
+    monkeypatch.setattr("src.services.watch_service.monotonic", lambda: clock[0])
+    watcher = WatchService(client)
+
+    async def advance(delay):
+        clock[0] += delay
+        if clock[0] >= 130:
+            raise asyncio.CancelledError
+
+    watcher.watch_sleep = advance
+    tasks = asyncio.all_tasks()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(watcher.watch_loop(), 2)
+    assert not {task for task in asyncio.all_tasks() - tasks if not task.done()}
+    assert requests == [20, 80]
+    assert current.send_watch.await_count == 13
+    assert [(drop.real_current_minutes, drop.extra_current_minutes) for drop in eligible] == [(9, 0), (9, 0)]
+    assert all(wanted.timed_drops[key].current_minutes == 0 for key in ("left", "right"))
+    assert unwanted.timed_drops["other"].current_minutes == 0
+    assert client.request_games_update.call_count == int(capped)
+    client.change_state.assert_not_called()
+    client.drop_history.record.assert_not_called()
+    client.close.assert_not_called()
+    assert "private-progress-marker" not in caplog.text
+    assert not any(record.levelname == "ERROR" for record in caplog.records)
