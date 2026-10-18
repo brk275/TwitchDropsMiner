@@ -95,6 +95,11 @@
             "reconnecting": "Reconectare..."
         },
         "progress": {
+            "local_progress": "Local: {current} / {required} min",
+            "reported_progress": "Raport Twitch: {current} / {required} min",
+            "no_reported_progress": "Niciun raport de progres Twitch",
+            "report_received": "Primit: {time}",
+            "estimated_remaining": "Timp rămas estimat: {time}",
             "name": "Progresul campaniei",
             "drop": "Drop :",
             "game": "Joc :",

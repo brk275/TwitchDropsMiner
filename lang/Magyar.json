@@ -95,6 +95,11 @@
             "reconnecting": "Újracsatlakozás..."
         },
         "progress": {
+            "local_progress": "Helyi: {current} / {required} perc",
+            "reported_progress": "Twitch-jelentés: {current} / {required} perc",
+            "no_reported_progress": "Nincs Twitch-előrehaladási jelentés",
+            "report_received": "Beérkezett: {time}",
+            "estimated_remaining": "Becsült hátralévő idő: {time}",
             "name": "Kampány előrehaladás",
             "drop": "Jutalom:",
             "game": "Játék:",

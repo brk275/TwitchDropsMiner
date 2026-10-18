@@ -95,6 +95,11 @@
             "reconnecting": "正在重新連接…"
         },
         "progress": {
+            "local_progress": "本機：{current} / {required} 分鐘",
+            "reported_progress": "Twitch 回報：{current} / {required} 分鐘",
+            "no_reported_progress": "尚無 Twitch 進度回報",
+            "report_received": "接收時間：{time}",
+            "estimated_remaining": "預估剩餘時間：{time}",
             "name": "掉寶活動進度",
             "drop": "掉寶獎勵：",
             "game": "遊戲：",

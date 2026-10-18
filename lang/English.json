@@ -95,6 +95,11 @@
             "reconnecting": "Reconnecting..."
         },
         "progress": {
+            "local_progress": "Local: {current} / {required} min",
+            "reported_progress": "Twitch report: {current} / {required} min",
+            "no_reported_progress": "No Twitch progress report",
+            "report_received": "Received: {time}",
+            "estimated_remaining": "Estimated remaining: {time}",
             "name": "Campaign Progress",
             "drop": "Drop:",
             "game": "Game:",

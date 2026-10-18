@@ -95,6 +95,11 @@
             "reconnecting": "...إعادة الاتصال"
         },
         "progress": {
+            "local_progress": "محلي: {current} / {required} دقيقة",
+            "reported_progress": "تقرير Twitch: {current} / {required} دقيقة",
+            "no_reported_progress": "لا يوجد تقرير تقدم من Twitch",
+            "report_received": "تم الاستلام: {time}",
+            "estimated_remaining": "الوقت المتبقي المقدر: {time}",
             "name": "تقدم الحملة",
             "drop": ":الإسقاط",
             "game": ":اللعبة",

@@ -115,6 +115,9 @@ Inventory refreshes superseded by live progress or pending claim results are dis
 and retried after a minute, rather than replacing those models with an older snapshot
 or blocking normal game selection. Pending claims are not resent by policy updates.
 Outstanding claim results also delay inventory rebuilding after a cache clear.
+The dashboard shows local counters separately from the last Twitch progress report.
+Its receipt time is local to the miner, not proof of ongoing mining or a claimed reward.
+Estimated remaining time changes with miner updates, not a browser-only countdown.
 
 ## Quick start
 

@@ -2116,12 +2116,28 @@ header h1 {
     align-items: center;
     gap: 10px;
     font-size: 12px;
+    flex-wrap: wrap;
 }
 
 .progress-meta .progress-text,
 .progress-meta .progress-time {
     text-align: left;
     font-size: 12px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.progress-report {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 46px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 12px;
+    overflow-wrap: anywhere;
 }
 
 .progress-meta .progress-text {

@@ -95,6 +95,11 @@
             "reconnecting": "Opnieuw verbinden..."
         },
         "progress": {
+            "local_progress": "Lokaal: {current} / {required} min",
+            "reported_progress": "Twitch-melding: {current} / {required} min",
+            "no_reported_progress": "Geen Twitch-voortgangsmelding",
+            "report_received": "Ontvangen: {time}",
+            "estimated_remaining": "Geschatte resterende tijd: {time}",
             "name": "Voortgang van de campagne",
             "drop": "Drop:",
             "game": "Spel:",

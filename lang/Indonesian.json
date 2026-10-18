@@ -95,6 +95,11 @@
             "reconnecting": "Menyambungkan kembali..."
         },
         "progress": {
+            "local_progress": "Lokal: {current} / {required} mnt",
+            "reported_progress": "Laporan Twitch: {current} / {required} mnt",
+            "no_reported_progress": "Belum ada laporan progres Twitch",
+            "report_received": "Diterima: {time}",
+            "estimated_remaining": "Perkiraan waktu tersisa: {time}",
             "name": "Perkembangan kampanye",
             "drop": "Drop :",
             "game": "Game",

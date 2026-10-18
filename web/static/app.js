@@ -8,7 +8,6 @@ const state = {
     campaigns: {},
     settings: {},
     currentDrop: null,
-    countdownTimer: null,  // Track the active countdown timer
     translations: {},  // Store current translations
     previewEnabled: false  // Explicit opt-in for this page only
 };
@@ -596,12 +595,6 @@ function updateDropArt() {
 }
 
 function updateDropProgress(data) {
-    // Check if this is a new drop or if remaining seconds changed significantly
-    const isNewDrop = !state.currentDrop || state.currentDrop.drop_id !== data.drop_id;
-
-    // Store old remaining seconds before updating state
-    const oldRemaining = state.currentDrop ? state.currentDrop.remaining_seconds : null;
-
     // Update state with new data
     state.currentDrop = data;
 
@@ -628,48 +621,57 @@ function updateDropProgress(data) {
     fill.style.width = `${progress}%`;
     fill.textContent = `${Math.round(progress)}%`;
 
-    document.getElementById('progress-text').textContent =
-        `${data.current_minutes} / ${data.required_minutes} minutes`;
-
-    // Only reset the timer if it's a new drop or if backend time differs by more than 2 seconds
-    // This prevents constant timer resets from periodic backend updates
-    const shouldResetTimer = isNewDrop || oldRemaining === null || Math.abs(oldRemaining - data.remaining_seconds) > 2;
-
-    if (shouldResetTimer) {
-        // Cancel any existing countdown timer before starting a new one
-        if (state.countdownTimer !== null) {
-            clearTimeout(state.countdownTimer);
-            state.countdownTimer = null;
-        }
-
-        // Start countdown with the new value from backend
-        updateRemainingTime(data.remaining_seconds);
-    }
-    // Otherwise, let the existing timer continue counting down smoothly
+    renderProgressSummary(data);
 }
 
 function updateRemainingTime(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const t = state.translations?.gui?.progress || {};
+    const time = Number.isSafeInteger(seconds) && seconds >= 0
+        ? `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`
+        : '--:--';
     document.getElementById('progress-time').textContent =
-        `Time remaining: ${minutes}:${secs.toString().padStart(2, '0')}`;
+        (t.estimated_remaining || 'Estimated remaining: {time}').replace('{time}', time);
+}
 
-    if (seconds > 0) {
-        // Store the timer ID so we can cancel it if needed
-        state.countdownTimer = setTimeout(() => updateRemainingTime(seconds - 1), 1000);
-    } else {
-        state.countdownTimer = null;
+function renderProgressSummary(data) {
+    const t = state.translations?.gui?.progress || {};
+    const reported = document.getElementById('progress-reported');
+    const received = document.getElementById('progress-received');
+    if (data) {
+        document.getElementById('progress-text').textContent =
+            (t.local_progress || 'Local: {current} / {required} min')
+                .replace('{current}', data.current_minutes).replace('{required}', data.required_minutes);
+        updateRemainingTime(data.remaining_seconds);
     }
+    if (!reported || !received) return;
+    received.hidden = true;
+    received.textContent = '';
+    received.removeAttribute('datetime');
+    reported.textContent = data ? (t.no_reported_progress || 'No Twitch progress report') : '';
+    const reading = data?.progress_observation;
+    if (!reading || typeof reading !== 'object' || Array.isArray(reading)
+        || !Number.isSafeInteger(data.required_minutes) || data.required_minutes <= 0
+        || !Number.isSafeInteger(reading.minutes) || reading.minutes < 0 || reading.minutes > data.required_minutes
+        || !['inventory', 'websocket', 'current_drop'].includes(reading.source)
+        || typeof reading.received_at !== 'string') return;
+    const parts = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}:\d{2})$/.exec(reading.received_at);
+    if (!parts) return;
+    const wall = `${parts[1]}.${(parts[2] || '').padEnd(3, '0').slice(0, 3)}Z`;
+    const wallTime = new Date(wall);
+    if (!Number.isFinite(wallTime.getTime()) || wallTime.toISOString() !== wall) return;
+    const stamp = new Date(wall.slice(0, -1) + parts[3]);
+    if (!Number.isFinite(stamp.getTime())) return;
+    reported.textContent = (t.reported_progress || 'Twitch report: {current} / {required} min')
+        .replace('{current}', reading.minutes).replace('{required}', data.required_minutes);
+    received.dateTime = reading.received_at;
+    received.textContent = (t.report_received || 'Received: {time}').replace('{time}', stamp.toLocaleString());
+    received.hidden = false;
 }
 
 function clearDropProgress() {
     state.currentDrop = null;
 
-    // Cancel any active countdown timer
-    if (state.countdownTimer !== null) {
-        clearTimeout(state.countdownTimer);
-        state.countdownTimer = null;
-    }
+    renderProgressSummary(null);
 
     document.getElementById('no-drop-message').style.display = 'block';
     document.getElementById('drop-info').style.display = 'none';
@@ -2173,6 +2175,7 @@ function applyTranslations(t) {
 
         const exitManualBtn = document.getElementById('exit-manual-btn');
         if (exitManualBtn) exitManualBtn.textContent = t.gui.progress.return_to_auto;
+        if (state.currentDrop) renderProgressSummary(state.currentDrop);
     }
 
     // Update Console section

@@ -95,6 +95,11 @@
             "reconnecting": "Genopretter forbindelse..."
         },
         "progress": {
+            "local_progress": "Lokalt: {current} / {required} min",
+            "reported_progress": "Twitch-rapport: {current} / {required} min",
+            "no_reported_progress": "Ingen statusrapport fra Twitch",
+            "report_received": "Modtaget: {time}",
+            "estimated_remaining": "Anslået resterende tid: {time}",
             "name": "Kampagnefremskridt",
             "drop": "Belønning:",
             "game": "Spil:",
