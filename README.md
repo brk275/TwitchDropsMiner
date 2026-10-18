@@ -127,6 +127,9 @@ Keep session data directories private. On Windows, credential files inherit the
 directory's access permissions (ACLs); Unix file-mode numbers do not verify those
 permissions. On Linux/macOS, session files use owner-only permissions.
 
+Settings saves use atomic replacement to avoid partial JSON files after a write
+failure. Keep the data directory writable, not just `settings.json`.
+
 ## Updating Docker
 
 ### With docker run

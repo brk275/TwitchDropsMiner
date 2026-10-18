@@ -300,6 +300,14 @@ lang/                # Translation JSON files (20 languages)
 - Proxy support (including verification)
 - Logging and dump flags from command-line arguments
 - Persistence to JSON file (`settings.json`) in DATA_DIR
+- `json_save()` stages complete settings in a unique private sibling, flushes,
+  fsyncs and closes it before atomic replacement. Preserve custom serialization,
+  formatting and existing symlinks by resolving the target first. Pre-publication
+  failures leave the prior file intact and remove the temporary file when possible.
+  New POSIX files are owner-only; Windows ACL privacy depends on the parent directory.
+  Atomic replacement needs a writable parent and must not fall back to in-place writes.
+  This is not general live-settings rollback or a power-loss durability guarantee.
+  Regression coverage: `tests/test_settings_persistence.py`.
 - Drop-name ignore list (`drop_name_blacklist`), empty by default. Entries are literal,
   case-insensitive substrings entered one per line; whitespace and blanks are removed and
   duplicates are casefolded while preserving the first spelling/order.
