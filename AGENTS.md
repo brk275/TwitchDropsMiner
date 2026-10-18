@@ -1213,6 +1213,14 @@ The application uses a web-based interface accessible via browser:
   the existing 1,000-line limit. Do not deduplicate log text or change backend logging.
   Regressions: `tests/test_console_snapshot_frontend.py`. An authorized release/cache-key
   bump is required before deployment of the changed frontend asset.
+- `fetchAndApplyTranslations()` admits only the latest request's completion, checking
+  after JSON decoding and before logging failures. Non-success HTTP responses retain
+  existing labels instead of replacing translations with an error document. Preserve
+  normal translation application and current-request diagnostics; do not mutate
+  settings, language persistence or language-list loading. Regressions:
+  `tests/test_translation_response_ordering.py`. The frontend release/cache-key gate
+  still applies before deployment. This is not a settings transaction or response
+  schema validation change.
 - Uses WebSocketBroadcaster to push real-time updates to connected clients via Socket.IO
 - Pure async/await implementation
 

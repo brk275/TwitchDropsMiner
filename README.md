@@ -26,6 +26,7 @@ services operated for other users are outside its support scope.
 - Source builds continue discovery past unavailable categories and clear stale streams
   when a refresh confirms a channel is offline.
 - Source builds restore current watched-channel, campaign and console history snapshots when dashboards reconnect.
+- Source builds keep newer dashboard translations when older requests finish late.
 - Sign in inside the dashboard; TDM saves and renews your session automatically.
 - Review claimed-drop history, export it to CSV, and receive Telegram or Discord notifications.
 - Source builds skip malformed saved history records and keep only the first valid

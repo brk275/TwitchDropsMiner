@@ -12,6 +12,7 @@ const state = {
     translations: {},  // Store current translations
     previewEnabled: false  // Explicit opt-in for this page only
 };
+let translationsRequestId = 0;
 
 // ==================== UI Utilities ====================
 
@@ -2160,14 +2161,18 @@ async function fetchAndPopulateLanguages() {
 }
 
 async function fetchAndApplyTranslations() {
+    const requestId = ++translationsRequestId;
     try {
         const response = await fetch('/api/translations');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
 
+        if (requestId !== translationsRequestId) return;
         state.translations = data;
         applyTranslations(data);
         console.log('Translations applied for language:', data.language_name);
     } catch (error) {
+        if (requestId !== translationsRequestId) return;
         console.error('Failed to fetch translations:', error);
     }
 }
