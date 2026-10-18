@@ -235,6 +235,19 @@ lang/                # Translation JSON files (20 languages)
   Preserve the synchronous campaign revision increment before optional delivery too.
   `tests/test_claim_reliability_ordering.py` covers notification cancellation while a
   progress query is pending, using persisted history and stale-reply rejection.
+- `BaseDrop._claim()` confirms only an object reply with no legacy root `error`,
+  absent/null/empty-list root and data `errors`, object data/claimDropRewards, and
+  exact string status `ELIGIBLE_FOR_ALL` or `DROP_INSTANCE_ALREADY_CLAIMED`.
+  Missing, malformed or errored confirmations return false without changing claim
+  state/history or retrying. False is unconfirmed, not proof that Twitch did not
+  execute the request; a later explicit attempt can still confirm it. Preserve early
+  claimed/ineligible returns, the existing GQLException catch and other exception/
+  cancellation propagation. This model-boundary validation does not harden earlier
+  transport/GraphQL processing or change claim grace/notification ordering.
+  Regression coverage: `tests/test_claim_response_shapes.py`, including BaseDrop,
+  TimedDrop, repeated/later claims and loopback imported-session GQL dispatch.
+  `tests/test_claim_confirmation_ordering.py` combines rejected/accepted responses
+  with campaign revisions, persisted history and pending CurrentDrop replies.
 
 **src/web/gui_manager.py** - Web GUI:
 

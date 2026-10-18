@@ -68,6 +68,9 @@ They do not add estimated minutes; the next valid reply can update progress norm
 Source builds save confirmed claim history before waiting on dashboard or notification
 delivery. Interrupted alerts are not retried automatically.
 
+Source builds require usable, error-free claim confirmations before marking a reward
+claimed. An invalid reply stays unconfirmed; this does not add automatic retries.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash
