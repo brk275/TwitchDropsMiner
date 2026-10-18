@@ -737,6 +737,7 @@ async def test_native_chrome_capture_uses_nonzero_debug_port(monkeypatch, tmp_pa
 @pytest.mark.parametrize("owned", [False, True])
 async def test_browser_close_verifies_process_owner_before_sending_close(owned):
     address, commands = [], []
+    peer_done = asyncio.Event()
 
     async def version(request):
         return web.json_response({"webSocketDebuggerUrl": address[0].replace("http:", "ws:") + "/devtools/browser/peer"})
@@ -744,11 +745,14 @@ async def test_browser_close_verifies_process_owner_before_sending_close(owned):
     async def socket(request):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
-        async for message in ws:
-            data = message.json()
-            commands.append(data["method"])
-            result = {"processInfo": [{"type": "browser", "id": 123 if owned else 456}]}
-            await ws.send_json({"id": data["id"], "result": result})
+        try:
+            async for message in ws:
+                data = message.json()
+                commands.append(data["method"])
+                result = {"processInfo": [{"type": "browser", "id": 123 if owned else 456}]}
+                await ws.send_json({"id": data["id"], "result": result})
+        finally:
+            peer_done.set()
         return ws
 
     app = web.Application()
@@ -765,11 +769,11 @@ async def test_browser_close_verifies_process_owner_before_sending_close(owned):
     try:
         if owned:
             await browser._request_close()
-            assert commands == ["SystemInfo.getProcessInfo", "Browser.close"]
         else:
             with pytest.raises(SessionError, match="HELPER_BROWSER_OWNER"):
                 await browser._request_close()
-            assert commands == ["SystemInfo.getProcessInfo"]
+        await asyncio.wait_for(peer_done.wait(), timeout=2)
+        assert commands == (["SystemInfo.getProcessInfo", "Browser.close"] if owned else ["SystemInfo.getProcessInfo"])
     finally:
         await runner.cleanup()
 
