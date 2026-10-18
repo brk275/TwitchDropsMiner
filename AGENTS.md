@@ -272,8 +272,8 @@ lang/                # Translation JSON files (20 languages)
   state is cleared. Missing/null remains unknown with the existing local zero default;
   nonnegative integers above the requirement retain legacy counter behavior but do
   not become direct observations. Preserve claimed-counter normalization without
-  manufacturing a reading. Malformed self-node/claim-field parsing, later GUI errors
-  and automatic retry/shutdown recovery are not covered by this guard. Regressions:
+  manufacturing a reading. Later GUI errors and automatic retry/shutdown recovery
+  are not covered by this guard. Regressions:
   `tests/test_inventory_progress_types.py`, using the real inventory serializer.
 - `TimedDrop.update_minutes()` accepts only a plain integer before arithmetic or
   state changes. Ignore booleans, floats (including NaN/infinity), strings,
@@ -285,6 +285,16 @@ lang/                # Translation JSON files (20 languages)
   Regressions: `tests/test_progress_reading_types.py`, including real websocket
   handling and watch-loop polling followed by a valid reading.
 - `BaseDrop`: Base class with claim logic
+- A present drop `self` node must be an object with a strict boolean `isClaimed`
+  and a required `dropInstanceID` that is null or a nonblank string. Refuse malformed
+  nodes/fields with a fixed `MinerException` before inventory replacement; never
+  coerce flags or IDs. An absent node keeps the existing claimed-benefit inference.
+  IDs are opaque: validate nonblankness without trimming or restricting their format.
+  `update_claim()` returns admission success and preserves the prior ID on rejection;
+  claim-ready handling must return on rejection without claiming a retained old ID,
+  publishing, waiting or refreshing. `can_claim` also rejects unusable IDs, and
+  claim-ready logs must not echo the ID payload. This does not validate whole
+  websocket envelopes or add retries/recovery. Tests: `tests/test_drop_claim_inputs.py`.
 - `BaseDrop.can_claim` bounds attempts for an existing, unclaimed ID to strictly less
   than 14 days after the campaign end, not the individual reward end. This follows the
   developer API FAQ's maximum grace. Viewer help describes seven days and individual

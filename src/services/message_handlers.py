@@ -201,12 +201,13 @@ class MessageHandlerService:
         if msg_type == "drop-claim":
             if drop is None:
                 logger.error(
-                    f"Received a drop claim ID for a non-existing drop: {drop_id}\n"
-                    f"Drop claim ID: {message['data']['drop_instance_id']}"
+                    f"Received a drop claim ID for a non-existing drop: {drop_id}"
                 )
                 return
 
-            drop.update_claim(message["data"]["drop_instance_id"])
+            if not drop.update_claim(message["data"].get("drop_instance_id")):
+                logger.warning("Ignored an unusable drop claim ID")
+                return
             campaign = drop.campaign
             await drop.claim()
             drop.display()

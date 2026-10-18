@@ -119,6 +119,8 @@ The dashboard shows local counters separately from the last Twitch progress repo
 Its receipt time is local to the miner, not proof of ongoing mining or a claimed reward.
 Estimated remaining time changes with miner updates, not a browser-only countdown.
 Malformed inventory minute values are rejected before replacing the current inventory.
+Malformed claim flags or IDs are also rejected before inventory replacement. Unusable
+claim-ready IDs are ignored without discarding a known ID or sending a claim request.
 
 ## Quick start
 

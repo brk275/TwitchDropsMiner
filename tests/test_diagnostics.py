@@ -101,8 +101,10 @@ def test_api_credentials_unknown_fields_error_text_and_identities_are_never_reta
 def test_snapshot_projects_real_campaign_and_drop_boolean_fields_strictly(tmp_path):
     miner = diagnostic_miner(tmp_path)
     data = _drop("drop", CANARY, 30)
-    data["self"] = {"isClaimed": CANARY, "currentMinutesWatched": 7, "dropInstanceID": CANARY}
+    data["self"] = {"isClaimed": False, "currentMinutesWatched": 7, "dropInstanceID": CANARY}
     campaign = add_campaign(miner, drop_data=data)
+    # Exercise diagnostics on an already-corrupt model, not raw inventory admission.
+    campaign.timed_drops["drop"].is_claimed = CANARY
     campaign.linked = CANARY
     miner.settings.connection_quality = CANARY
     snapshot = miner.diagnostics.snapshot(miner)
