@@ -95,6 +95,9 @@ Unusable returned progress replies are skipped while playlist polling continues.
 They do not add estimated minutes; the next valid reply can update progress normally.
 Skipping a reply does not refresh direct evidence or reverse a confirmed claim.
 
+Source builds report unusable GraphQL server-error paths as request failures instead
+of path-traversal errors. This does not add automatic retries or guarantee progress.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash
