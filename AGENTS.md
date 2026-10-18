@@ -286,6 +286,13 @@ lang/                # Translation JSON files (20 languages)
   `dropInstanceID` explicitly null or an opaque nonblank string. Reject malformed
   values with a fixed MinerException before inventory publication; absent `self`
   retains benefit inference. Do not trim valid IDs or coerce booleans or strings.
+  Absent-self inference requires nonempty benefits and an in-window award for every
+  benefit, not merely every history entry that happens to be present. Shared or partial
+  rewards must not mark the whole drop claimed or normalize minutes to completion.
+  Preserve inclusive start/exclusive end, explicit claim-state precedence, single-benefit
+  behavior and no inferred claim ID/history/revision side effects. This remains an
+  inference from award history, not an authoritative claim acknowledgement. Tests:
+  `tests/test_benefit_claim_inference.py`, including real imported inventory publication.
   `update_claim()` returns false for unusable live IDs without replacing an existing
   ID. Claim-ready handlers return before claiming, publishing, waiting or refreshing.
   `can_claim` also rejects unusable IDs; claim-ready logs must not echo ID payloads.

@@ -92,6 +92,8 @@ authentication failures are not retried, and claims are not replayed.
 
 Source builds save confirmed claim history before waiting on dashboard or notification
 delivery. Interrupted alerts are not retried automatically.
+When a drop lacks explicit claim state, source builds infer completion only if all
+its rewards appear in award history within that drop's time window.
 
 Source builds require usable, error-free claim confirmations before marking a reward
 claimed. An invalid reply stays unconfirmed; this does not add automatic retries.
