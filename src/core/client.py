@@ -74,6 +74,7 @@ class Twitch:
         self._inventory_refresh_pending = False
         self._clear_cache_pending = False
         self._claim_requests = 0
+        self._claim_request_epoch = object()
         self.wanted_games: list[Game] = []
         self.inventory: list[DropsCampaign] = []
         self._drops: dict[str, TimedDrop] = {}
@@ -290,6 +291,7 @@ class Twitch:
         """Track result awaits even if their campaign is removed from inventory."""
         self._claim_requests += 1
         try:
+            self._claim_request_epoch = object()
             self.invalidate_deadline_context()
             yield
         finally:

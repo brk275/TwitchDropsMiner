@@ -42,6 +42,8 @@ def response(data):
 
 def client(*, ongoing=(), available=(), details=()):
     twitch = MagicMock()
+    twitch._claim_requests = 0
+    twitch._claim_request_epoch = object()
     twitch.settings = _settings("Wanted")
     twitch.get_auth = AsyncMock(return_value=SimpleNamespace(user_id=42))
     twitch._drops, twitch._campaigns, twitch.inventory = {}, {}, []

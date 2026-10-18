@@ -172,6 +172,7 @@ class InventoryService:
         self.cancel_refresh_retry()
         token = self._refresh_token = object()
         previous = tuple((campaign, campaign.progress_revision) for campaign in self._twitch.inventory)
+        claims_pending, claim_epoch = self._twitch._claim_requests, self._twitch._claim_request_epoch
         status_update = self._twitch.gui.status.update
         status_update(_.t["gui"]["status"]["fetching_inventory"])
 
@@ -224,8 +225,10 @@ class InventoryService:
 
         if token is not self._refresh_token:
             return
-        # Do not retire a claim's target or overwrite updates received during the reads.
-        if (len(previous) != len(self._twitch.inventory)
+        # Retired targets can still have outstanding results after a cache clear.
+        if (claims_pending or self._twitch._claim_requests
+                or claim_epoch is not self._twitch._claim_request_epoch
+                or len(previous) != len(self._twitch.inventory)
                 or any(current is not old or old.progress_revision != revision or old._pending_claims
                        for current, (old, revision) in zip(self._twitch.inventory, previous, strict=True))):
             self._defer_refresh()

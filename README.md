@@ -113,6 +113,7 @@ claimed. An invalid reply stays unconfirmed; this does not add automatic retries
 Inventory refreshes superseded by live progress or pending claim results are discarded
 and retried after a minute, rather than replacing those models with an older snapshot
 or blocking normal game selection. Pending claims are not resent by policy updates.
+Outstanding claim results also delay inventory rebuilding after a cache clear.
 
 ## Quick start
 

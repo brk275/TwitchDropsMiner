@@ -21,6 +21,8 @@ from src.web import app as web_app_module
 def _make_cache_test_client() -> tuple[Any, dict[str, object], MagicMock, MagicMock]:
     """Build a Twitch instance with real state containers and mocked I/O."""
     twitch: Any = object.__new__(Twitch)
+    twitch._claim_requests = 0
+    twitch._claim_request_epoch = object()
     settings: dict[str, object] = {
         "language": "English",
         "games_to_watch": ["Game A"],
@@ -116,6 +118,8 @@ async def test_inventory_replacement_removes_stale_campaign_lookup_entries():
         inventory=[SimpleNamespace(progress_revision=0, _pending_claims=0)],
         _mnt_triggers=deque([datetime.now(timezone.utc)]),
         _mnt_task=None,
+        _claim_requests=0,
+        _claim_request_epoch=object(),
         _state=State.IDLE,
         gui=SimpleNamespace(
             status=SimpleNamespace(update=MagicMock()),

@@ -172,9 +172,13 @@ lang/                # Translation JSON files (20 languages)
   cleared or published. This is not an atomicity guarantee for later model or GUI errors.
   Tests: `tests/test_unavailable_campaign_details.py` and cancellation/cleanup coverage.
 - `InventoryService.fetch_inventory()` snapshots live campaign identity/revisions before
-  its first read. Refuse installation if any changed or a campaign still has a pending
-  `BaseDrop.claim()` result. Schedule one owned 60-second deferred wakeup through the
-  existing refresh queue, allowing normal policy/selection work between conflicts.
+  its first read. Refuse installation if any changed or the client still has a pending
+  `BaseDrop.claim()` result, including a target retired by cache clearing. Capture the
+  pre-read pending count and a dedicated client claim-admission epoch: a claim
+  that settles or starts/finishes during the reads still supersedes that snapshot.
+  Do not reuse the broader planning epoch, which unrelated policy changes can retire.
+  Retain the per-campaign guard too. Schedule one owned 60-second deferred wakeup
+  through the existing refresh queue, allowing normal policy/selection work between conflicts.
   Do not transplant observations into replacement models or automatically replay claims.
   A newer refresh or explicit cache clear retires the older service token, including its
   later maintenance update. Cancel deferred wakeups on a new refresh, cache clear,
@@ -187,7 +191,9 @@ lang/                # Translation JSON files (20 languages)
   This protects the publication boundary, not arbitrary retired-model use, backend stale
   replies without a local transition, or all GUI/filesystem transactionality. Continuous
   live changes may defer installation again; this is not a 24x7 recovery guarantee.
-  Regression coverage: `tests/test_inventory_refresh_races.py`.
+  Regression coverage: `tests/test_inventory_refresh_races.py` and
+  `tests/test_retired_claim_inventory.py`. Wait for a new server inventory after result
+  settlement; never copy a retired model's claim/minutes into its replacement.
 - `tests/test_deadline_inventory_integration.py` combines unavailable details,
   watch-requirement refusal and local wanted-queue lookup with direct observations,
   stale-poll guards and short-lived experimental contexts. Every refresh attempt
