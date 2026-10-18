@@ -199,7 +199,8 @@ Search [existing issues](https://github.com/rangermix/TwitchDropsMiner/issues) b
 reporting a problem. Use the [bug-report form](https://github.com/rangermix/TwitchDropsMiner/issues/new?template=bug_report.yml)
 with the running app version, hosting environment, reproduction steps, and redacted evidence.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for bug reports, translations,
-and development. This fork uses AI-assisted development with automated checks and
+and development. Run the full test suite from its locked development setup.
+This fork uses AI-assisted development with automated checks and
 independent review. Agents acknowledge work in the relevant issue or PR before starting
 and post the outcome there when work ends or pauses.
 
