@@ -383,6 +383,8 @@ class TimedDrop(BaseDrop):
 
     def update_minutes(self, new_minutes: int) -> None:
         """Update the current watched minutes for this drop."""
+        if type(new_minutes) is not int:
+            return
         delta: int = new_minutes - self.real_current_minutes
         if delta == 0:
             return

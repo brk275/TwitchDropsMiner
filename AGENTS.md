@@ -202,6 +202,15 @@ lang/                # Translation JSON files (20 languages)
 **src/models/drop.py** - Drop types:
 
 - `TimedDrop`: Drops with minute requirements and progress
+- `TimedDrop.update_minutes()` accepts only a plain integer before arithmetic or
+  state changes. Ignore booleans, floats (including NaN/infinity), strings,
+  containers and integer subclasses without coercion, counter/estimate mutation
+  or a counter-change event from this method. Transports may still display the
+  unchanged state. Preserve existing integer correction/clamping, unchanged-reading
+  and unequal-sibling underflow behavior. This guards live update values, not
+  inventory ingestion, already-corrupt models or whole transport payload shapes.
+  Regressions: `tests/test_progress_reading_types.py`, including real websocket
+  handling and watch-loop polling followed by a valid reading.
 - `BaseDrop`: Base class with claim logic
 - Precondition chains for sequential drops
 
