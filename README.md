@@ -79,6 +79,8 @@ Malformed campaign lists or duplicate campaign IDs also reject the refresh befor
 replacing inventory. Empty lists and existing nullable-list behavior remain supported.
 Award history must contain usable reward IDs and timezone-aware award timestamps;
 malformed history rejects the refresh without replacing known inventory.
+Campaign drop lists also reject malformed entries and duplicate drop IDs before
+replacement, rather than silently losing a reward.
 
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;

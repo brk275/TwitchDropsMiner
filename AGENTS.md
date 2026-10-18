@@ -242,6 +242,14 @@ lang/                # Translation JSON files (20 languages)
 **src/models/campaign.py** - Drop campaigns:
 
 - `DropsCampaign`: Campaign with game, timeframe, allowed channels
+- Admit `timeBasedDrops` only as a list of objects with unique nonblank string IDs
+  within that campaign. Refuse missing/null/scalar/object collections and malformed
+  or duplicate rows with fixed `MinerException` before constructing drop models or
+  replacing inventory/GUI state. Preserve exact IDs, order, valid empty lists and
+  zero-minute rewards; do not coerce, silently drop rows, choose a duplicate winner
+  or mutate raw data. This does not validate all fields or cross-campaign identity
+  uniqueness, add recovery or make later GUI publication transactional. Regressions:
+  `tests/test_campaign_drop_admission.py`, including real imported detail refreshes.
 - Time-based eligibility and progress tracking
 - Special Events (`509663`) and IRL (`509672`) are identified by `Game.is_special()`.
   Their campaigns can progress across categories only on live channels in a non-empty,

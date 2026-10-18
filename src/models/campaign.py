@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from dateutil.parser import isoparse
 
 from src.config.constants import State
+from src.exceptions import MinerException
 from src.models.channel import Channel
 from src.models.drop import TimedDrop
 from src.models.game import Game
@@ -27,6 +28,16 @@ logger = logging.getLogger("TwitchDrops")
 
 class DropsCampaign:
     def __init__(self, twitch: Twitch, data: JsonType, claimed_benefits: dict[str, datetime]):
+        raw_drops = data.get("timeBasedDrops")
+        if not isinstance(raw_drops, list):
+            raise MinerException("Invalid campaign drop list")
+        drop_data_by_id: dict[str, JsonType] = {}
+        for drop_data in raw_drops:
+            drop_id = drop_data.get("id") if isinstance(drop_data, dict) else None
+            if (not isinstance(drop_id, str) or not drop_id.strip()
+                    or drop_id in drop_data_by_id):
+                raise MinerException("Invalid campaign drop list")
+            drop_data_by_id[drop_id] = drop_data
         self._twitch: Twitch = twitch
         # Shared progress updates can affect every eligible sibling drop.
         self.progress_revision: int = 0
@@ -48,8 +59,8 @@ class DropsCampaign:
             else []
         )
         self.timed_drops: dict[str, TimedDrop] = {
-            drop_data["id"]: TimedDrop(self, drop_data, claimed_benefits)
-            for drop_data in data["timeBasedDrops"]
+            drop_id: TimedDrop(self, drop_data, claimed_benefits)
+            for drop_id, drop_data in drop_data_by_id.items()
         }
         self._drop_ignore_cache_key: (
             tuple[tuple[str, ...], tuple[tuple[str, bool], ...]] | None
