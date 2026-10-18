@@ -215,24 +215,73 @@ class DropHistory:
     # Internal helpers
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _parse_entry(value: object) -> HistoryEntry | None:
+        """Validate stored fields before exposing them to filters, exports or claims."""
+        if not isinstance(value, dict):
+            return None
+        text_fields = ("id", "claimed_at", "game", "campaign", "drop_name", "campaign_id")
+        if any(not isinstance(value.get(key), str) for key in text_fields):
+            return None
+        benefits = value.get("benefits")
+        minutes = value.get("required_minutes")
+        if not isinstance(benefits, list) or any(not isinstance(b, str) for b in benefits):
+            return None
+        if type(minutes) is not int or minutes < 0:
+            return None
+        try:
+            # JSON escapes can decode to lone surrogates despite a valid UTF-8 file.
+            for text in (value[key] for key in text_fields):
+                text.encode("utf-8")
+            for benefit in benefits:
+                benefit.encode("utf-8")
+            claimed_at = datetime.fromisoformat(value["claimed_at"])
+            if claimed_at.tzinfo is None:
+                return None
+            claimed_at = claimed_at.astimezone(timezone.utc)
+        except (ValueError, OverflowError):
+            return None
+        return {
+            "id": value["id"],
+            "claimed_at": claimed_at.isoformat(),
+            "game": value["game"],
+            "campaign": value["campaign"],
+            "drop_name": value["drop_name"],
+            "benefits": benefits,
+            "required_minutes": minutes,
+            "campaign_id": value["campaign_id"],
+        }
+
     def _load(self) -> None:
         """Read history from disk. Silently starts fresh if the file is absent."""
-        if not self._path.exists():
-            logger.debug(f"No history file at {self._path}, starting fresh.")
-            return
         try:
             with self._path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
-            if data.get("version") == HISTORY_VERSION:
-                self._entries = data.get("entries", [])
-                logger.debug(f"Loaded {len(self._entries)} history entries.")
-            else:
-                # Future versions may add a migration path here
-                logger.warning(
-                    f"Unknown history version {data.get('version')}, ignoring file."
-                )
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.error(f"Failed to load drop history: {exc}")
+        except FileNotFoundError:
+            logger.debug("No history file, starting fresh.")
+            return
+        except (ValueError, OSError, RecursionError):
+            logger.error("Failed to load drop history; file is unreadable or invalid.")
+            return
+        if not isinstance(data, dict):
+            logger.warning("Invalid history document, ignoring file.")
+            return
+        version = data.get("version")
+        if type(version) is not int or version != HISTORY_VERSION:
+            logger.warning("Unknown history version, ignoring file.")
+            return
+        rows = data.get("entries", [])
+        if not isinstance(rows, list):
+            logger.warning("Invalid history entries, ignoring file.")
+            return
+        for row in rows:
+            entry = self._parse_entry(row)
+            if entry is not None:
+                self._entries.append(entry)
+        skipped = len(rows) - len(self._entries)
+        if skipped:
+            logger.warning("Ignored %d invalid history entries.", skipped)
+        logger.debug("Loaded %d history entries.", len(self._entries))
 
     def _save(self) -> None:
         """

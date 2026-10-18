@@ -25,6 +25,8 @@ services operated for other users are outside its support scope.
 - Skip channels while Twitch reports an active ban, including temporary bans.
 - Sign in inside the dashboard; TDM saves and renews your session automatically.
 - Review claimed-drop history, export it to CSV, and receive Telegram or Discord notifications.
+- Source builds skip malformed saved history records without blocking startup; keep
+  a backup of `data/drop_history.json` before repairing it or recording new claims.
 - Manage everything from a web dashboard with optional password protection.
 - Set daily [mining hours](docs/usage.md#mining-hours) in the miner’s local timezone.
 

@@ -899,3 +899,13 @@ and confirmed local deletion. Date-only filters mean midnight UTC; aware timesta
 preserve their instant. CSV attachment names use UTF-8 percent encoding with an ASCII
 fallback. History text is defined in `gui.history` for every locale and rendered as text.
 Tests cover persistence, filtering, Unicode exports, offsets, and translated UI behavior.
+Validate the persisted history envelope and every row before publishing entries.
+Skip malformed rows while preserving valid insertion order; require aware claim times
+and normalize them to UTC without inventing dates or claim fields. Loading never
+rewrites the original file. A later normal save writes the accepted records plus new
+claims; this is not a backup or repair facility. Reject boolean/fractional schema
+versions and minute counts, but retain zero-minute records and empty benefit lists.
+Require UTF-8 encodable text, including benefit names; escaped lone surrogates are
+invalid even when the JSON file itself decodes. Keep valid supplementary Unicode.
+Project only documented history fields, never arbitrary persisted extras. Log fixed
+shape errors or aggregate counts, never persisted values or parser errors.

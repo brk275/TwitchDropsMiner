@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import importlib
+import json
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import quote
 
 import pytest
+from fastapi.responses import JSONResponse
+
+from src.drop_history import DropHistory
 
 
 web_app = importlib.import_module("src.web.app")
@@ -109,3 +113,66 @@ def test_parse_history_since_accepts_date_and_datetime():
 ])
 def test_history_since_preserves_instant_and_normalizes_to_utc(value):
     assert web_app._parse_history_since(value) == datetime(2026, 2, 3, 2, 30, tzinfo=timezone.utc)
+
+
+@pytest.mark.asyncio
+async def test_loaded_history_projects_validated_fields_before_json_response(tmp_path):
+    entry = {
+        "id": "drop-1", "claimed_at": "2026-01-01T00:00:00+00:00", "game": "Game",
+        "campaign": "Campaign", "drop_name": "Reward", "benefits": [],
+        "required_minutes": 0, "campaign_id": "campaign-1",
+    }
+    raw = {**entry, "extra": float("nan"), "private": "private-history-marker"}
+    target = tmp_path / "drop_history.json"
+    original = json.dumps({"version": 1, "entries": [None, raw]})
+    target.write_text(original)
+    client = SimpleNamespace(drop_history=DropHistory(tmp_path))
+
+    with patch.object(web_app, "twitch_client", client):
+        response = JSONResponse(await web_app.get_history(game="Game", since="2026-01-01"))
+        stats = JSONResponse(await web_app.get_history_stats())
+        csv_response = await web_app.export_history_csv(game="Game")
+
+    assert json.loads(response.body) == {"total": 1, "entries": [entry]}
+    assert json.loads(stats.body) == {
+        "total_drops": 1, "by_game": {"Game": 1}, "by_month": {"2026-01": 1},
+    }
+    assert "Reward" in csv_response.body.decode("utf-8")
+    assert "private-history-marker" not in response.body.decode("utf-8")
+    assert target.read_text() == original
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", [
+    "id", "game", "campaign", "drop_name", "campaign_id", "benefits",
+])
+@pytest.mark.parametrize("surrogate", ["\ud800", "\udfff"])
+async def test_history_rejects_escaped_surrogates_without_breaking_claim_save(
+    tmp_path, field, surrogate,
+):
+    reward = "\u5956\u54c1 \U0001f680"
+    valid = {
+        "id": "one", "claimed_at": "2026-01-01T00:00:00+00:00", "game": "Game",
+        "campaign": "Campaign", "drop_name": reward, "benefits": [reward],
+        "required_minutes": 0, "campaign_id": "campaign-1",
+    }
+    malformed = {**valid, field: [surrogate] if field == "benefits" else surrogate}
+    target = tmp_path / "drop_history.json"
+    original = json.dumps({"version": 1, "entries": [valid, malformed]})
+    target.write_text(original, encoding="utf-8")
+    history = DropHistory(tmp_path)
+    assert history.get_entries() == [valid]
+    assert target.read_text(encoding="utf-8") == original
+
+    history.record(
+        SimpleNamespace(id="two", name=reward, benefits=[], required_minutes=30),
+        SimpleNamespace(id="campaign-1", name="Campaign", game=SimpleNamespace(name="Game")),
+    )
+    loaded = DropHistory(tmp_path)
+    assert loaded.total_count == 2
+    assert loaded.get_entries()[1] == valid
+    with patch.object(web_app, "twitch_client", SimpleNamespace(drop_history=loaded)):
+        csv_response = await web_app.export_history_csv()
+        response = JSONResponse(await web_app.get_history())
+    assert reward in csv_response.body.decode("utf-8")
+    assert reward in response.body.decode("utf-8")
