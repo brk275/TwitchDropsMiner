@@ -16,7 +16,7 @@ from dateutil.parser import isoparse
 
 from src.api import GQLClient
 from src.config import GQL_OPERATIONS
-from src.exceptions import ExitRequest
+from src.exceptions import ExitRequest, GQLException
 from src.i18n import _
 from src.models import DropsCampaign
 from src.utils import chunk
@@ -95,6 +95,8 @@ class InventoryService:
             Dictionary mapping campaign IDs to their detailed data
         """
         campaign_ids: dict[str, JsonType] = dict(campaigns_chunk)
+        if not campaign_ids:
+            return {}
         auth_state = await self._twitch.get_auth()
 
         response_list_raw = await self._twitch.gql_request(
@@ -111,12 +113,26 @@ class InventoryService:
             response_list_raw if isinstance(response_list_raw, list) else [response_list_raw]
         )
 
-        fetched_data: dict[str, JsonType] = {
-            (campaign_data := response_json["data"]["user"]["dropCampaign"])["id"]: campaign_data
-            for response_json in response_list
-        }
+        if len(response_list) != len(campaign_ids):
+            raise GQLException("Invalid campaign details response")
+        fetched_data: dict[str, JsonType] = {}
+        try:
+            for response_json in response_list:
+                campaign_data = response_json["data"]["user"]["dropCampaign"]
+                if campaign_data is None:
+                    continue
+                campaign_id = campaign_data["id"]
+                if (not isinstance(campaign_id, str) or campaign_id not in campaign_ids
+                        or campaign_id in fetched_data):
+                    raise GQLException("Invalid campaign details response")
+                fetched_data[campaign_id] = campaign_data
+        except (KeyError, TypeError):
+            raise GQLException("Invalid campaign details response") from None
 
-        return GQLClient.merge_data(campaign_ids, fetched_data)
+        # Catalog-only records cannot replace unavailable details for new campaigns.
+        return GQLClient.merge_data(
+            {key: campaign_ids[key] for key in fetched_data}, fetched_data,
+        )
 
     async def fetch_inventory(self) -> None:
         """
@@ -154,6 +170,13 @@ class InventoryService:
             for c in available_list
             if c["status"] in applicable_statuses  # that are currently not expired
         }
+
+        # Keep inventory progress/claim data usable if its details disappear mid-refresh.
+        known_metadata = {
+            key: data for key, data in available_campaigns.items() if key in inventory_data
+        }
+        if known_metadata:
+            inventory_data = GQLClient.merge_data(inventory_data, known_metadata)
 
         # fetch detailed data for each campaign, in chunks
         status_update(_.t["gui"]["status"]["fetching_campaigns"])
