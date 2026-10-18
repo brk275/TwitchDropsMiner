@@ -775,6 +775,16 @@ of unattended collection during persistent outages or a transactional GUI refres
 
 ### Drop Mining Mechanism
 
+- `HTTPClient.close()` closes its session and connector even when legacy cookie
+  cleanup or persistence fails. Preserve the storage error, successful-save behavior,
+  browser mode's legacy-cookie persistence bypass and idempotent completed cleanup.
+  `tests/test_http_client_close.py` covers real filesystem failures and owned loopback
+  connections without Twitch credentials or external requests.
+  `tests/test_http_shutdown_persistence.py` combines real HTTP cleanup with miner
+  owner draining, repeated caller cancellation, failed owner cleanup and explicit
+  teardown retry. Storage errors still propagate; this is not automatic recovery
+  or a guarantee that later identity teardown runs despite an error.
+
 - `Channel.send_watch()` polls the lowest-bandwidth HLS playlist and sends HEAD requests
   for every new media segment, without downloading stream audio or video. `WatchService`
   polls about every ten seconds, within the rolling playlist window.
