@@ -42,6 +42,10 @@ check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-over
 Source-build campaign and progress API payloads include `progress_observation`: the
 last direct Twitch minute reading, its source and local receipt time, or `null` when
 unknown. This is separate from displayed counters that can include inferred progress.
+Inventory receipt times are retained while later campaign requests or partial login
+retries finish; a slow refresh does not make an older report fresh.
+If bounded receipt tracking is exhausted, metadata stays unknown for that refresh;
+mining counters and claims are unchanged.
 
 Source builds poll progress about once a minute while successfully watching and ignore
 replies superseded by newer observations or inventory reloads. Fresh eligible readings

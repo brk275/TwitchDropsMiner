@@ -29,7 +29,8 @@ def runtime(monkeypatch):
         def now(cls, tz=None):
             return NOW.replace(tzinfo=None) if tz is None else NOW.astimezone(tz)
 
-    for module in ("src.models.campaign", "src.models.drop", "src.core.client"):
+    for module in ("src.models.campaign", "src.models.drop", "src.core.client", "src.services.inventory_service",
+                   "src.utils.gql_response_observer"):
         monkeypatch.setattr(f"{module}.datetime", Clock)
     monkeypatch.setattr("src.models.channel.time", lambda: NOW.timestamp())
     state = context_state.__wrapped__()

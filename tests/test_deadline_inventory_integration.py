@@ -3,7 +3,7 @@
 import asyncio
 from collections import deque
 from copy import deepcopy
-from datetime import timedelta
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -12,6 +12,13 @@ import pytest
 from src.config import GQL_OPERATIONS
 from src.exceptions import GQLException, MinerException
 from src.models.channel import Channel
+from src.services.deadline_certificate import (
+    CertifiedDeadlineForecaster,
+    DropTimingBounds,
+    DurationBounds,
+    TimingBounds,
+)
+from src.services.deadline_forecast import ViewingWindow
 from src.services.inventory_service import InventoryService
 from tests.test_deadline_channels import channel
 from tests.test_deadline_channels import runtime as runtime
@@ -64,6 +71,50 @@ async def refresh(state):
     finally:
         if isinstance(state.twitch._mnt_task, asyncio.Task):
             await state.twitch._mnt_task
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("delay,reason", [(4, "no_safe_rescue"), (10, "unknown_progress")])
+async def test_refresh_delay_does_not_renew_planning_freshness(combined, monkeypatch, delay, reason):
+    state = combined
+    current = [NOW]
+    later = NOW + timedelta(minutes=delay)
+    known = data("known", minutes=17)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return current[0].replace(tzinfo=None) if tz is None else current[0].astimezone(tz)
+
+    monkeypatch.setattr("src.services.inventory_service.datetime", Clock)
+
+    async def request(operations):
+        if isinstance(operations, list):
+            current[0] = later
+            return [response(data("known", minutes=24))]
+        if operations["operationName"] == GQL_OPERATIONS["Inventory"]["operationName"]:
+            return {"data": {"currentUser": {"inventory": {
+                "dropCampaignsInProgress": [known], "gameEventDrops": [],
+            }}}}
+        return {"data": {"currentUser": {"dropCampaigns": [metadata(known)]}}}
+
+    state.twitch.gql_request = AsyncMock(side_effect=request)
+    await refresh(state)
+    result = state.guard.capture(state.twitch, now=later, horizon=NOW + timedelta(days=3), enabled=True)
+    assert result.reason == "captured"
+    inputs = result.bound.inputs
+    projected, = inputs.drops
+    assert projected.observed_at == NOW and projected.observed_minutes == 17
+    zero = DurationBounds(timedelta(0), timedelta(0))
+    remaining = DurationBounds(timedelta(minutes=43), timedelta(minutes=43))
+    # Explicit hypothetical coverage tests freshness, not future Twitch availability.
+    snapshot = inputs.to_forecast(claim_delays={projected.id: timedelta(0)}, viewing_windows=(
+        ViewingWindow("test-channel", later, projected.ends_at, frozenset({projected.id}), allocation_known=True),
+    ))
+    decision = CertifiedDeadlineForecaster().certify(snapshot, TimingBounds((
+        DropTimingBounds(projected.id, remaining, zero),
+    ), zero), enabled=True, baseline_complete=True)
+    assert decision.reason == reason and decision.certificate is None
 
 
 @pytest.mark.asyncio

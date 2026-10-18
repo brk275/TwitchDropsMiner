@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, overload
 
 from src.exceptions import GQLException, MinerException
 from src.utils import ExponentialBackoff, RateLimiter
+from src.utils.gql_response_observer import GQLResponseObserver
 
 
 if TYPE_CHECKING:
@@ -102,6 +103,7 @@ class GQLClient:
                     browser = auth_state._twitch._browser
                     assert browser is not None
                     response_json = await browser.gql(ops)
+                    GQLResponseObserver.record(response_json)
                 else:
                     async with self.http_client.request(
                         "POST",
@@ -110,6 +112,7 @@ class GQLClient:
                         headers=auth_state.headers(user_agent=self._client_type.USER_AGENT, gql=True),
                     ) as response:
                         response_json = await response.json()
+                        GQLResponseObserver.record(response_json)
 
             gql_logger.debug(f"GQL Response: {response_json}")
             orig_response = response_json

@@ -638,6 +638,33 @@ progress to an ignored drop while the miner intentionally targets another reward
   expose the same field. Diagnosis adds strictly projected `observed_minutes`; legacy
   `reported_minutes` still includes sibling inference. Never export source free text.
   Regression coverage: `tests/test_progress_observation.py` and `tests/test_diagnostics.py`.
+  `InventoryService` records UTC receipt times immediately after each Inventory,
+  Campaigns and CampaignDetails response. A per-refresh receipt ledger follows the
+  selected raw drop rows through the existing primary-preferred merge; construction
+  after slow sibling requests must not refresh those readings. The ledger holds row
+  references and verifies campaign/drop IDs and the original integer minutes, without
+  modifying wire payloads. Copied, changed or unrecorded rows remain unknown, not
+  freshly stamped. Explicit constructor receipt maps are strict, including an empty
+  map; standalone model construction without one retains local ingestion semantics.
+  Preserve source precedence, counters, claimed normalization and child-task draining.
+  Tests: `tests/test_inventory_receipt_times.py` and delayed inventory-to-planner
+  regressions in `tests/test_deadline_inventory_integration.py`. This does not add
+  refresh requests or enable deadline scheduling.
+  Capture imported-session transport replies before accepted siblings are retained
+  during partial auth retries. `GQLResponseObserver` is synchronous and task-local,
+  scoped to one inventory fetch; direct HTTP replies are observed before context
+  teardown. Repeated observation of the same raw row retains its first receipt.
+  Close and release the callback on every scope exit, even cancellation, so copied
+  child contexts cannot retain the ledger or renew readings later. Do not replay
+  accepted operations, add requests, mutate wire data or change auth ownership.
+  Observer scope/cancellation regressions: `tests/test_gql_response_observer.py`.
+  Bound each refresh ledger to 8,192 original drop rows, independently of retry
+  count. On the next distinct row, release all retained receipts and keep provenance
+  unknown for the rest of that refresh; service-level fallback stamps must not
+  restart tracking. A later refresh starts a new budget. Duplicate row identities
+  do not consume it again. Preserve counters, claims, raw payloads and retry policy.
+  This bounds retained row count, not arbitrary input byte size. Repeated discarded
+  batch, exhaustion, cancellation and recovery tests: `tests/test_inventory_receipt_budget.py`.
   The active-drop dashboard distinguishes its local counter/estimated remaining time
   from this direct reading and the miner's receipt time. Render zero as known and
   absent/malformed metadata as no report; never infer it from counters, siblings or

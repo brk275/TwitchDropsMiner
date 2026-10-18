@@ -20,6 +20,7 @@ from src.auth.server_seed import SDKCookie, ServerSeed
 from src.auth.session_bundle import PrivateSessionFile, SessionBundle, SessionError
 from src.config import GQL_OPERATIONS, ClientType
 from src.exceptions import ExitRequest, LoginException
+from src.utils.gql_response_observer import GQLResponseObserver
 
 
 if TYPE_CHECKING:
@@ -506,6 +507,7 @@ class ImportedSession:
                     response = await self._transport.request(
                         "POST", BrowserSession.GQL_URL, headers=self._bundle.request_headers(), body=body,
                     )
+                    GQLResponseObserver.record(response)
                 except _TransientRequest:
                     if self._stopping:
                         raise ExitRequest() from None

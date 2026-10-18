@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -20,6 +21,7 @@ from src.exceptions import ExitRequest, GQLException
 from src.i18n import _
 from src.models import DropsCampaign
 from src.utils import chunk
+from src.utils.gql_response_observer import GQLResponseObserver
 
 
 if TYPE_CHECKING:
@@ -29,6 +31,93 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger("TwitchDrops")
+
+
+@dataclass(frozen=True)
+class _ProgressReceipt:
+    row: JsonType = field(repr=False)
+    campaign_id: str
+    drop_id: str
+    minutes: int
+    received_at: datetime
+
+
+class _ProgressReceipts:
+    """Keep response provenance through merges without modifying wire payloads."""
+
+    _MAX_ROWS = 8192
+
+    def __init__(self) -> None:
+        self._rows: dict[int, _ProgressReceipt] = {}
+        self._exhausted = False
+
+    def record(self, campaign: JsonType, received_at: datetime) -> None:
+        if self._exhausted:
+            return
+        campaign_id = campaign.get("id")
+        rows = campaign.get("timeBasedDrops")
+        if not isinstance(campaign_id, str) or not isinstance(rows, list):
+            return
+        for row in rows:
+            if not isinstance(row, dict) or not isinstance(row.get("id"), str):
+                continue
+            progress = row.get("self")
+            minutes = progress.get("currentMinutesWatched") if isinstance(progress, dict) else None
+            if type(minutes) is int:
+                if id(row) in self._rows:
+                    continue
+                if len(self._rows) >= self._MAX_ROWS:
+                    # Discarded retries must not retain rows indefinitely or renew old evidence.
+                    self._rows.clear()
+                    self._exhausted = True
+                    return
+                # Hold the row alive and retain the first receipt if a caller reuses it.
+                self._rows[id(row)] = _ProgressReceipt(
+                    row, campaign_id, row["id"], minutes, received_at,
+                )
+
+    def record_response(self, response: object, received_at: datetime) -> None:
+        if self._exhausted:
+            return
+        rows = response if isinstance(response, list) else [response]
+        for row in rows:
+            data = row.get("data") if isinstance(row, dict) else None
+            if not isinstance(data, dict):
+                continue
+            user = data.get("currentUser")
+            if isinstance(user, dict):
+                inventory = user.get("inventory")
+                if isinstance(inventory, dict):
+                    self._record_campaigns(inventory.get("dropCampaignsInProgress"), received_at)
+                self._record_campaigns(user.get("dropCampaigns"), received_at)
+            user = data.get("user")
+            campaign = user.get("dropCampaign") if isinstance(user, dict) else None
+            if isinstance(campaign, dict):
+                self.record(campaign, received_at)
+
+    def _record_campaigns(self, campaigns: object, received_at: datetime) -> None:
+        if isinstance(campaigns, list):
+            for campaign in campaigns:
+                if isinstance(campaign, dict):
+                    self.record(campaign, received_at)
+
+    def for_campaign(self, campaign: JsonType) -> dict[str, datetime]:
+        receipts: dict[str, datetime] = {}
+        if self._exhausted:
+            return receipts
+        rows = campaign.get("timeBasedDrops")
+        if not isinstance(rows, list):
+            return receipts
+        for row in rows:
+            receipt = self._rows.get(id(row))
+            if receipt is None or receipt.row is not row:
+                continue
+            progress = row.get("self")
+            minutes = progress.get("currentMinutesWatched") if isinstance(progress, dict) else None
+            if (campaign["id"] == receipt.campaign_id and row.get("id") == receipt.drop_id
+                    and type(minutes) is int and minutes == receipt.minutes):
+                receipts[receipt.drop_id] = receipt.received_at
+        return receipts
 
 
 class InventoryService:
@@ -83,7 +172,8 @@ class InventoryService:
         self._twitch._mnt_task = None
 
     async def fetch_campaigns(
-        self, campaigns_chunk: list[tuple[str, JsonType]]
+        self, campaigns_chunk: list[tuple[str, JsonType]], *,
+        _receipts: _ProgressReceipts | None = None,
     ) -> dict[str, JsonType]:
         """
         Fetch detailed campaign data for a chunk of campaign IDs.
@@ -107,6 +197,7 @@ class InventoryService:
                 for cid in campaign_ids
             ]
         )
+        received_at = datetime.now(timezone.utc)
 
         # Ensure we have a list
         response_list: list[JsonType] = (
@@ -126,6 +217,8 @@ class InventoryService:
                         or campaign_id in fetched_data):
                     raise GQLException("Invalid campaign details response")
                 fetched_data[campaign_id] = campaign_data
+                if _receipts is not None:
+                    _receipts.record(campaign_data, received_at)
         except (KeyError, TypeError):
             raise GQLException("Invalid campaign details response") from None
 
@@ -146,13 +239,22 @@ class InventoryService:
         5. Updates GUI with campaign information
         6. Sets up maintenance triggers for campaign timing changes
         """
+        receipts = _ProgressReceipts()
+        with GQLResponseObserver(receipts.record_response).observe():
+            await self._fetch_inventory(receipts)
+
+    async def _fetch_inventory(self, receipts: _ProgressReceipts) -> None:
+        """Fetch within the owned response-observation scope."""
         status_update = self._twitch.gui.status.update
         status_update(_.t["gui"]["status"]["fetching_inventory"])
 
         # fetch in-progress campaigns (inventory)
         response = await self._twitch.gql_request(GQL_OPERATIONS["Inventory"])
+        received_at = datetime.now(timezone.utc)
         inventory: JsonType = response["data"]["currentUser"]["inventory"]
         ongoing_campaigns: list[JsonType] = inventory["dropCampaignsInProgress"] or []
+        for campaign_data in ongoing_campaigns:
+            receipts.record(campaign_data, received_at)
 
         # this contains claimed benefit edge IDs, not drop IDs
         claimed_benefits: dict[str, datetime] = {
@@ -163,7 +265,10 @@ class InventoryService:
 
         # fetch general available campaigns data (campaigns)
         response = await self._twitch.gql_request(GQL_OPERATIONS["Campaigns"])
+        received_at = datetime.now(timezone.utc)
         available_list: list[JsonType] = response["data"]["currentUser"]["dropCampaigns"] or []
+        for campaign_data in available_list:
+            receipts.record(campaign_data, received_at)
         applicable_statuses = ("ACTIVE", "UPCOMING")
         available_campaigns: dict[str, JsonType] = {
             c["id"]: c
@@ -181,7 +286,7 @@ class InventoryService:
         # fetch detailed data for each campaign, in chunks
         status_update(_.t["gui"]["status"]["fetching_campaigns"])
         fetch_campaigns_tasks: list[asyncio.Task[Any]] = [
-            asyncio.create_task(self.fetch_campaigns(campaigns_chunk))
+            asyncio.create_task(self.fetch_campaigns(campaigns_chunk, _receipts=receipts))
             for campaigns_chunk in chunk(available_campaigns.items(), 20)
         ]
 
@@ -203,7 +308,8 @@ class InventoryService:
 
         # use the merged data to create campaign objects
         campaigns: list[DropsCampaign] = [
-            DropsCampaign(self._twitch, campaign_data, claimed_benefits)
+            DropsCampaign(self._twitch, campaign_data, claimed_benefits,
+                          progress_receipts=receipts.for_campaign(campaign_data))
             for campaign_data in inventory_data.values()
         ]
         campaigns.sort(key=lambda c: c.active, reverse=True)

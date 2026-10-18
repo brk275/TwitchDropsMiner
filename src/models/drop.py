@@ -18,6 +18,8 @@ from src.utils import DropIgnoreReason
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from src.config.constants import JsonType
     from src.core.client import Twitch
     from src.models.campaign import DropsCampaign
@@ -275,7 +277,8 @@ class BaseDrop:
 
 class TimedDrop(BaseDrop):
     def __init__(
-        self, campaign: DropsCampaign, data: JsonType, claimed_benefits: dict[str, datetime]
+        self, campaign: DropsCampaign, data: JsonType, claimed_benefits: dict[str, datetime], *,
+        progress_receipts: Mapping[str, datetime] | None = None,
     ):
         required_minutes = data.get("requiredMinutesWatched")
         if type(required_minutes) is not int or required_minutes < 0:
@@ -288,7 +291,12 @@ class TimedDrop(BaseDrop):
         self.extra_current_minutes: int = 0
         self._progress_observation: ProgressObservation | None = None
         if isinstance(data.get("self"), dict):
-            self._record_progress_observation(data["self"].get("currentMinutesWatched"), "inventory")
+            minutes = data["self"].get("currentMinutesWatched")
+            # A supplied receipt map is strict; unknown rows must not fall back to now.
+            if progress_receipts is None:
+                self._record_progress_observation(minutes, "inventory")
+            elif (received_at := progress_receipts.get(self.id)) is not None:
+                self._record_progress_observation(minutes, "inventory", received_at=received_at)
         if self.is_claimed:
             # claimed drops may report inconsistent current minutes, so we need to overwrite them
             self.real_current_minutes = self.required_minutes
@@ -320,7 +328,9 @@ class TimedDrop(BaseDrop):
         """Expose a copy so serialized payloads cannot mutate the recorded reading."""
         return self._progress_observation.copy() if self._progress_observation is not None else None
 
-    def _record_progress_observation(self, minutes: object, source: ProgressSource | None) -> bool:
+    def _record_progress_observation(
+        self, minutes: object, source: ProgressSource | None, *, received_at: datetime | None = None,
+    ) -> bool:
         if (
             source is None or source not in ("inventory", "websocket", "current_drop")
             or type(minutes) is not int or type(self.required_minutes) is not int
@@ -329,7 +339,7 @@ class TimedDrop(BaseDrop):
             return False
         self._progress_observation = {
             "minutes": minutes, "source": source,
-            "received_at": datetime.now(timezone.utc).isoformat(),
+            "received_at": (received_at if received_at is not None else datetime.now(timezone.utc)).isoformat(),
         }
         return True
 
