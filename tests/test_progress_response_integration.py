@@ -51,7 +51,8 @@ def snapshot(campaign):
                       drop.claim_id, drop.progress_observation) for drop in campaign.drops])
 
 
-async def run_poll(twitch, monkeypatch, replies, *, during=None, until=30, clock=None, after=None):
+async def run_poll(twitch, monkeypatch, replies, *, during=None, until=30, clock=None, after=None,
+                   query=None, cleanup=None):
     clock = [0.0] if clock is None else clock
     requests, watches = [], []
     channel = twitch.watching_channel.get_with_default(None)
@@ -59,10 +60,12 @@ async def run_poll(twitch, monkeypatch, replies, *, during=None, until=30, clock
     if not isinstance(service, WatchService):
         service = WatchService(twitch)
 
-    async def query(operation):
+    async def ask(operation):
         requests.append(clock[0])
         if during is not None:
             await during(len(requests))
+        if query is not None:
+            return await query(operation)
         reply = replies[min(len(requests) - 1, len(replies) - 1)]
         if isinstance(reply, BaseException):
             raise reply
@@ -86,10 +89,14 @@ async def run_poll(twitch, monkeypatch, replies, *, during=None, until=30, clock
         monkeypatch.setattr(channel, "send_watch", send)
     monkeypatch.setattr("src.services.watch_service.monotonic", lambda: clock[0])
     monkeypatch.setattr(service, "watch_sleep", advance)
-    twitch.gql_request = query
+    twitch.gql_request = ask
     tasks = asyncio.all_tasks()
-    with pytest.raises(asyncio.CancelledError):
-        await asyncio.wait_for(service.watch_loop(), 2)
+    try:
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(service.watch_loop(), 2)
+    finally:
+        if cleanup is not None:
+            await cleanup()
     assert not {task for task in asyncio.all_tasks() - tasks if not task.done()}
     assert requests == ([20, 80] if until == 90 else [20])
     assert all(b - a <= 10 for a, b in zip(watches, watches[1:], strict=False))

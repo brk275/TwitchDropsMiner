@@ -691,6 +691,15 @@ progress to an ignored drop while the miner intentionally targets another reward
   not advance revisions, refresh direct evidence, undo claims or estimate progress.
   Combined regressions in `tests/test_progress_response_integration.py` cover newer
   websocket/claim observations, replacement, capped recovery and bound-context effects.
+  Its controlled-clock helper accepts a real query and an owned cleanup callback;
+  drain only the query client's rate-limiter task before checking for other leaks.
+  `tests/test_progress_client_integration.py` combines real GQLClient/model services
+  with mocked HTTP/browser IO. A request failure retains guarded estimates without
+  refreshing direct evidence; an errored returned envelope still skips estimation.
+  Concurrent websocket/claim transitions, model replacement and cancellation retain
+  their guards. A changed local fallback guess alone must not reject an authoritative
+  reading for the same still-indexed model. Estimates can retire a bound context
+  through changed counters without advancing its revision or fabricating observations.
 
 ### Experimental Deadline Forecasting
 
