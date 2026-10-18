@@ -284,8 +284,13 @@ lang/                # Translation JSON files (20 languages)
   `tests/test_claim_display_recovery.py` combines this guard with real confirmed
   claims, persisted history and unusable advisory follow-up reads. Do not reactivate
   a claimed model or clear a replacement display during request recovery.
-  This guard does not serialize already-queued or in-flight broadcasts; their delivery
-  can still be reordered by a yielding broadcaster.
+  Serialize progress/stop broadcasts within this manager. Each admitted transition
+  advances a display revision; waiting sends recheck it, model identity and claim state
+  before dispatch. Skip superseded sends, but do not retract an already-started emit.
+  A yielding emit must finish, fail or be cancelled before its replacement can emit.
+  Cancellation/errors release the send lock; this does not add retries, delivery
+  guarantees, hard timeouts or serialization of other managers or reconnect snapshots.
+  Regression coverage: `tests/test_progress_broadcast_ordering.py`.
 
 **src/web/app.py** - FastAPI application:
 

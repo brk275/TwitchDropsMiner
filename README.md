@@ -93,6 +93,8 @@ Source builds ignore display updates already marked claimed. A late claim
 update for another reward leaves the current reward visible; claim history and
 inventory remain available separately.
 Stopping the active display also clears its cached remaining time.
+Progress and stop broadcasts are serialized per display; superseded queued updates
+are skipped. An already-started send must finish before its replacement can send.
 
 ## Quick start
 

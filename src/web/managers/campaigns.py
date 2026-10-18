@@ -22,6 +22,22 @@ class CampaignProgressManager:
         self._broadcaster = broadcaster
         self._current_drop: TimedDrop | None = None
         self._remaining_seconds: int = 0
+        self._display_revision: int = 0
+        self._send_lock = asyncio.Lock()
+
+    def _queue(self, event: str, payload: dict[str, object], drop: TimedDrop | None = None) -> None:
+        self._display_revision += 1
+        asyncio.create_task(self._emit_latest(self._display_revision, event, payload, drop))
+
+    async def _emit_latest(
+        self, revision: int, event: str, payload: dict[str, object], drop: TimedDrop | None,
+    ) -> None:
+        async with self._send_lock:
+            if revision != self._display_revision or (
+                drop is not None and (drop is not self._current_drop or drop.is_claimed)
+            ):
+                return
+            await self._broadcaster.emit(event, payload)
 
     def update(self, drop: TimedDrop | None, remaining_seconds: int):
         """Update the current drop progress and remaining time.
@@ -41,28 +57,27 @@ class CampaignProgressManager:
         self._current_drop = drop
         self._remaining_seconds = remaining_seconds
         if drop:
-            asyncio.create_task(
-                self._broadcaster.emit(
-                    "drop_progress",
-                    {
-                        "drop_id": drop.id,
-                        "drop_name": drop.name,
-                        "campaign_name": drop.campaign.name,
-                        "campaign_id": drop.campaign.id,
-                        "game_name": drop.campaign.game.name,
-                        "current_minutes": drop.current_minutes,
-                        "required_minutes": drop.required_minutes,
-                        "progress": drop.progress,
-                        "remaining_seconds": remaining_seconds,
-                    },
-                )
+            self._queue(
+                "drop_progress",
+                {
+                    "drop_id": drop.id,
+                    "drop_name": drop.name,
+                    "campaign_name": drop.campaign.name,
+                    "campaign_id": drop.campaign.id,
+                    "game_name": drop.campaign.game.name,
+                    "current_minutes": drop.current_minutes,
+                    "required_minutes": drop.required_minutes,
+                    "progress": drop.progress,
+                    "remaining_seconds": remaining_seconds,
+                },
+                drop,
             )
 
     def stop_timer(self):
         """Stop the progress timer and clear the current drop."""
         self._current_drop = None
         self._remaining_seconds = 0
-        asyncio.create_task(self._broadcaster.emit("drop_progress_stop", {}))
+        self._queue("drop_progress_stop", {})
 
     def minute_almost_done(self) -> bool:
         """Check if the current progress minute is almost complete.
