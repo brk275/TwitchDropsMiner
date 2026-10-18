@@ -82,7 +82,9 @@ funded handoff allowances and fresh checkpoint checks. An optional source-only q
 can deliver timer requests to the miner's own state loop; timers never switch channels.
 Session renewal retires its calendar and returns to ordinary game priorities.
 Recognized confirmed claims can continue that same calendar after owned checks;
-other inventory refreshes still retire it. It is not constructed by default and has
+an opt-in source-only reader can refresh direct reports without replacing models.
+It rejects changed metadata and superseded responses; normal inventory replacement
+still retires the calendar. It is not constructed by default and has
 no real evidence provider, settings or inventory reentry; automatic rescues remain
 unavailable.
 

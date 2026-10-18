@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Literal, Protocol
 from src.config import State
 from src.services.deadline_execution import CalendarStep, DeadlineCalendarExecutor, PlanningProvider
 from src.services.deadline_inputs import _utc
+from src.services.inventory_progress import InventoryProgressReader, ProgressReadBatch
 
 
 if TYPE_CHECKING:
@@ -62,9 +63,11 @@ class DeadlineCheckpointQueue:
                  clock: Callable[[], float] = monotonic,
                  utc_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
                  schedule: Callable[[float, Callable[[], None]], _ScheduledCall] | None = None,
-                 max_sleep: timedelta = timedelta(seconds=15)):
+                 max_sleep: timedelta = timedelta(seconds=15), refresh_progress: bool = False):
         if not isinstance(max_sleep, timedelta) or not timedelta(0) < max_sleep <= timedelta(seconds=15):
             raise ValueError("Invalid checkpoint interval")
+        if type(refresh_progress) is not bool:
+            raise ValueError("Invalid progress refresh option")
         self._twitch = twitch
         self._executor = executor if executor is not None else DeadlineCalendarExecutor(clock=clock, utc_clock=utc_clock)
         self._utc_clock, self._schedule = utc_clock, schedule
@@ -80,6 +83,10 @@ class DeadlineCheckpointQueue:
         self._zone: str | timezone | None = None
         self._pending_claims: dict[str, BaseDrop] = {}
         self._handled_claims: dict[str, BaseDrop] = {}
+        self._progress_reader = (InventoryProgressReader(twitch, clock=self._executor._tick, utc_clock=utc_clock)
+                                 if refresh_progress else None)
+        self._progress_task: asyncio.Task[ProgressReadBatch] | None = None
+        self._progress_started_tick: float | None = None
 
     def belongs_to(self, twitch: Twitch) -> bool:
         return self._twitch is twitch
@@ -96,6 +103,14 @@ class DeadlineCheckpointQueue:
         self._zone = None
         self._pending_claims.clear()
         self._handled_claims.clear()
+        task, self._progress_task = self._progress_task, None
+        self._progress_started_tick = None
+        if task is not None:
+            if task.done():
+                if not task.cancelled():
+                    task.exception()
+            elif not task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+                task.cancel()
         self._executor.cancel()
         if notify:
             self._twitch._state_change.set()
@@ -185,6 +200,8 @@ class DeadlineCheckpointQueue:
         self._execution_generation = generation
         self._due = False
         try:
+            if not self._consume_progress() or generation is not self._generation:
+                return None
             pending, self._pending = self._pending, None
             if pending is not None:
                 self._zone = pending.zone
@@ -209,12 +226,61 @@ class DeadlineCheckpointQueue:
             self._handled_claims.update(self._pending_claims)
             self._pending_claims.clear()
             self._arm(step.wake_at)
+            self._start_progress()
+            if generation is not self._generation:
+                return None
             return step
         except BaseException:
             self.cancel()
             raise
         finally:
             self._execution_generation = None
+
+    def _consume_progress(self) -> bool:
+        task, reader = self._progress_task, self._progress_reader
+        if task is None or not task.done() or reader is None:
+            return True
+        self._progress_task = None
+        generation = self._generation
+        scope = self._scope
+        reason = reader.apply(task.result(), is_current=lambda: generation is self._generation
+                              and scope is not None and self._current_scope(scope))
+        if generation is not self._generation:
+            return False
+        if reason in ("superseded", "inventory_changed"):
+            self.cancel()
+            if reason == "inventory_changed":
+                self._twitch.request_inventory_refresh()
+            return False
+        return True
+
+    def _start_progress(self) -> None:
+        reader = self._progress_reader
+        if reader is None or self._progress_task is not None or not self._executor.has_admitted_calendar(self._twitch):
+            return
+        tick = self._executor._tick()
+        if self._progress_started_tick is not None and tick - self._progress_started_tick < 120:
+            return
+        request = reader.prepare()
+        scope, generation = self._scope, self._generation
+        if request is None or scope is None or not self._current_scope(scope):
+            self.cancel()
+            return
+        self._progress_started_tick = tick
+        task = self._progress_task = asyncio.create_task(reader.read(request))
+        # Retain cancelled flights after detachment until account/shutdown drains them.
+        self._twitch._deadline_read_tasks.add(task)
+
+        def completed(finished: asyncio.Task[ProgressReadBatch]) -> None:
+            self._twitch._deadline_read_tasks.discard(finished)
+            if not finished.cancelled():
+                finished.exception()
+            if (generation is self._generation and finished is self._progress_task
+                    and self._scope is not None and self._current_scope(self._scope)):
+                self._due = True
+                self._twitch._state_change.set()
+
+        task.add_done_callback(completed)
 
     def _arm(self, stamp: datetime) -> None:
         if self._timer is not None:

@@ -247,6 +247,11 @@ class DeadlineCalendarExecutor:
         except (AttributeError, KeyError, TypeError, ValueError):
             return False
 
+    def has_admitted_calendar(self, twitch: Twitch) -> bool:
+        """Report admission, not permission to act or to accept a progress response."""
+        saved = self._reservation
+        return saved is not None and saved.twitch is twitch and saved.admitted
+
     def advance(self, twitch: Twitch, *, enabled: bool = False,
                 local_timezone: str | timezone | None = None,
                 confirmed_claims: tuple[BaseDrop, ...] = ()) -> CalendarStep:

@@ -67,7 +67,7 @@ class Scheduler:
 
 
 class Runtime:
-    def __init__(self, state, monkeypatch, *, real_timer=False):
+    def __init__(self, state, monkeypatch, *, real_timer=False, refresh_progress=False):
         self.twitch, self.high, self.urgent, self.executor, _, self.move = state
         twitch = self.twitch
         self.scheduler = Scheduler()
@@ -75,6 +75,7 @@ class Runtime:
             twitch, executor=self.executor, utc_clock=self.executor._utc_clock,
             schedule=None if real_timer else self.scheduler,
             max_sleep=timedelta(seconds=0.01 if real_timer else 15),
+            refresh_progress=refresh_progress,
         )
         twitch._set_deadline_queue(self.queue)
         twitch._resume_mining = asyncio.Event()
@@ -82,6 +83,7 @@ class Runtime:
         twitch._watching_restart = asyncio.Event()
         twitch._run_task = twitch._watching_task = twitch._schedule_task = twitch._mnt_task = None
         twitch._channel_tasks = set()
+        twitch._deadline_read_tasks = set()
         twitch._mnt_triggers = []
         twitch._browser = MagicMock()
         twitch.diagnostics = MagicMock()

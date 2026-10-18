@@ -475,3 +475,11 @@ class TimedDrop(BaseDrop):
             self._on_state_changed()
         if any(drop.can_earn() for drop in exhausted):
             self._twitch.request_games_update()
+
+    def _accept_inventory_observation(self, minutes: int, received_at: datetime) -> bool:
+        """Commit a guarded direct report; the batch owner publishes after all commits."""
+        if self.is_claimed or not self._record_progress_observation(minutes, "inventory", received_at=received_at):
+            return False
+        self.real_current_minutes = minutes
+        self.extra_current_minutes = 0
+        return True

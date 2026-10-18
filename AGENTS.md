@@ -1012,6 +1012,39 @@ progress to an ignored drop while the miner intentionally targets another reward
   `tests/test_deadline_claim_continuation.py` exercises public claim/websocket paths
   with fake GraphQL and controlled clocks, not actual Twitch credit or settlement.
 
+### Guarded Inventory Progress Reads
+
+- `InventoryService.collect_inventory()` shares the normal inventory/catalog/detail
+  merge, response-receipt ledger and child-draining path, but returns detached models
+  without publishing images, clearing indexes or starting maintenance. Optional plain
+  positive record limits bound ongoing, catalog, detail and cumulative records; default
+  full refresh has no new limit. Do not duplicate the transport merge in a sampler.
+- Source-only `DeadlineCheckpointQueue(refresh_progress=True)` may collect every two
+  minutes after calendar admission, never for an unadmitted proposal. Default is false.
+  A coalesced five-second child read must not block synchronous watch/stop checkpoints.
+  Completion callbacks only wake the current generation/runner/account and observe
+  exceptions. Consume results in the registered owner before advancing the original
+  certificate; do not rebase its origin, baseline, idle slots or protected work.
+- `InventoryProgressReader` copies immutable per-drop direct reports with actual receipt
+  times from detached models. Owner-only prepare/apply binds auth, indexed model/static
+  identity and campaign revisions. Bound batch age by both clocks, charge validation
+  work and preserve newer campaign minute observations without hiding server-claimed
+  rewards; validate claim/missing-row changes before skipping stale minutes.
+  Validate all reports before committing;
+  apply each drop's own raw minutes without sibling inference or claim normalization,
+  then publish only while owner/account/generation remain current. Missing/changed
+  metadata or newly server-claimed rewards request an ordinary inventory refresh,
+  never replace models or claim a reward in the reader. Unknown/invalid reports do not
+  renew provenance. Expected read failures retain old evidence; cancellation, exit and
+  unexpected failures must not become success. Estimate-cap recovery preserves normal
+  policy invalidation. No real future premises or unconditional timing guarantees arise.
+- Retain read tasks in `Twitch._deadline_read_tasks` even after queue detachment until
+  terminal callbacks release them. Drain before auth replacement, run teardown and HTTP
+  shutdown; exclude the current task and do not cancel a child again during cleanup.
+  Full inventory-model replacement reentry, settings/UI, automatic activation and live
+  acceptance remain OPEN. Offline regressions: `tests/test_inventory_collection.py`,
+  `tests/test_inventory_progress.py` and `tests/test_deadline_progress_refresh.py`.
+
 ### GraphQL Operations
 
 Persisted operations are defined in `src/config/operations.py` as `GQL_OPERATIONS`; raw GraphQL payloads such as `sendSpadeEvents` use `GQLQuery`:

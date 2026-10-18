@@ -25,6 +25,8 @@ from src.utils.gql_response_observer import GQLResponseObserver
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from src.config import JsonType
     from src.core.client import Twitch
     from src.models.channel import Channel
@@ -227,25 +229,24 @@ class InventoryService:
             {key: campaign_ids[key] for key in fetched_data}, fetched_data,
         )
 
-    async def fetch_inventory(self) -> None:
-        """
-        Fetch the complete inventory including campaigns and drops.
-
-        This method:
-        1. Fetches in-progress campaigns (inventory)
-        2. Fetches available campaigns
-        3. Fetches detailed data for each campaign
-        4. Creates DropsCampaign objects
-        5. Updates GUI with campaign information
-        6. Sets up maintenance triggers for campaign timing changes
-        """
+    async def collect_inventory(
+        self, *, status_update: Callable[[str], None] | None = None,
+        max_campaigns: int | None = None, max_drops: int | None = None,
+    ) -> list[DropsCampaign]:
+        """Collect detached campaigns without replacing live state or publishing images."""
+        for limit in (max_campaigns, max_drops):
+            if limit is not None and (type(limit) is not int or limit < 1):
+                raise ValueError("Invalid inventory collection limit")
         receipts = _ProgressReceipts()
         with GQLResponseObserver(receipts.record_response).observe():
-            await self._fetch_inventory(receipts)
+            return await self._collect_inventory(receipts, status_update, max_campaigns, max_drops)
 
-    async def _fetch_inventory(self, receipts: _ProgressReceipts) -> None:
+    async def _collect_inventory(
+        self, receipts: _ProgressReceipts, status_update: Callable[[str], None] | None,
+        max_campaigns: int | None, max_drops: int | None,
+    ) -> list[DropsCampaign]:
         """Fetch within the owned response-observation scope."""
-        status_update = self._twitch.gui.status.update
+        status_update = status_update if status_update is not None else lambda message: None
         status_update(_.t["gui"]["status"]["fetching_inventory"])
 
         # fetch in-progress campaigns (inventory)
@@ -253,6 +254,7 @@ class InventoryService:
         received_at = datetime.now(timezone.utc)
         inventory: JsonType = response["data"]["currentUser"]["inventory"]
         ongoing_campaigns: list[JsonType] = inventory["dropCampaignsInProgress"] or []
+        self._check_collection_budget(ongoing_campaigns, max_campaigns, max_drops)
         for campaign_data in ongoing_campaigns:
             receipts.record(campaign_data, received_at)
 
@@ -267,6 +269,7 @@ class InventoryService:
         response = await self._twitch.gql_request(GQL_OPERATIONS["Campaigns"])
         received_at = datetime.now(timezone.utc)
         available_list: list[JsonType] = response["data"]["currentUser"]["dropCampaigns"] or []
+        self._check_collection_budget(available_list, max_campaigns, max_drops)
         for campaign_data in available_list:
             receipts.record(campaign_data, received_at)
         applicable_statuses = ("ACTIVE", "UPCOMING")
@@ -293,8 +296,10 @@ class InventoryService:
         try:
             for coro in asyncio.as_completed(fetch_campaigns_tasks):
                 chunk_campaigns_data = await coro
+                self._check_collection_budget(list(chunk_campaigns_data.values()), max_campaigns, max_drops)
                 # merge the inventory and campaigns datas together
                 inventory_data = GQLClient.merge_data(inventory_data, chunk_campaigns_data)
+                self._check_collection_budget(list(inventory_data.values()), max_campaigns, max_drops)
         finally:
             # as_completed does not own children, including on parent cancellation.
             for task in fetch_campaigns_tasks:
@@ -315,7 +320,21 @@ class InventoryService:
         campaigns.sort(key=lambda c: c.active, reverse=True)
         campaigns.sort(key=lambda c: c.upcoming and c.starts_at or c.ends_at)
         campaigns.sort(key=lambda c: c.eligible, reverse=True)
+        return campaigns
 
+    @staticmethod
+    def _check_collection_budget(
+        campaigns: list[JsonType], max_campaigns: int | None, max_drops: int | None,
+    ) -> None:
+        if max_campaigns is not None and len(campaigns) > max_campaigns:
+            raise GQLException("Inventory collection exceeds record budget")
+        if max_drops is not None and sum(len(c.get("timeBasedDrops") or []) for c in campaigns) > max_drops:
+            raise GQLException("Inventory collection exceeds record budget")
+
+    async def fetch_inventory(self) -> None:
+        """Collect campaigns, replace the live inventory and publish its GUI state."""
+        status_update = self._twitch.gui.status.update
+        campaigns = await self.collect_inventory(status_update=status_update)
         self._clear_inventory_state()
         switch_triggers: set[datetime] = set()
         next_hour = datetime.now(timezone.utc) + timedelta(hours=1)

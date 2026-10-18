@@ -70,6 +70,7 @@ class Twitch:
         self._state: State = State.IDLE
         self._deadline_context_epoch = object()
         self._deadline_queue: DeadlineCheckpointQueue | None = None
+        self._deadline_read_tasks: set[asyncio.Task[Any]] = set()
         self._state_change = asyncio.Event()
         self._games_update_pending = False
         self._deadline_claim_update_pending = False
@@ -188,6 +189,7 @@ class Twitch:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             self._schedule_task = self._watching_task = self._mnt_task = None
+            await self._stop_deadline_read_tasks()
             await self.websocket.stop(clear_topics=True)
             await self._stop_channel_tasks()
             await self.gui.login.stop_avatar()
@@ -209,6 +211,15 @@ class Twitch:
         tasks = tuple(self._channel_tasks)
         for task in tasks:
             task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _stop_deadline_read_tasks(self) -> None:
+        """Drain detached progress reads before replacing auth or closing transports."""
+        tasks = tuple(task for task in getattr(self, "_deadline_read_tasks", ())
+                      if task is not asyncio.current_task())
+        for task in tasks:
+            if not task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+                task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
     def _ensure_api_clients(self) -> None:
@@ -242,6 +253,7 @@ class Twitch:
     async def shutdown(self) -> None:
         start_time = time()
         self.invalidate_deadline_context()
+        await self._stop_deadline_read_tasks()
         self._channel_service.clear_bans()
         self.diagnostics.stop_logs()
         await self.helper.stop()
@@ -486,6 +498,7 @@ class Twitch:
                     raise RequestException(_.t["login"]["unexpected_content"]) from exc
         finally:
             self.invalidate_deadline_context()
+            await self._stop_deadline_read_tasks()
             await self._stop_mining_schedule()
             self._channel_service.clear_bans()
             self.diagnostics.stop_logs()
