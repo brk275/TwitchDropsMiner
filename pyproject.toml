@@ -22,7 +22,7 @@ dev = [
     "ruff",
     "mypy",
     "pytest",
-    "pytest-asyncio",
+    "pytest-asyncio>=1.4.0",
     "coverage",
 ]
 
