@@ -13,6 +13,22 @@ BOUNDARIES = {
 def test_boundary():
     asyncio.run(asyncio.sleep(0))
 """,
+    "asyncio_runner": """
+def test_boundary():
+    with asyncio.Runner() as runner:
+        runner.run(asyncio.sleep(0))
+        runner.run(asyncio.sleep(0))
+""",
+    "asyncio_runner_error": """
+def test_boundary():
+    async def fail():
+        await asyncio.sleep(0)
+        raise ValueError("expected runner failure")
+
+    with pytest.raises(ValueError, match="expected runner failure"):
+        with asyncio.Runner() as runner:
+            runner.run(fail())
+""",
     "unittest": """
 class TestBoundary(unittest.IsolatedAsyncioTestCase):
     async def test_boundary(self):

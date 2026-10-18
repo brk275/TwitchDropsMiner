@@ -700,10 +700,11 @@ two miners against the same data or using `down -v` to update.
 
 - Development tests require `pytest-asyncio>=1.4.0`; synchronize the locked `dev`
   extra before testing. Version 1.3 can orphan a restored default loop when a later
-  unittest runner or `asyncio.run()` clears it. This is a development-only dependency
-  requirement, not a miner runtime change. `tests/test_asyncio_test_lifecycle.py`
-  checks both boundaries in fresh child pytest processes, with pytest-only and
-  intentional-leak controls. Assert ownership before closing child-owned loops;
+  unittest runner, `asyncio.run()` or `asyncio.Runner` clears it. This is a
+  development-only dependency requirement, not a miner runtime change.
+  `tests/test_asyncio_test_lifecycle.py` checks these boundaries, Runner reuse and
+  Runner failure in fresh child pytest processes, with pytest-only and intentional-leak
+  controls. Assert ownership before closing child-owned loops;
   never hide leaks with warning suppression, early cleanup or weakened assertions.
   Do not change the parent process's loop policy for these probes.
 
