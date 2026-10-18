@@ -535,6 +535,12 @@ class Channel:
             and self._twitch.watching_channel.get_with_default(None) is self
         )
 
+    def _invalidate_stream_url(self, stream: Stream, failed_url: URLType) -> None:
+        """Retire the failed URL, including copies on same-broadcast replacements."""
+        for current in (stream, self._stream):
+            if current is not None and current == stream and current._stream_url == failed_url:
+                current._stream_url = None
+
     async def _send_watch_playlist(self) -> bool:
         """HEAD every new media segment, without fetching audio or video bodies."""
         try:
@@ -562,9 +568,7 @@ class Channel:
         )
         if status != 200:
             if status in (401, 403, 404):
-                stream._stream_url = None
-                if self._stream is not None and self._stream == stream:
-                    self._stream._stream_url = None
+                self._invalidate_stream_url(stream, stream_url)
             return False
         if not self._watch_current(stream):
             return False
@@ -593,7 +597,7 @@ class Channel:
                 else:
                     succeeded = False
                     if status in (401, 403, 404):
-                        stream._stream_url = None
+                        self._invalidate_stream_url(stream, stream_url)
             except ExitRequest:
                 raise
             except (MinerException, aiohttp.ClientError, TimeoutError):

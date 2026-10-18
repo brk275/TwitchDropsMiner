@@ -854,6 +854,12 @@ of unattended collection during persistent outages or a transactional GUI refres
   Retry failed segments, refresh expired playlist URLs, and stop stale batches when the
   selected channel or broadcast changes or goes offline. Bound the entire poll and
   each request; propagate cancellation and process exit. Never log signed URLs or bodies.
+  GET/HEAD401/403/404 invalidates the failed cached playlist URL on both the request's
+  stream object and a same-broadcast metadata replacement that copied that URL. Do not
+  erase a different/newer cached URL or another broadcast. Reacquire on a later poll,
+  without extra same-poll requests, clearing deduplication or resetting telemetry.
+  This changes URL-cache retirement only, not stream observation ordering. Regressions:
+  `tests/test_playlist_cache_invalidation.py`.
 - Spade minute-watched telemetry remains auxiliary and runs at most once per 59 seconds.
   Its HTTP 204 response and a Watching label do not prove Twitch has credited progress.
   Keep fallback CurrentDrop queries and estimated-minute bumps on the existing minute
