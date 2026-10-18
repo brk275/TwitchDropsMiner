@@ -64,6 +64,16 @@ default_settings = {
 }
 
 
+class RefreshIntervalSettings:
+    """Keep reload delays within the dashboard's whole-minute bounds."""
+
+    @staticmethod
+    def normalize(value: Any) -> int:
+        if type(value) is not int or not 1 <= value <= 1440:
+            raise ValueError("Invalid refresh interval")
+        return value
+
+
 class MiningHoursSettings:
     """Validate the complete daily schedule before it changes live policy."""
 
@@ -139,6 +149,12 @@ class Settings:
         if "mining_hours" in settings:
             settings["mining_hours"] = MiningHoursSettings.normalize(settings["mining_hours"])
         merge_json(settings, default_settings)
+        try:
+            settings["minimum_refresh_interval_minutes"] = RefreshIntervalSettings.normalize(
+                settings["minimum_refresh_interval_minutes"]
+            )
+        except ValueError:
+            settings["minimum_refresh_interval_minutes"] = default_settings["minimum_refresh_interval_minutes"]
         settings.pop("allow_helper_connection", None)
         for key, value in settings.items():
             if value is URL:
@@ -150,6 +166,9 @@ class Settings:
         )
 
     def save(self) -> None:
+        self.minimum_refresh_interval_minutes = RefreshIntervalSettings.normalize(
+            self.minimum_refresh_interval_minutes
+        )
         self.mining_hours = MiningHoursSettings.normalize(self.mining_hours)
         self.drop_name_blacklist = DropIgnorePolicy.normalize_keywords(
             self.drop_name_blacklist

@@ -28,6 +28,9 @@ services operated for other users are outside its support scope.
 - Manage everything from a web dashboard with optional password protection.
 - Set daily [mining hours](docs/usage.md#mining-hours) in the miner’s local timezone.
 
+Inventory refresh intervals use whole minutes from 1 to 1,440. Invalid saved
+intervals fall back to the 30-minute default.
+
 The redesigned dashboard's **Now Watching** card offers **Show thumbnail**, off on
 each page load. When enabled, it shows a Twitch JPEG thumbnail, refreshed on channel
 updates at most once per minute. It does not play video or audio. The header adapts to

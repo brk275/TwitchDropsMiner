@@ -178,6 +178,7 @@
             "actions": "操作",
             "connection_quality": "連線品質：",
             "minimum_refresh": "最小重新整理間隔（分鐘）：",
+            "minimum_refresh_save_error": "無法儲存重新整理間隔，請再試一次。",
             "telegram": {
                 "name": "電報通知",
                 "description": "在您領取掉落時接收電報通知。",

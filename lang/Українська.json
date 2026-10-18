@@ -178,6 +178,7 @@
             "actions": "Дії",
             "connection_quality": "Якість з'єднання:",
             "minimum_refresh": "Мінімальний інтервал оновлення (хвилини):",
+            "minimum_refresh_save_error": "Не вдалося зберегти інтервал оновлення. Спробуйте ще раз.",
             "telegram": {
                 "name": "Сповіщення Telegram",
                 "description": "Отримуйте сповіщення в Telegram, коли ви отримуєте дропи.",

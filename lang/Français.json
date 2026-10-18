@@ -179,6 +179,7 @@
             "actions": "Actions",
             "connection_quality": "Qualité de connexion :",
             "minimum_refresh": "Intervalle minimum de rafraîchissement (minutes) :",
+            "minimum_refresh_save_error": "Impossible d’enregistrer l’intervalle de rafraîchissement. Veuillez réessayer.",
             "telegram": {
                 "name": "Notifications Telegram",
                 "description": "Recevez des notifications sur Telegram lorsque vous réclamez des drops.",

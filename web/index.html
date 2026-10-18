@@ -274,8 +274,9 @@
                     </label>
                     <label>
                         Minimum Refresh Interval (minutes):
-                        <input type="number" id="minimum-refresh-interval" min="1" max="1440" value="30">
+                        <input type="number" id="minimum-refresh-interval" min="1" max="1440" step="1" required value="30" aria-describedby="minimum-refresh-error">
                     </label>
+                    <p id="minimum-refresh-error" class="help-text" role="alert" hidden></p>
                     <label>
                         Proxy URL:
                         <input type="text" id="proxy-url" placeholder="http://user:pass@host:port">
