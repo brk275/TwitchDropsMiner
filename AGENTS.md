@@ -231,6 +231,22 @@ lang/                # Translation JSON files (20 languages)
   a valid pending poll or suppress its existing null/error/timeout fallback.
   `tests/test_numeric_progress_ordering.py` covers rejected values and valid integer
   supersession, including unchanged and clamped readings.
+- Validate raw `requiredMinutesWatched` at `TimedDrop` construction: accept only a
+  plain nonnegative integer, including zero for non-watch/subscription rewards.
+  Missing/null, booleans, floats, strings, containers and negative values raise a
+  fixed `MinerException` without echoing data, coercion or a zero default. Refuse
+  before base construction and before inventory installation, retaining the prior
+  inventory/index/GUI state at this failure boundary. Preserve valid claim/progress
+  normalization and estimate semantics. This is not general model/GUI transactionality
+  or automatic retry/auth recovery. Tests: `tests/test_drop_watch_requirements.py`.
+- Validate non-null inventory `currentMinutesWatched` as a plain nonnegative integer
+  before base construction and inventory publication. Reject malformed/negative
+  values with fixed `MinerException`, even for claimed rewards. Missing/null keeps
+  local zero fallback without inventing a claim; preserve valid integer overshoot,
+  claim normalization and later local estimate behavior. This does not validate all
+  model fields, guarantee whole GUI transactionality or add automatic recovery.
+  Tests: `tests/test_inventory_minute_admission.py`, including real InventoryManager
+  preservation and same-owner loopback imported-session refusal/fresh-read recovery.
 - `BaseDrop`: Base class with claim logic
 - Present inventory drop `self` must be an object with boolean `isClaimed` and
   `dropInstanceID` explicitly null or an opaque nonblank string. Reject malformed

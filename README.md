@@ -62,6 +62,11 @@ Source builds wait for owned websocket callbacks to finish shutting down before
 replacing an account, including sockets removed during topic cleanup. Cancellation
 is propagated after cleanup; unresponsive cleanup can still delay shutdown.
 
+Source builds reject invalid watch-time requirements before replacing inventory.
+Zero remains a valid non-watch requirement; invalid values are not converted to zero.
+Present non-null inventory minutes must also be plain nonnegative integers. Missing
+or null minutes use a local zero fallback without implying claim completion.
+
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
 see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).

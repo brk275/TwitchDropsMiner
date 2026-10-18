@@ -278,11 +278,16 @@ class TimedDrop(BaseDrop):
     def __init__(
         self, campaign: DropsCampaign, data: JsonType, claimed_benefits: dict[str, datetime]
     ):
+        required_minutes = data.get("requiredMinutesWatched")
+        if type(required_minutes) is not int or required_minutes < 0:
+            raise MinerException("Invalid drop watch requirement")
+        progress = data.get("self")
+        minutes = progress.get("currentMinutesWatched") if isinstance(progress, dict) else None
+        if minutes is not None and (type(minutes) is not int or minutes < 0):
+            raise MinerException("Invalid drop watched minutes")
         super().__init__(campaign, data, claimed_benefits)
-        self.real_current_minutes: int = (
-            "self" in data and data["self"]["currentMinutesWatched"] or 0
-        )
-        self.required_minutes: int = data["requiredMinutesWatched"]
+        self.real_current_minutes: int = minutes if minutes is not None else 0
+        self.required_minutes: int = required_minutes
         self.extra_current_minutes: int = 0
         if self.is_claimed:
             # claimed drops may report inconsistent current minutes, so we need to overwrite them
