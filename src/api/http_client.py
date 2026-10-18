@@ -243,18 +243,20 @@ class HTTPClient:
 
         This should be called during application shutdown.
         """
-        if self._session is not None:
-            cookie_jar = self._session.cookie_jar
-            assert isinstance(cookie_jar, aiohttp.CookieJar)
+        if (session := self._session) is not None:
+            try:
+                cookie_jar = session.cookie_jar
+                assert isinstance(cookie_jar, aiohttp.CookieJar)
 
-            # Clear empty cookie entries before saving
-            # NOTE: Unfortunately, aiohttp provides no easy way of clearing empty cookies,
-            # so we need to access the private '_cookies' attribute
-            for cookie_key, cookie in list(cookie_jar._cookies.items()):
-                if not cookie:
-                    del cookie_jar._cookies[cookie_key]
+                # Clear empty cookie entries before saving
+                # NOTE: Unfortunately, aiohttp provides no easy way of clearing empty cookies,
+                # so we need to access the private '_cookies' attribute
+                for cookie_key, cookie in list(cookie_jar._cookies.items()):
+                    if not cookie:
+                        del cookie_jar._cookies[cookie_key]
 
-            if not self._browser_mode:
-                cookie_jar.save(COOKIES_PATH)
-            await self._session.close()
-            self._session = None
+                if not self._browser_mode:
+                    cookie_jar.save(COOKIES_PATH)
+            finally:
+                await session.close()
+                self._session = None

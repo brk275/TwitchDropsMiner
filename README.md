@@ -125,7 +125,8 @@ see [helper diagnostics](docs/troubleshooting.md#helper-login-error-codes).
 
 Keep session data directories private. On Windows, credential files inherit the
 directory's access permissions (ACLs); Unix file-mode numbers do not verify those
-permissions. On Linux/macOS, session files use owner-only permissions.
+permissions. On Linux/macOS, session files use owner-only permissions. Keep the data
+directory writable so session changes can be saved.
 
 ## Updating Docker
 

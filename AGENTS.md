@@ -522,6 +522,12 @@ progress to an ignored drop while the miner intentionally targets another reward
 
 ### Drop Mining Mechanism
 
+- `HTTPClient.close()` closes its session and connector even when legacy cookie
+  cleanup or persistence fails. Preserve the storage error, successful-save behavior,
+  browser mode's legacy-cookie persistence bypass and idempotent completed cleanup.
+  `tests/test_http_client_close.py` covers real filesystem failures and owned loopback
+  connections without Twitch credentials or external requests.
+
 - `Channel.send_watch()` polls the lowest-bandwidth HLS playlist and sends HEAD requests
   for every new media segment, without downloading stream audio or video. `WatchService`
   polls about every ten seconds, within the rolling playlist window.
