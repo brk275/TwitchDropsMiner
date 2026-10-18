@@ -295,6 +295,14 @@ lang/                # Translation JSON files (20 languages)
   publishing, waiting or refreshing. `can_claim` also rejects unusable IDs, and
   claim-ready logs must not echo the ID payload. This does not validate whole
   websocket envelopes or add retries/recovery. Tests: `tests/test_drop_claim_inputs.py`.
+- Claim-ready cooldown polling reuses `WatchService._current_drop_reading()` and the
+  watch poll's five-second request timeout. Unusable returned data, GQLException
+  (including GQLInvalidResponse), or timeout ends only this advisory wait, then runs
+  the existing campaign eligibility-based restart/refresh decision. It does not
+  resend the claim, update progress, infer completion or alter the 4-second initial
+  delay, eight-read cap or 2-second same-ID waits. Catch parser ValueError separately
+  from query/model exceptions; cancellation, auth/account failures and unexpected
+  errors retain their existing propagation. Tests: `tests/test_claim_followup_polling.py`.
 - `BaseDrop.can_claim` bounds attempts for an existing, unclaimed ID to strictly less
   than 14 days after the campaign end, not the individual reward end. This follows the
   developer API FAQ's maximum grace. Viewer help describes seven days and individual

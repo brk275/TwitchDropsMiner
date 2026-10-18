@@ -121,6 +121,8 @@ Estimated remaining time changes with miner updates, not a browser-only countdow
 Malformed inventory minute values are rejected before replacing the current inventory.
 Malformed claim flags or IDs are also rejected before inventory replacement. Unusable
 claim-ready IDs are ignored without discarding a known ID or sending a claim request.
+An unusable post-claim progress check no longer prevents the normal watch restart or
+inventory refresh. These advisory reads time out after five seconds; claims are not resent.
 
 ## Quick start
 
