@@ -206,6 +206,7 @@ socket.on('initial_state', (data) => {
 
     // Batch update campaigns to prevent UI freezing
     if (data.campaigns) {
+        state.campaigns = {};
         data.campaigns.forEach(camp => {
             state.campaigns[camp.id] = camp;
         });

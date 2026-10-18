@@ -1198,10 +1198,16 @@ The application uses a web-based interface accessible via browser:
   `tests/test_channel_watching_snapshot.py`.
   The frontend replaces channel rows when an initial-state channel list is present,
   including an empty list, so reconnect cannot retain removed watched channels.
-  Preserve omitted/null partial-event handling and incremental events; campaign and
-  console snapshot behavior is unchanged. Regressions:
+  Preserve omitted/null partial-event handling and incremental events; console
+  snapshot behavior is unchanged. Regressions:
   `tests/test_channel_snapshot_frontend.py`. Release/cache-key bump required before
   deploying the changed app.js through the authorized release workflow.
+  Initial-state campaign lists likewise replace browser inventory, including empty
+  lists, so campaigns absent from the current server snapshot cannot linger after
+  reconnect. Preserve filters, omitted/null partial-event behavior, incremental
+  campaign/drop events and batch updates. This changes display synchronization only,
+  not campaign eligibility, progress, claims or server inventory. Regressions:
+  `tests/test_inventory_snapshot_frontend.py`.
 - Uses WebSocketBroadcaster to push real-time updates to connected clients via Socket.IO
 - Pure async/await implementation
 

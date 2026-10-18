@@ -25,7 +25,7 @@ services operated for other users are outside its support scope.
 - Skip channels while Twitch reports an active ban, including temporary bans.
 - Source builds continue discovery past unavailable categories and clear stale streams
   when a refresh confirms a channel is offline.
-- Source builds show the current watched channel on fresh or reconnected dashboards.
+- Source builds restore current watched-channel and campaign lists when dashboards reconnect.
 - Sign in inside the dashboard; TDM saves and renews your session automatically.
 - Review claimed-drop history, export it to CSV, and receive Telegram or Discord notifications.
 - Source builds skip malformed saved history records and keep only the first valid
