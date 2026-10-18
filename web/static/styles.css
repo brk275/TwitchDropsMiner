@@ -1082,6 +1082,11 @@ header h1 {
     margin-bottom: 15px;
 }
 
+.settings-section .button-group,
+.settings-section .filter-actions {
+    flex-wrap: wrap;
+}
+
 .settings-section input[type="checkbox"] {
     margin-right: 8px;
 }

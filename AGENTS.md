@@ -208,6 +208,13 @@ lang/                # Translation JSON files (20 languages)
 **src/web/gui_manager.py** - Web GUI:
 
 - `WebGUIManager`: Main GUI coordinator
+- Settings notification and game-filter action groups wrap within their section.
+  Keep the rule scoped to `.settings-section`; do not hide overflow, truncate labels,
+  reorder controls or change actions to fit mobile layouts. Preserve DOM keyboard
+  order and desktop single-row layout where space permits. Source contract tests:
+  `tests/test_settings_action_layout.py`; verify actual geometry in a rendered browser
+  across locales and narrow viewports too. A stylesheet cache-key bump through the
+  authorized release workflow is required before deployment.
 - Composes individual managers for different UI concerns (status, console, channels, campaigns, inventory, login, settings, cache)
 - Uses `WebSocketBroadcaster` for real-time Socket.IO updates
 - Pure asyncio, no tkinter dependency
