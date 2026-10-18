@@ -89,6 +89,11 @@ inventory refresh. These advisory reads time out after five seconds; claims are 
 Malformed inventory claim flags and IDs are rejected before inventory replacement.
 Unusable claim-ready IDs are ignored without discarding a known ID or sending a claim.
 
+Source builds ignore display updates already marked claimed. A late claim
+update for another reward leaves the current reward visible; claim history and
+inventory remain available separately.
+Stopping the active display also clears its cached remaining time.
+
 ## Quick start
 
 With Docker installed, choose one setup below. Shell examples use Bash
