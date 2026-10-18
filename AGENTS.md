@@ -1352,6 +1352,13 @@ replaced. On storage failure restore the previous in-memory records and return f
 the DELETE endpoint returns a fixed HTTP 503 error so the existing UI retains its data.
 Keep ordinary claim recording best-effort; save failures must not undo successful
 Twitch claims. Save errors must not expose filesystem paths or exception text.
+New claim records use the same row parser before appending or saving. Reject invalid
+text, minute requirements and benefit names with a fixed warning and no raw values;
+do not poison the live history, reserve the rejected ID, overwrite the saved file or
+interrupt confirmed-claim finalization. Preserve duplicate short-circuiting, valid
+Unicode/zero-minute records, ordinary best-effort save behavior and later valid
+records. This does not validate all live campaign metadata or recover skipped history.
+Regressions: `tests/test_history_record_admission.py`.
 History statistics requests use their own generation counter. Closing/reopening the
 panel or successfully deleting history invalidates older success and failure replies,
 including delayed JSON decoding. A failed or cancelled deletion must not invalidate

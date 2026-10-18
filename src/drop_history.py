@@ -105,7 +105,11 @@ class DropHistory:
             "campaign_id": campaign.id,
         }
 
-        self._entries.append(entry)
+        validated = self._parse_entry(entry)
+        if validated is None:
+            logger.warning("Ignored invalid drop history record.")
+            return
+        self._entries.append(validated)
         self._save()
         logger.info(f"Recorded drop: {entry['game']} — {entry['drop_name']}")
 

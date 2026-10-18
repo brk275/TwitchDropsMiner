@@ -33,6 +33,7 @@ services operated for other users are outside its support scope.
 - Source builds skip malformed saved history records and keep only the first valid
   record per drop ID without rewriting the file at startup; keep
   a backup of `data/drop_history.json` before repairing it or recording new claims.
+- Source builds reject malformed new history rows before saving, without undoing confirmed claims.
 - Source builds omit private credentials and message bodies from Telegram failure logs
   and test-connection errors.
 - Manage everything from a web dashboard with optional password protection.
