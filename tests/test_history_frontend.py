@@ -86,7 +86,7 @@ function setHistoryTbodyMessage() {}
 @pytest.mark.parametrize("status", [500, 503])
 def test_clear_history_requires_confirmation_and_successful_response(status):
     result = run_javascript(["clearHistory"], """
-let historyRequestId = 0, historyCurrentPage = 2, historyTotal = 1, historyAllEntries = [{id:'keep'}];
+let historyRequestId = 0, historyStatsRequestId = 0, historyCurrentPage = 2, historyTotal = 1, historyAllEntries = [{id:'keep'}];
 let historyStatsData = null, historyStatsVisible = false, confirm = false, ok = false, calls = 0;
 const window = {confirm: () => confirm};
 function historyText(key) { return key; }

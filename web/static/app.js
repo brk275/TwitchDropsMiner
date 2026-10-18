@@ -2890,6 +2890,7 @@ let historyTotal = null;
 let historyStatsData = null;
 let historyMessage = {key: 'loading', values: {}};
 let historyRequestId = 0;
+let historyStatsRequestId = 0;
 
 function historyText(key, values = {}) {
     let text = state.translations.gui?.history?.[key] || key;
@@ -3117,6 +3118,7 @@ async function toggleHistoryStats() {
     const panel = document.getElementById('history-stats-panel');
     if (!panel) return;
 
+    const requestId = ++historyStatsRequestId;
     historyStatsVisible = !historyStatsVisible;
     panel.style.display = historyStatsVisible ? 'block' : 'none';
 
@@ -3126,10 +3128,12 @@ async function toggleHistoryStats() {
         const res = await fetch('/api/history/stats');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (requestId !== historyStatsRequestId) return;
         historyStatsData = data;
         document.getElementById('history-stats-error').textContent = '';
         renderHistoryStats(data);
     } catch (err) {
+        if (requestId !== historyStatsRequestId) return;
         document.getElementById('history-stats-error').textContent = historyText('stats_error', {error: err.message});
     }
 }
@@ -3196,6 +3200,7 @@ async function clearHistory() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         historyRequestId++;
+        historyStatsRequestId++;
         historyAllEntries = [];
         historyTotal = 0;
         historyStatsData = {total_drops: 0, by_game: {}, by_month: {}};

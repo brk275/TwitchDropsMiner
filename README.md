@@ -34,6 +34,7 @@ services operated for other users are outside its support scope.
 - Set daily [mining hours](docs/usage.md#mining-hours) in the miner’s local timezone.
 
 Source builds report failed history deletions without clearing the displayed records.
+Pending statistics responses cannot restore old totals after a successful deletion.
 
 Inventory refresh intervals use whole minutes from 1 to 1,440. Invalid saved
 intervals fall back to the 30-minute default.

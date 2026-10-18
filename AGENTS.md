@@ -1298,3 +1298,9 @@ replaced. On storage failure restore the previous in-memory records and return f
 the DELETE endpoint returns a fixed HTTP 503 error so the existing UI retains its data.
 Keep ordinary claim recording best-effort; save failures must not undo successful
 Twitch claims. Save errors must not expose filesystem paths or exception text.
+History statistics requests use their own generation counter. Closing/reopening the
+panel or successfully deleting history invalidates older success and failure replies,
+including delayed JSON decoding. A failed or cancelled deletion must not invalidate
+the current statistics request. Preserve the separate history-list request guard.
+Regressions: `tests/test_history_stats_ordering.py`. No polling or server mutations
+are added; the existing frontend asset version/cache-key release gate still applies.
