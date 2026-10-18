@@ -246,6 +246,7 @@ class ChannelService:
             channels: Iterable of Channel objects to check
         """
         channel_list = list(channels)
+        original_streams = [channel._stream for channel in channel_list]
         acl_streams_map: dict[int, JsonType] = {}
         stream_gql_ops: list[GQLRequest] = [channel.stream_gql for channel in channel_list]
 
@@ -272,6 +273,9 @@ class ChannelService:
                 for response_json in response_list:
                     channel_data: JsonType = response_json["data"]["user"]
                     if channel_data is not None:
+                        if ("stream" in channel_data and channel_data["stream"] is None
+                                and response_json.get("errors")):
+                            continue
                         acl_streams_map[int(channel_data["id"])] = channel_data
         finally:
             for task in stream_gql_tasks:
@@ -279,12 +283,12 @@ class ChannelService:
             await asyncio.gather(*stream_gql_tasks, return_exceptions=True)
 
         # Update all channels with their stream data
-        for channel in channel_list:
+        for channel, original_stream in zip(channel_list, original_streams, strict=True):
             channel_id = channel.id
             if channel_id not in acl_streams_map:
                 continue
             channel_data = acl_streams_map[channel_id]
-            if channel_data["stream"] is None:
+            if channel_data["stream"] is None and channel._stream is not original_stream:
                 continue
             # Update channel with stream data (no available drops check)
             channel.external_update(channel_data, [])

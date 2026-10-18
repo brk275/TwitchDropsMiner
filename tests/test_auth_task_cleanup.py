@@ -68,7 +68,7 @@ async def test_cancelled_fanout_drains_children_and_releases_provider_lock(tmp_p
 
     service = client._inventory_service
     if stage == "channels":
-        channel = SimpleNamespace(stream_gql={"query": "test"}, id=1)
+        channel = Channel(client, id=1, login="fixture")
         client.gql_request = blocked
         operation = client._channel_service.bulk_check_online([channel])
     else:

@@ -162,6 +162,16 @@ lang/                # Translation JSON files (20 languages)
   malformed non-null failures and cancellation. Do not infer campaign expiry, unlink
   accounts, remove priority games or clear inventory. Regressions:
   `tests/test_unavailable_game_directory.py`, including normalized HTTP/browser GQL.
+- `ChannelService.bulk_check_online()` applies matching error-free null-stream replies
+  through `Channel.external_update()` so stale online/game/viewer/drop state clears.
+  Missing/null users and unmatched IDs remain unknown and retain existing state.
+  Preserve batch aggregation, cancellation/draining, later online recovery and the
+  caller's existing batch GUI publication; do not add callbacks, requests or claims.
+  Regressions: `tests/test_channel_offline_refresh.py`, using real channels/watch policy.
+  Errored nulls, including GQL server-error field nullification, remain unknown.
+  Capture each input stream object's identity before awaiting; an offline reply must
+  not erase a newer replacement, even with the same broadcast ID. This scoped guard
+  does not change existing non-null update ordering or add a general stream revision.
 - `InventoryService`: Campaign and drop inventory operations
 - Admit claimed benefit history only as a list of objects with nonblank string IDs
   and parseable timezone-aware `lastAwardedAt` strings. Empty lists are valid; null,
