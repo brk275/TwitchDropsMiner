@@ -179,18 +179,22 @@ async def test_unexpected_transport_failures_and_cancellation_propagate(gql, err
 @pytest.mark.asyncio
 @pytest.mark.parametrize("code", ["RESPONSE", "REQUEST", "AUTH", "STALE"])
 @pytest.mark.parametrize("initial_auth", [False, True])
-async def test_only_imported_dispatch_response_is_reclassified(gql, code, initial_auth):
+async def test_only_imported_dispatch_request_and_response_are_reclassified(gql, code, initial_auth):
     client, read, sleep = gql
     error = SessionError(code)
     if initial_auth:
         client._auth_state.validate.side_effect = error
     else:
         read.side_effect = error
-    translated = client._auth_state.browser_active and not initial_auth and code == "RESPONSE"
-    with pytest.raises(GQLInvalidResponse if translated else SessionError) as caught:
+    translated = client._auth_state.browser_active and not initial_auth and code in ("RESPONSE", "REQUEST")
+    expected = (GQLInvalidResponse if code == "RESPONSE" else GQLException) if translated else SessionError
+    with pytest.raises(expected) as caught:
         await client.request(GQL_OPERATIONS["Inventory"])
     if not translated:
         assert caught.value is error
+    else:
+        assert type(caught.value) is expected
+        assert caught.value.__suppress_context__
     sleep.assert_not_awaited()
 
 

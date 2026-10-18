@@ -115,6 +115,8 @@ class GQLClient:
                     except SessionError as error:
                         if error.code == "RESPONSE":
                             raise GQLInvalidResponse() from None
+                        if error.code == "REQUEST":
+                            raise GQLException("Authenticated GraphQL request failed (SESSION_REQUEST)") from None
                         raise
                 else:
                     async with self.http_client.request(

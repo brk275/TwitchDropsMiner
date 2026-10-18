@@ -554,8 +554,14 @@ claim and policy changes must be reflected on the next call. Regression coverage
   nonempty string messages; legacy error/message fields must be nonempty strings.
   `GQLInvalidResponse` is a fixed GQLException subtype. Map only imported dispatch
   SessionError RESPONSE to it, not auth-validation or ordinary HTTP exceptions.
-  Watch polling skips these failures without estimating, then accepts later valid
-  progress. Claims stay unconfirmed. Imported auth-rejection checks refuse malformed
+  Imported dispatch SessionError REQUEST becomes a fixed ordinary GQLException
+  after the session's bounded transport retries. Do not retry again in GQLClient;
+  ambiguous mutations remain unconfirmed. Preserve other session codes, initial
+  authentication failures, ordinary HTTP exceptions and cancellation unchanged.
+  Regression coverage: `tests/test_gql_request_failures.py`.
+  Watch polling skips invalid replies/RESPONSE without estimating, then accepts
+  later valid progress. REQUEST retains guarded request-failure estimation, which
+  is not Twitch-confirmed progress. Claims stay unconfirmed. Imported auth-rejection checks refuse malformed
   message types without changing definitive rejection/data/path guards.
   Known persisted reads retain existing service-error retry timing and limits. The
   shared `GQLRetryPolicy` preserves ImportedSession's read fingerprint allowlist;

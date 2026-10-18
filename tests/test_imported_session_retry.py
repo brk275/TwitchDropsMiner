@@ -10,7 +10,7 @@ from aiohttp import web
 from src.auth.browser_session import BrowserSession
 from src.auth.session_bundle import SessionError
 from src.config import GQL_OPERATIONS, ClientType
-from src.exceptions import ExitRequest
+from src.exceptions import ExitRequest, GQLException
 from tests.test_session_lifecycle import miner
 from tests.test_imported_session import bundle_data, catalog
 
@@ -120,7 +120,7 @@ async def test_transient_retry_exhaustion_is_bounded_and_redacted(tmp_path, monk
     async with running_miner(tmp_path, monkeypatch) as (client, peer, _clock):
         peer.responses.extend([503, 502, 504, {"data": {"tooLate": True}}])
         delays = immediate_delays(client._browser, monkeypatch)
-        with pytest.raises(SessionError, match="REQUEST") as error:
+        with pytest.raises(GQLException, match="SESSION_REQUEST") as error:
             await client.gql_request(GQL_OPERATIONS["Inventory"])
         assert "private" not in str(error.value)
         assert len(peer.calls) == 3
@@ -144,7 +144,7 @@ async def test_ambiguous_mutations_raw_and_unknown_operations_are_not_replayed(t
     async with running_miner(tmp_path, monkeypatch) as (client, peer, _clock):
         peer.responses.extend([503, {"data": {"mustNotReplay": True}}])
         delays = immediate_delays(client._browser, monkeypatch)
-        with pytest.raises(SessionError, match="REQUEST"):
+        with pytest.raises(GQLException, match="SESSION_REQUEST"):
             await client.gql_request(operation)
         assert peer.calls == [operation]
         assert delays == []
@@ -156,7 +156,7 @@ async def test_nontransient_http_responses_are_not_replayed(tmp_path, monkeypatc
     async with running_miner(tmp_path, monkeypatch) as (client, peer, _clock):
         peer.responses.extend([status, {"data": {"mustNotReplay": True}}])
         delays = immediate_delays(client._browser, monkeypatch)
-        with pytest.raises(SessionError, match="REQUEST"):
+        with pytest.raises(GQLException, match="SESSION_REQUEST"):
             await client.gql_request(GQL_OPERATIONS["Inventory"])
         assert len(peer.calls) == 1
         assert delays == []
@@ -292,7 +292,7 @@ async def test_definitively_rejected_mutation_is_not_replayed_after_later_transp
             peer.armed = False
             await client._browser.install(bundle_data(1100, "replacement-integrity"))
             peer.armed = True
-            with pytest.raises(SessionError, match="REQUEST"):
+            with pytest.raises(GQLException, match="SESSION_REQUEST"):
                 await task
             assert peer.calls == [claim, claim]
             assert delays == []
