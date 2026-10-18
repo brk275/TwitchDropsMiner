@@ -215,6 +215,11 @@ lang/                # Translation JSON files (20 languages)
 **src/web/app.py** - FastAPI application:
 
 - REST API endpoints: `/api/status`, `/api/channels`, `/api/campaigns`, `/api/settings`, `/api/session`, `/api/session/finish`, `/api/session/retry`, `/api/session/logout`, `/api/session/vnc`, `/api/reload`, `/api/cache/clear`, `/api/close`, `/api/version`, `/api/history`, `/api/history/export.csv`, `/api/history/stats`
+- `/api/version` uses the declared `semver` parser for numeric/prerelease precedence,
+  ignoring build metadata. Accept only one optional leading `v` on the remote tag;
+  invalid release or installed versions leave comparison unknown, never infer an
+  upgrade or echo parser input in logs. Preserve response keys, safe release-list
+  fallback, request timeout and cancellation. Tests: `tests/test_update_version.py`.
 - Socket.IO server for real-time bi-directional communication
 - Serves static web frontend from `web/` directory
 - Integrates with WebGUIManager via `set_managers()`

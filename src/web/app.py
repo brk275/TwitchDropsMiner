@@ -15,6 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, StrictBool, field_validator
+from semver import Version
 
 from src.config.paths import DATA_DIR
 from src.config.settings import InventoryFilterSettings, MiningHoursSettings
@@ -391,12 +392,17 @@ async def get_version():
                         "GET", "https://api.github.com/repos/rangermix/TwitchDropsMiner/releases/latest",
                         response.status, payload=data,
                     )
-                latest_version = data.get("tag_name", "").lstrip("v")
+                try:
+                    tag = data.get("tag_name")
+                    if not isinstance(tag, str):
+                        raise ValueError
+                    latest = Version.parse(tag.removeprefix("v"))
+                    installed = Version.parse(current_version)
+                except (TypeError, ValueError):
+                    raise ValueError("Invalid release version") from None
+                latest_version = str(latest)
                 download_url = data.get("html_url")
-
-                # Compare versions (simple string comparison works for semantic versioning)
-                if latest_version and latest_version > current_version:
-                    update_available = True
+                update_available = latest > installed
             elif twitch_client is not None:
                 twitch_client.diagnostics.record_http(
                     "GET", "https://api.github.com/repos/rangermix/TwitchDropsMiner/releases/latest", response.status,

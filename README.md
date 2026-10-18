@@ -151,6 +151,8 @@ docker run -d \
 This replaces the container while keeping the mounted data. `latest` selects the
 current stable image when you pull; it does not update automatically. To choose a
 specific release, replace `latest` in both places with its version tag.
+Source builds recognize updates using semantic version order, including prereleases;
+build metadata alone does not make a release newer. Update notices do not install it.
 
 ### With Docker Compose
 
