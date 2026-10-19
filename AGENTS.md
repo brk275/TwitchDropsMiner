@@ -158,6 +158,18 @@ lang/                # Translation JSON files (20 languages)
 
 **src/services/** - Business logic layer (fully implemented):
 
+- `DeadlineService` is fork-only opt-in through `TDM_SMART_DEADLINES=true`.
+  Preserve saved ranks, manual mode, strict/fallback and all earning gates. Budget
+  real watched minutes only, all unique unclaimed prerequisites with individual
+  start/end windows and a 15-minute reserve. Reject unsafe higher-ranked detours;
+  retain a selected feasible branch until claim/eligibility loss, allowing an
+  earlier safe deadline. Freeze decisions before both discovery cap and switch
+  sorting. Minute reassessment uses a pending safe-boundary flag, not concurrent
+  state replacement; five-minute discovery uses normal queued games recalculation.
+  Clear account-owned targets during account replacement. Restricted daily mining
+  ranges suspend this optional policy. No changes to Twitch progress, claims,
+  inventory request frequency or receipt metadata. Tests: `test_deadline_service.py`.
+
 - `ChannelService`: Channel management and selection logic
 - `ChannelService.get_live_streams()` treats an explicit null `data.game` as an
   unavailable directory and returns no candidates so discovery can continue to other

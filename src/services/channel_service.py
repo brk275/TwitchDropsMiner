@@ -117,6 +117,9 @@ class ChannelService:
         if not campaigns:
             # Keep presently useful channels ahead of future-only work at the cap.
             return (2, priority)
+        deadline = getattr(self._twitch, "_deadline_service", None)
+        if deadline is not None and deadline.enabled is True and deadline.prioritizes(channel):
+            return (-1, priority)
         if settings is None or getattr(settings, "priority_list_only", True) is not False:
             return (0, priority)
 

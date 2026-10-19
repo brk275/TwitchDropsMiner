@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections import OrderedDict, abc, deque
 from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timedelta, timezone
@@ -37,6 +38,7 @@ from src.i18n import _
 from src.models.campaign import DropsCampaign
 from src.models.channel import Channel
 from src.services.channel_service import ChannelService
+from src.services.deadline_service import DeadlineService
 from src.services.inventory_service import InventoryService
 from src.services.maintenance import MaintenanceService
 from src.services.message_handlers import MessageHandlerService
@@ -70,6 +72,7 @@ class Twitch:
         self._state: State = State.IDLE
         self._state_change = asyncio.Event()
         self._games_update_pending = False
+        self._deadline_update_pending = False
         self._inventory_loaded = False
         self._inventory_refresh_pending = False
         self._clear_cache_pending = False
@@ -116,6 +119,9 @@ class Twitch:
         self._inventory_service: InventoryService = InventoryService(self)
         self._watch_service: WatchService = WatchService(self)
         self._stream_selector: StreamSelector = StreamSelector()
+        self._deadline_service = DeadlineService(
+            self, enabled=os.environ.get("TDM_SMART_DEADLINES", "").lower() == "true",
+        )
         # Drop history
         self.drop_history: DropHistory = DropHistory(DATA_DIR)
         self._run_task: asyncio.Task | None = None
@@ -202,6 +208,8 @@ class Twitch:
             self.diagnostics.clear()
             self._inventory_service.clear_cached_state()
             self._inventory_loaded = False
+            self._deadline_service.clear()
+            self._deadline_update_pending = False
             if self._state is not State.EXIT:
                 self._state = State.IDLE
             self._changing_auth = False
@@ -358,6 +366,13 @@ class Twitch:
         self._state_change.set()
         return True
 
+    def _activate_pending_deadline_update(self) -> None:
+        """Reassess tracked channels only at a safe state-machine boundary."""
+        if (self._deadline_update_pending and self._inventory_loaded
+                and self.is_mining_time() and self._state in (State.IDLE, State.CHANNEL_SWITCH)):
+            self._state = State.CHANNEL_SWITCH
+            self._state_change.set()
+
     def _activate_pending_inventory_refresh(self) -> None:
         """Prioritize a queued refresh over the next normal state transition."""
         if (
@@ -410,6 +425,12 @@ class Twitch:
                     self._watching_task = asyncio.create_task(self._watch_service.watch_loop())
                 if not was_open:
                     self.request_inventory_refresh()
+                if self._deadline_service.enabled and self._inventory_loaded:
+                    if self._deadline_service.discovery_due():
+                        self.request_games_update()
+                    else:
+                        self._deadline_update_pending = True
+                        self._state_change.set()
             was_open = is_open
             hours = getattr(self.settings, "mining_hours", None)
             delay = 60.0
@@ -546,6 +567,7 @@ class Twitch:
         while True:
             self._activate_pending_inventory_refresh()
             self._activate_pending_games_update()
+            self._activate_pending_deadline_update()
             if self._state not in (State.EXIT, State.IDLE) and not self.is_mining_time():
                 # Defer queued work until reopening without reactivating its event.
                 self.stop_watching()
@@ -722,6 +744,7 @@ class Twitch:
                 for channel in banned_channels:
                     channel.remove()
                 # sort them descending by viewers, by priority and by game priority
+                self._deadline_service.prepare(unbanned_channels)
                 # NOTE: Viewers sort also ensures ONLINE channels are sorted to the top
                 # NOTE: We can drop using the set now, because there's no more channels being added
                 ordered_channels: list[Channel] = sorted(
@@ -732,8 +755,10 @@ class Twitch:
                 # ensure that we won't end up with more channels than we can handle
                 # NOTE: we trim from the end because that's where the non-priority,
                 # offline (or online but low viewers) channels end up
-                to_remove_channels = ordered_channels[MAX_CHANNELS:]
-                ordered_channels = ordered_channels[:MAX_CHANNELS]
+                retained = self._deadline_service.cap_channels(ordered_channels, MAX_CHANNELS)
+                retained_ids = {channel.id for channel in retained}
+                to_remove_channels = [ch for ch in ordered_channels if ch.id not in retained_ids]
+                ordered_channels = retained
                 if to_remove_channels:
                     # tracked channels and gui were cleared earlier, so no need to do it here
                     # just make sure to unsubscribe from their topics
@@ -796,6 +821,8 @@ class Twitch:
                     watching_channel,
                 )
             elif self._state is State.CHANNEL_SWITCH:
+                self._deadline_update_pending = False
+                self._deadline_service.prepare(channels.values())
                 self.gui.status.update(_.t["gui"]["status"]["switching"])
 
                 # Determine the best channel to watch
@@ -873,6 +900,7 @@ class Twitch:
             # the request cannot be overwritten by the state's normal transition.
             self._activate_pending_inventory_refresh()
             self._activate_pending_games_update()
+            self._activate_pending_deadline_update()
             await self._state_change.wait()
 
     def can_watch(self, channel: Channel) -> bool:

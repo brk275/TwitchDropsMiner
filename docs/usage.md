@@ -59,8 +59,34 @@ reached; normal game ranking and channel eligibility still apply.
 
 These preferences do not discard progress Twitch reports for other rewards or
 prevent claiming already-earned rewards. Local estimates are not evidence of Twitch
-credit. This does not add deadline scheduling, change inventory refresh timing or
-guarantee that a stream will remain available.
+credit. Reward selection alone does not change inventory refresh timing or guarantee
+that a stream will remain available.
+
+### Smart deadline detours
+
+This fork's source builds support `TDM_SMART_DEADLINES=true` in the container
+environment (off by default; restart after changing it). Your saved rankings stay
+unchanged. Automatic selection can temporarily prioritize a lower-ranked reward
+ending within 24 hours when its remaining safety margin is below 30 minutes or
+the estimated time to the next higher-ranked reward. The miner returns to ranked
+order after the urgent reward is claimed or loses eligibility/available channels.
+
+Budgets use Twitch-reported minutes, each unclaimed prerequisite's own window and
+a 15-minute safety reserve. Local estimated minutes never reduce those budgets.
+Independent prerequisites are budgeted serially, which can conservatively reject
+work that Twitch might progress in parallel. A detour is rejected if it would put
+any currently feasible higher-ranked reward branch outside its window. Equal
+deadlines preserve rank. Once selected, a feasible detour is retained until its
+claim or loss of eligibility, unless an earlier safe deadline takes precedence.
+
+Only currently available participating channels qualify. Manual mode and restricted
+daily mining-hour ranges suspend detours. Unlisted fallback games cannot preempt
+selected games. Tracked channels are reconsidered about once a minute, with fresh
+discovery about every five minutes while enabled; normal inventory refresh remains
+unchanged. It cannot discover a campaign absent from the last Twitch inventory,
+guarantee that Twitch credits a particular reward, or guarantee completion through
+outages, stale observations or channel availability changes. Already-unfinishable
+branches do not trigger a deadline detour; normal ranked mining remains available.
 
 ## Channels and manual selection
 

@@ -19,6 +19,8 @@ services operated for other users are outside its support scope.
 ![Twitch Drops Miner web dashboard](./screenshot.png)
 
 - Choose and prioritize games, or let TDM discover available campaigns.
+- Source builds offer opt-in [smart deadline detours](docs/usage.md#smart-deadline-detours)
+  without changing your saved rankings.
 - [Mine other eligible games as fallback](docs/usage.md#choose-games-and-priorities)
   while preserving your saved priority list.
 - Choose reward types, track campaigns and rewards, and ignore drops you do not want;
