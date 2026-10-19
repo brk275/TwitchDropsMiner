@@ -583,6 +583,14 @@ lang/                # Translation JSON files (20 languages)
   The Telegram test API must use its generic failure response for unexpected errors,
   never reflect exception text or stored credentials to the browser.
   Regressions: `tests/test_telegram_error_redaction.py`, including loopback HTTP.
+  Telegram response bodies are unnecessary without diagnostics. When enabled, use
+  the existing bounded `Diagnostics.capture_http()` for successful and rejected
+  responses, consuming at most 256 KiB plus one truncation byte. Do not call full
+  text/read methods or decode and slice afterward. Optional capture ClientError or
+  timeout retains HTTP status metadata and the status-based notification result;
+  cancellation still propagates and contexts close. No retry or claim-state change.
+  Regressions: `tests/test_telegram_response_bounds.py`, including open-ended loopback
+  responses, capture failures and real confirmed-claim/history/Discord continuation.
 - The Telegram form reuses the saved token when its input is blank. Clearing the chat ID
   and saving disables alerts. Test Connection waits for settings persistence before showing
   success; HTTP, network, and application save failures must remain visible as errors.

@@ -202,7 +202,7 @@ class TestTelegramTransport(unittest.IsolatedAsyncioTestCase):
     async def test_api_rejection_returns_false(self):
         self.response.status = 403
         self.assertFalse(await self.notifier.test_connection())
-        self.response.text.assert_awaited_once()
+        self.response.text.assert_not_awaited()
         self.session.__aexit__.assert_awaited_once()
 
     async def test_timeout_returns_false_and_closes_session(self):

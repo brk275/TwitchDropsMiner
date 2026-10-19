@@ -134,19 +134,15 @@ class TelegramNotifier:
             data = {"chat_id": self.chat_id, "text": text, "parse_mode": "HTML"}
 
             async with aiohttp.ClientSession() as session, session.post(url, json=data, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if self.diagnostics is not None:
+                    try:
+                        await self.diagnostics.capture_http("POST", url, response)
+                    except (aiohttp.ClientError, TimeoutError):
+                        self.diagnostics.record_http("POST", url, response.status)
                 if response.status == 200:
-                    if self.diagnostics is not None:
-                        try:
-                            await self.diagnostics.capture_http("POST", url, response)
-                        except (aiohttp.ClientError, TimeoutError):
-                            self.diagnostics.record_http("POST", url, response.status)
                     logger.debug("Telegram notification sent successfully")
                     return True
                 else:
-                    error_text = await response.text()
-                    if self.diagnostics is not None:
-                        self.diagnostics.record_http("POST", url, response.status,
-                                                     body=error_text[:self.diagnostics.MAX_BODY_BYTES + 1].encode("utf-8"))
                     logger.warning("Telegram API error %s", response.status)
                     return False
         except asyncio.TimeoutError:

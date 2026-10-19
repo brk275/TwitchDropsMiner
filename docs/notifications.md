@@ -20,6 +20,10 @@ trying again. Do not post the token or a URL containing it in a support request.
 Source builds use fixed Telegram failure categories in logs and test-connection
 errors instead of copying private credentials, upstream message bodies or request
 URLs. Inspect excerpts before sharing them, especially from older versions.
+Response capture in source builds reads at most 256 KiB plus one byte to detect
+truncation, including rejected requests. Without diagnostics, response bodies are not
+requested by the notifier. Capture failures do not turn an HTTP rejection into success
+or resend the notification.
 
 ## Update or disable notifications
 

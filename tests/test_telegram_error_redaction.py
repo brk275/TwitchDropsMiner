@@ -2,6 +2,7 @@
 
 import asyncio
 import importlib
+import io
 import json
 import logging
 from types import SimpleNamespace
@@ -40,6 +41,8 @@ def transport(monkeypatch):
     response = MagicMock()
     response.status = 403
     response.text = AsyncMock(return_value=json.dumps({"ok": False, "description": PRIVATE}))
+    stream = io.BytesIO(json.dumps({"ok": False, "description": PRIVATE}).encode())
+    response.content.read = AsyncMock(side_effect=lambda size: stream.read(size))
     request = MagicMock()
     request.__aenter__ = AsyncMock(return_value=response)
     request.__aexit__ = AsyncMock(return_value=False)
@@ -63,7 +66,7 @@ async def test_transport_exceptions_are_redacted_before_logging(transport, caplo
         history=(), status=403, message=f"{CHAT} {MESSAGE}",
     )
     target = {"open": transport.session.__aenter__, "post": transport.session.post,
-              "response": transport.request.__aenter__, "body": transport.response.text,
+              "response": transport.request.__aenter__, "body": transport.response.content.read,
               "close": transport.session.__aexit__}[boundary]
     target.side_effect = error
     assert await TelegramNotifier(TOKEN, CHAT, diagnostics=diagnostics)._send_message(MESSAGE) is False
@@ -83,7 +86,11 @@ async def test_rejected_body_is_not_logged_even_when_it_echoes_private_fields(tr
     diagnostics = Diagnostics(tmp_path) if diagnostic else None
     assert await TelegramNotifier(TOKEN, CHAT, diagnostics=diagnostics)._send_message(MESSAGE) is False
     assert_private(caplog, diagnostics)
-    transport.response.text.assert_awaited_once()
+    transport.response.text.assert_not_awaited()
+    if diagnostic:
+        assert transport.response.content.read.await_count > 0
+    else:
+        transport.response.content.read.assert_not_awaited()
     transport.session.__aexit__.assert_awaited_once()
     if diagnostics is not None:
         entry = diagnostics.apis["telegram"]
