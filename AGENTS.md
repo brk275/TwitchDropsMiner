@@ -67,6 +67,9 @@ It is the repository's contribution policy, not optional background reading.
    - Keep `README.md` short and focused on ordinary users: setup, login, migration,
      and links. Detailed public instructions belong in `docs/`, the source for the
      GitHub wiki. Developer contribution policy belongs in `CONTRIBUTING.md`.
+     Update concise README summaries or guide links rather than appending per-fix
+     changelog paragraphs. Keep user-facing reliability details in the relevant
+     existing guides and distinguish checkout behavior from published releases.
    - Personal development plans, investigation notes, local verification records,
      and captures belong in `.dev-notes/`, which Git and Docker builds ignore.
      Never commit them or put them under `docs/`; this overrides skill templates

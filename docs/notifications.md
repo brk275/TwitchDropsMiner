@@ -17,6 +17,10 @@ If testing or saving fails, the dashboard displays an error. Check the token, ch
 whether you have started the conversation, and the miner's access to Telegram before
 trying again. Do not post the token or a URL containing it in a support request.
 
+Source builds use fixed Telegram failure categories in logs and test-connection
+errors instead of copying private credentials, upstream message bodies or request
+URLs. Inspect excerpts before sharing them, especially from older versions.
+
 ## Update or disable notifications
 
 The token is stored on the miner and is not returned to the browser. Leave the token

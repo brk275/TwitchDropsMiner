@@ -60,6 +60,18 @@ If the channel becomes unavailable, TDM tries another eligible channel for that 
 Use **Return to Auto Mode** to resume normal game priorities. Manual mode also ends
 when its game has no remaining eligible drops or no suitable channel is available.
 
+### Now Watching and dashboard updates
+
+**Show thumbnail** is off on each page load. Enabling it displays a Twitch JPEG
+thumbnail, refreshed on channel updates at most once per minute, without playing
+video or audio. Hover over shortened account or renewal text in the header to read
+it in full. Navigation, account controls and action buttons adapt to narrow screens.
+
+Source builds replace channel, campaign and console history snapshots when the
+dashboard reconnects, rather than retaining removed rows or replaying the entire
+console buffer. Newer translation requests also take precedence over older replies.
+These display updates do not establish that Twitch is crediting progress.
+
 ### Special Events and IRL campaigns
 
 Include the campaign's category in **Games to Watch**. These campaigns can progress
@@ -87,6 +99,24 @@ Queue because they cannot be earned by watching. The queue also omits individual
 expired rewards and rewards the miner cannot target. Upcoming and sequential rewards
 can remain visible, so a queued reward is not necessarily earnable immediately.
 Successful claims refresh the queue.
+
+## Progress display
+
+A Watching label, a moving local estimate or accepted watch telemetry is not proof
+of earning a drop. Compare with your [Twitch Drops inventory](https://www.twitch.tv/drops/inventory).
+Upcoming and sequential rewards may be queued before they can actually progress.
+
+Source builds poll progress about once a minute while successfully watching.
+Replies superseded by newer observations or inventory replacement are ignored.
+Fresh eligible Twitch readings can replace capped local estimates; non-integer
+minute updates are ignored, while integer corrections retain their existing bounds.
+Local campaign guesses use the runtime wanted queue, but their estimates remain
+estimates, not Twitch confirmation. See [recovery behavior](troubleshooting.md#source-build-recovery).
+
+Source builds keep already-claimed rewards out of the active progress display and
+clear the remaining-time display when watching stops. A late claim update for a
+different reward does not clear the current reward. Inventory and local history
+remain available separately.
 
 ## Account-link override
 
@@ -132,6 +162,22 @@ names and includes a UTF-8 byte-order mark for spreadsheet compatibility.
 **Clear** deletes all local history, including records hidden by a filter. It does
 not change your Twitch account or take away rewards.
 
+In source builds, a failed deletion leaves the records visible, and older pending
+statistics replies cannot restore totals after a successful deletion. Confirmed claim
+history is recorded before waiting for dashboard or notification delivery. Interrupted
+alerts are not retried automatically.
+
+Source builds skip malformed saved rows and keep the first valid record per exact
+drop ID. Loading does not rewrite the file; a later normal save persists the accepted
+records. Back up `data/drop_history.json` before repairing it or recording new claims
+after a history-load warning. Newly recorded rows are validated too; malformed rows
+are skipped rather than interrupting confirmed-claim handling or later saves.
+
+History storage is best-effort. A disk-write failure can leave a record only in
+memory until a later successful save, and a skipped row is not recovered automatically.
+A missing local row does not by itself mean the Twitch claim failed. Keep the data
+directory writable and check storage errors without deleting session files.
+
 ## Refreshing and clearing cache
 
 Use **Reload** after changing the games you want or when you need to refresh campaign
@@ -139,11 +185,13 @@ selection. **Settings → Clear All Cache** discards derived campaign and channe
 then reloads it from Twitch. It preserves Twitch login, settings, and dashboard
 password protection.
 
+Source builds accept whole-minute inventory refresh intervals from 1 to 1,440.
+Invalid saved intervals use the 30-minute default. An interval does not guarantee
+immediate discovery of campaigns announced between refreshes.
+
 Clearing cache is useful for recovery; it cannot correct inaccurate campaign details
 returned by Twitch. If progress or eligibility still looks wrong, follow
 [Troubleshooting](troubleshooting.md).
-
-[All guides](README.md) · [Telegram notifications](notifications.md)
 
 ## Mining hours
 
@@ -168,3 +216,5 @@ This setting pauses watching, not Twitch reward claims: already earned rewards c
 still be claimed through existing notifications or work already underway. It does
 not guarantee Twitch-side progress. Reload the dashboard after upgrading to load the
 versioned frontend controls.
+
+[All guides](README.md) · [Telegram notifications](notifications.md)

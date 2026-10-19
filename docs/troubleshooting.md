@@ -177,6 +177,47 @@ preserves confirmed bans when a subsequent check fails, until expiry or a confir
 no-ban response. This does not override campaign eligibility or establish that Twitch
 will award progress.
 
+## Source-build recovery
+
+These notes describe the current source checkout. Published images may not contain
+all of these changes; include an image tag/digest or Git commit with your report.
+
+Unusable progress replies are skipped without adding estimated minutes, and a later
+valid reply can update progress normally. Playlist polling continues through handled
+malformed GraphQL replies. Playlist or segment HTTP 401/403/404 replies can retire
+the failed cached URL for reacquisition on a later poll, including across channel
+metadata updates, without downloading stream media bodies.
+Neither recovery nor accepted telemetry proves that Twitch awarded progress.
+
+Temporary imported-session inventory reads get up to two additional refresh attempts
+after their transport retries are exhausted, waiting 30 and 60 seconds. Persistent
+failures still surface. Cancellation and mining hours interrupt these waits;
+malformed replies and authentication failures do not enter this recovery loop.
+Automatic service-error retries are limited to known persisted read-only requests.
+Claims, other writes and mixed batches are not replayed after ambiguous failures.
+
+Unavailable campaign details are skipped without creating empty campaigns. Existing
+inventory data takes precedence over available catalog metadata; missing campaigns
+can be tried again on the next refresh. Invalid campaign/drop lists, duplicate IDs,
+claim flags, claim IDs, watch-time requirements or award-history timestamps reject
+the affected refresh before replacing inventory. Invalid values are not converted
+to zero or treated as evidence of completion. A valid zero-minute requirement still
+represents a non-watch reward; missing/null watched minutes for unclaimed drops use
+a local zero fallback.
+
+Discovery can continue past unavailable categories. Batch channel refreshes clear stale
+stream state after a matching, error-free offline reply. Missing users or errored nulls
+in those batch replies retain the previous state. A request failure is not proof that
+a campaign expired or an account became unlinked. Report recurring fixed validation
+errors instead of deleting credentials or repeatedly clearing all data.
+
+Claims need usable, error-free confirmation. An invalid reply remains unconfirmed,
+and malformed claim-ready IDs are ignored without discarding a known ID. When explicit
+claim state is absent, completion is inferred only when all of a drop's rewards have
+award history within its time window. An inference is not a new claim acknowledgement.
+Post-claim progress checks are advisory, time out after five seconds, and do not resend
+the claim or prevent the normal restart/refresh decision when their result is unusable.
+
 ## Dashboard writes or live updates fail behind a proxy
 
 A page loading successfully does not mean its live connection or settings writes use

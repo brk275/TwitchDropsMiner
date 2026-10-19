@@ -23,120 +23,22 @@ services operated for other users are outside its support scope.
   while preserving your saved priority list.
 - Track campaigns and rewards, and ignore drops you do not want.
 - Skip channels while Twitch reports an active ban, including temporary bans.
-- Source builds continue discovery past unavailable categories and clear stale streams
-  when a refresh confirms a channel is offline.
-- Source builds restore current watched-channel, campaign and console history snapshots when dashboards reconnect.
-- Source builds keep newer dashboard translations when older requests finish late.
-- Source builds keep watch polling alive after malformed HTTP GraphQL replies without adding estimated progress.
-- Source builds refresh expired playlist URLs safely across channel metadata updates.
 - Sign in inside the dashboard; TDM saves and renews your session automatically.
 - Review claimed-drop history, export it to CSV, and receive Telegram or Discord notifications.
-- Source builds skip malformed saved history records and keep only the first valid
-  record per drop ID without rewriting the file at startup; keep
-  a backup of `data/drop_history.json` before repairing it or recording new claims.
-- Source builds reject malformed new history rows before saving, without undoing confirmed claims.
-- Source builds omit private credentials and message bodies from Telegram failure logs
-  and test-connection errors.
 - Manage everything from a web dashboard with optional password protection.
 - Set daily [mining hours](docs/usage.md#mining-hours) in the miner’s local timezone.
 
-Source builds report failed history deletions without clearing the displayed records.
-Pending statistics responses cannot restore old totals after a successful deletion.
+Published images and source checkouts can contain different fixes, even when their
+reported version matches. The quick-start images below are published images;
+source-build notes in these guides describe the current checkout, not every release.
+For source builds, follow the [installation guide](docs/installation.md#build-a-source-checkout).
+When reporting a problem, include the image tag and digest or the Git commit.
 
-Inventory refresh intervals use whole minutes from 1 to 1,440. Invalid saved
-intervals fall back to the 30-minute default.
-
-The redesigned dashboard's **Now Watching** card offers **Show thumbnail**, off on
-each page load. When enabled, it shows a Twitch JPEG thumbnail, refreshed on channel
-updates at most once per minute. It does not play video or audio. The header adapts to
-longer translations, grouping account controls and navigation on smaller screens.
-Hover over shortened account or renewal text to read it in full. This dashboard change
-is included in the published releases.
-
-Inventory supports **All / Linked / Not Linked** account-link filters. Settings has a
-default-off option to mine campaigns reported as Not Linked; read its warning and
-check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-override).
-
-Source builds poll progress about once a minute while successfully watching and ignore
-replies superseded by newer observations or inventory reloads. Fresh eligible readings
-replace fallback estimates even after the local estimate limit. Other eligibility
-checks and the estimate cap remain. Local campaign guesses use the runtime wanted queue;
-estimates update every eligible reward before testing the limit and are not
-Twitch-confirmed progress.
-
-Source builds reuse shared prerequisite branches when evaluating which drops to mine,
-avoiding repeated work in campaigns with complex reward dependencies.
-
-Source builds ignore non-integer minute updates from live progress events and polling.
-Existing integer correction bounds remain unchanged.
-
-Source builds wait for owned websocket callbacks to finish shutting down before
-replacing an account, including sockets removed during topic cleanup. Cancellation
-is propagated after cleanup; unresponsive cleanup can still delay shutdown.
-Final shutdown also joins current watch and maintenance tasks before closing their
-transports or clearing account state. Cancellation during this join waits for task
-cleanup before propagating; a later shutdown call can finish transport teardown.
-Cancelled account replacement drains old workers, websocket callbacks, channel checks
-and avatar requests before clearing account state, without admitting the replacement.
-
-Source builds reject invalid watch-time requirements before replacing inventory.
-Zero remains a valid non-watch requirement; invalid values are not converted to zero.
-Present non-null inventory minutes must also be plain nonnegative integers. Missing
-or null minutes use a local zero fallback without implying claim completion.
-
-Source builds skip unavailable campaign details without creating empty campaigns.
-Known inventory data keeps priority over available catalog metadata. Missing campaigns
-are tried again on the next refresh; malformed detail batches still reject the refresh.
-Malformed campaign lists or duplicate campaign IDs also reject the refresh before
-replacing inventory. Empty lists and existing nullable-list behavior remain supported.
-Award history must contain usable reward IDs and timezone-aware award timestamps;
-malformed history rejects the refresh without replacing known inventory.
-Campaign drop lists also reject malformed entries and duplicate drop IDs before
-replacement, rather than silently losing a reward.
-
-Source builds reuse shared acyclic prerequisite work when calculating reward-chain
-minutes, including the remaining totals used to select an active campaign.
-
-Source builds wrap notification and game-selection action buttons onto additional
-rows when space is limited, keeping translated labels visible on narrow screens.
-
-Use **Settings → Dump diagnosis data** for bug reports. It saves
-deidentified miner state and recent sanitized API responses in your data volume;
-see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
-
-Unusable returned progress replies are skipped while playlist polling continues.
-They do not add estimated minutes; the next valid reply can update progress normally.
-This includes malformed containers and error metadata rejected by the GraphQL client.
-Automatic service-error retries are restricted to known persisted read-only requests.
-Writes and mixed batches remain unconfirmed after ambiguous failures instead of replaying.
-Imported-session inventory reads get up to two additional refresh attempts after
-exhausting transport retries, waiting 30 and 60 seconds. Persistent failures still
-surface; cancellation and mining hours interrupt the waits. Malformed replies and
-authentication failures are not retried, and claims are not replayed.
-
-Source builds save confirmed claim history before waiting on dashboard or notification
-delivery. Interrupted alerts are not retried automatically.
-When a drop lacks explicit claim state, source builds infer completion only if all
-its rewards appear in award history within that drop's time window.
-
-Source builds require usable, error-free claim confirmations before marking a reward
-claimed. An invalid reply stays unconfirmed; this does not add automatic retries.
-
-Source builds report unusable GraphQL server-error paths as request failures instead
-of path-traversal errors. This does not add automatic retries or guarantee progress.
-
-Unusable post-claim progress checks no longer prevent the normal watch restart or
-inventory refresh. These advisory reads time out after five seconds; claims are not resent.
-
-Malformed inventory claim flags and IDs are rejected before inventory replacement.
-Unusable claim-ready IDs are ignored without discarding a known ID or sending a claim.
-
-Source builds ignore display updates already marked claimed. A late claim
-update for another reward leaves the current reward visible; claim history and
-inventory remain available separately.
-Stopping the active display also clears its cached remaining time.
-Progress and stop broadcasts are serialized per display; superseded queued updates
-are skipped. An already-started send must finish before its replacement can send.
+See [dashboard and progress guidance](docs/usage.md#progress-display),
+[local claim history](docs/usage.md#drop-history), and
+[source-build recovery](docs/troubleshooting.md#source-build-recovery).
+For bug reports, **Settings → Dump diagnosis data** saves deidentified state and
+sanitized API evidence locally; see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
 
 ## Quick start
 
@@ -301,9 +203,7 @@ reporting a problem. Use the [bug-report form](https://github.com/rangermix/Twit
 with the running app version, hosting environment, reproduction steps, and redacted evidence.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for bug reports, translations,
 and development. Run the full test suite from its locked development setup.
-This fork uses AI-assisted development with automated checks and
-independent review. Agents acknowledge work in the relevant issue or PR before starting
-and post the outcome there when work ends or pauses.
+This fork uses AI-assisted development with automated checks and independent review.
 
 Based on [DevilXD/TwitchDropsMiner](https://github.com/DevilXD/TwitchDropsMiner).
 See [credits](docs/credits.md) for the original project and translation contributors.

@@ -215,6 +215,12 @@ The directory contains settings, Twitch credentials, local drop history, and opt
 dashboard password state. Keep it private and back it up privately while the miner is
 stopped. Run only one miner process per data directory.
 
+Source builds wait for active watch/maintenance work and owned network callbacks to
+drain before closing their transports or replacing an account. Cancellation can
+wait for this cleanup, and unresponsive work can still delay exit. This is cooperative
+cleanup, not a hard deadline or a guarantee that a forced container stop can finish
+every task. Keep the existing data mount when restarting after an interrupted shutdown.
+
 Review the release notes before updating.
 
 ### Published image (`docker run`)
