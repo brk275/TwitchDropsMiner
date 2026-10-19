@@ -75,7 +75,7 @@ class WatchService:
         return any(
             # Respect the user's selection using the campaign's category.
             campaign.game in wanted_games
-            and campaign.can_earn(channel)
+            and campaign.can_mine(channel)
             # Special campaigns may progress without the channel's drops flag.
             and (campaign.game.is_special() or channel.drops_enabled)
             for campaign in self._twitch.inventory
@@ -293,7 +293,7 @@ class WatchService:
                         active_campaign.bump_minutes(channel)
                         # NOTE: This usually gets overwritten below
                         drop_text = f"Unknown drop ({active_campaign.game})"
-                        if (active_drop := active_campaign.first_drop) is not None:
+                        if (active_drop := active_campaign.first_mining_drop(channel)) is not None:
                             active_drop.display()
                             drop_text = (
                                 f"{active_drop.name} ({active_drop.campaign.game}, "

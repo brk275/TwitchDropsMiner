@@ -1,108 +1,32 @@
-import unittest
-from datetime import datetime, timezone
-from unittest.mock import MagicMock
+"""Wanted game filtering uses real campaign eligibility and benefit selection."""
 
-from src.models.campaign import DropsCampaign
-from src.models.game import Game
+import unittest
+from datetime import datetime, timedelta, timezone
+
 from src.services.stream_selector import StreamSelector
+from tests.test_priority_fallback import _campaign, _drop, _settings
 
 
 class TestWantedGamesFilter(unittest.TestCase):
-    def setUp(self):
-        # Mock Settings
-        self.settings = MagicMock()
-        self.settings.games_to_watch = ["Game1", "Game2"]
-        self.settings.mining_benefits = {
-            "BADGE": True,
-            "DIRECT_ENTITLEMENT": True,
-        }  # both allowed by default
-
     def test_filter_wanted_campaigns(self):
-        # Setup Campaigns
+        settings = _settings("Game1", "Game2", priority_list_only=True,
+                             mining_benefits={"BADGE": True, "DIRECT_ENTITLEMENT": False})
+        selected = _campaign("selected", "Game1", settings=settings,
+                             drops=[_drop("selected-drop", benefit_type="BADGE")])
+        disabled = _campaign("disabled", "Game2", game_id=2, settings=settings)
+        unselected = _campaign("unselected", "Game3", game_id=3, settings=settings,
+                               drops=[_drop("unselected-drop", benefit_type="BADGE")])
+        claimed = _campaign("claimed", "Game1", settings=settings,
+                            drops=[_drop("claimed-drop", benefit_type="BADGE")])
+        claimed.timed_drops["claimed-drop"].is_claimed = True
+        expired = _campaign("expired", "Game1", settings=settings,
+                            ends_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+                            drops=[_drop("expired-drop", benefit_type="BADGE")])
 
-        # Campaign 1: Game1, Can Earn, Has Wanted Benefits -> Should be selected
-        c1 = MagicMock(spec=DropsCampaign)
-        c1.game = Game({"id": 1, "name": "Game1"})
-        c1.can_earn_within.return_value = True
-        c1.id = "123"
-        c1.name = "Test Campaign"
-        c1.campaign_url = "http://test.url"
-        d1 = MagicMock()
-        d1.name = "Test Drop"
-        d1.is_claimed = False
-        d1.ends_at = datetime.max.replace(tzinfo=timezone.utc)
-        d1.get_wanted_unclaimed_benefits.return_value = ["Benefit1"]
-        c1.drops = [d1]
-        c1.has_wanted_unclaimed_benefits.side_effect = (
-            DropsCampaign.has_wanted_unclaimed_benefits.__get__(c1, DropsCampaign)
+        games = StreamSelector().get_wanted_games(
+            settings, [selected, disabled, unselected, claimed, expired],
         )
-
-        # Campaign 2: Game2, Can Earn, NO Wanted Benefits -> Should NOT be selected
-        c2 = MagicMock(spec=DropsCampaign)
-        c2.game = Game({"id": 2, "name": "Game2"})
-        c2.can_earn_within.return_value = True
-        d2 = MagicMock()
-        d2.is_claimed = False
-        d2.ends_at = datetime.max.replace(tzinfo=timezone.utc)
-        d2.get_wanted_unclaimed_benefits.return_value = []
-        c2.drops = [d2]
-        c2.has_wanted_unclaimed_benefits.side_effect = (
-            DropsCampaign.has_wanted_unclaimed_benefits.__get__(c2, DropsCampaign)
-        )
-
-        # Campaign 3: Game3 (Not in games_to_watch), Can Earn, Has Benefits -> Should NOT be selected
-        c3 = MagicMock(spec=DropsCampaign)
-        c3.game = Game({"id": 3, "name": "Game3"})
-        c3.can_earn_within.return_value = True
-        d3 = MagicMock()
-        d3.is_claimed = False
-        d3.ends_at = datetime.max.replace(tzinfo=timezone.utc)
-        d3.get_wanted_unclaimed_benefits.return_value = ["Benefit3"]
-        c3.drops = [d3]
-        c3.has_wanted_unclaimed_benefits.side_effect = (
-            DropsCampaign.has_wanted_unclaimed_benefits.__get__(c3, DropsCampaign)
-        )
-
-        # Campaign 4: Game1, Can Earn, Has Claimed Wanted Benefits -> Should NOT be selected
-        c4 = MagicMock(spec=DropsCampaign)
-        c4.game = Game({"id": 1, "name": "Game1"})
-        c4.can_earn_within.return_value = True
-        c4.id = "123"
-        c4.name = "Test Campaign"
-        c4.campaign_url = "http://test.url"
-        d4 = MagicMock()
-        d4.name = "Test Drop"
-        d4.is_claimed = True
-        d4.ends_at = datetime.max.replace(tzinfo=timezone.utc)
-        d4.get_wanted_unclaimed_benefits.return_value = ["Benefit4"]
-        c4.drops = [d4]
-        c4.has_wanted_unclaimed_benefits.side_effect = (
-            DropsCampaign.has_wanted_unclaimed_benefits.__get__(c4, DropsCampaign)
-        )
-
-        # Campaign 5: Game1, Can Not Earn, Has Wanted Benefits -> Should NOT be selected
-        c5 = MagicMock(spec=DropsCampaign)
-        c5.game = Game({"id": 1, "name": "Game1"})
-        c5.can_earn_within.return_value = False
-        c5.id = "123"
-        c5.name = "Test Campaign"
-        c5.campaign_url = "http://test.url"
-        d5 = MagicMock()
-        d5.name = "Test Drop"
-        d5.is_claimed = False
-        d5.ends_at = datetime.max.replace(tzinfo=timezone.utc)
-        d5.get_wanted_unclaimed_benefits.return_value = ["Benefit5"]
-        c5.drops = [d5]
-        c5.has_wanted_unclaimed_benefits.side_effect = (
-            DropsCampaign.has_wanted_unclaimed_benefits.__get__(c5, DropsCampaign)
-        )
-
-        inventory = [c1, c2, c3, c4, c5]
-        stream_selector = StreamSelector()
-        wanted_games = stream_selector.get_wanted_games(self.settings, inventory)
-
-        self.assertEqual(len(wanted_games), 1)
-        self.assertEqual(wanted_games[0].name, "Game1")
+        self.assertEqual([game.name for game in games], ["Game1"])
 
 
 if __name__ == "__main__":

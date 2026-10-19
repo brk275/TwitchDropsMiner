@@ -294,7 +294,8 @@ def test_unavailable_selected_campaign_allows_fallback(unavailable):
         twitch.wanted_games = [fallback.game]
     twitch.watching_channel.get_with_default.return_value = selected_channel
 
-    assert twitch._channel_service.get_mining_priority(selected_channel)[0] == 1
+    assert twitch._channel_service.get_mining_priority(selected_channel)[0] == 2
+    assert twitch._channel_service.get_mining_priority(fallback_channel)[0] == 1
     assert not WatchService(twitch).can_watch(selected_channel)
     assert WatchService(twitch).can_watch(fallback_channel)
     assert WatchService(twitch).should_switch(fallback_channel) is True
@@ -379,10 +380,10 @@ async def test_final_wanted_claim_recalculates_policy_and_releases_priority(stri
     assert twitch._schedule_changed.is_set()
     assert twitch._state_change.is_set()
     assert twitch._games_update_pending is True
-    # Remaining unwanted rewards keep raw campaign eligibility true; a stale
-    # wanted_games cache would therefore keep watching Priority indefinitely.
+    # Raw eligibility stays true, but branch selection stops unwanted work even
+    # before the queued wanted-games recalculation completes.
     assert selected.can_earn(current)
-    assert service.can_watch(current)
+    assert not service.can_watch(current)
 
     twitch._activate_pending_games_update()
     if claim_state is State.INVENTORY_FETCH:

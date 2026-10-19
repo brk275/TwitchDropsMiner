@@ -56,7 +56,7 @@ def mining_state():
     twitch = SimpleNamespace(
         settings=SimpleNamespace(
             drop_name_blacklist=[], telegram_bot_token="", telegram_chat_id="",
-            discord_webhook_url="",
+            discord_webhook_url="", mining_benefits={"DIRECT_ENTITLEMENT": True},
         ),
         gui=MagicMock(),
         is_mining_time=lambda: True,

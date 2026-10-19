@@ -107,16 +107,22 @@ class ChannelService:
         """Keep selected campaigns ahead of fallback games, including special ACLs."""
         priority = self.get_priority(channel)
         settings = getattr(self._twitch, "settings", None)
+        campaigns = [
+            campaign for campaign in self._twitch.inventory
+            if campaign.game in self._twitch.wanted_games
+            and channel.online and not channel.banned
+            and campaign.can_mine(channel)
+            and (campaign.game.is_special() or channel.drops_enabled)
+        ]
+        if not campaigns:
+            # Keep presently useful channels ahead of future-only work at the cap.
+            return (2, priority)
         if settings is None or getattr(settings, "priority_list_only", True) is not False:
             return (0, priority)
 
         selected_names = {name.lower() for name in settings.games_to_watch}
-        selected_campaign = channel.online and not channel.banned and any(
-            campaign.game in self._twitch.wanted_games
-            and campaign.game.name.lower() in selected_names
-            and campaign.can_earn(channel)
-            and (campaign.game.is_special() or channel.drops_enabled)
-            for campaign in self._twitch.inventory
+        selected_campaign = any(
+            campaign.game.name.lower() in selected_names for campaign in campaigns
         )
         return (0 if selected_campaign else 1, priority)
 

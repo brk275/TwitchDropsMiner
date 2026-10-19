@@ -10,15 +10,9 @@ class StreamSelector:
         self, campaign: DropsCampaign, mining_benefits: dict[str, bool], now: datetime
     ) -> list[dict]:
         wanted_drops = []
-        for drop in campaign.drops:
-            if (
-                not drop.is_watch_drop
-                or drop.is_claimed
-                or drop.ends_at <= now
-                or not drop.is_mineable
-            ):
-                continue
-
+        for drop in campaign.mining_selection(
+            mining_benefits, stamp=now + timedelta(hours=1),
+        ).targets:
             filtered_benefits = drop.get_wanted_unclaimed_benefits(mining_benefits)
 
             if len(filtered_benefits) > 0:
@@ -48,7 +42,7 @@ class StreamSelector:
             campaign_game = campaign.game
             if campaign_game.name.lower() in selected_names or campaign_game.id in queued_ids:
                 continue
-            if not campaign.can_earn_within(stamp):
+            if not campaign.can_mine_within(stamp, settings.mining_benefits):
                 continue
             if not self._get_wanted_drops(campaign, settings.mining_benefits, now):
                 continue
@@ -108,7 +102,7 @@ class StreamSelector:
                 if game_obj is None:
                     game_obj = campaign.game
 
-                if not campaign.can_earn_within(next_hour):
+                if not campaign.can_mine_within(next_hour, mining_benefits):
                     continue
 
                 wanted_drops = self._get_wanted_drops(campaign, mining_benefits, now)

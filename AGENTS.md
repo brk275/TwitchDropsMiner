@@ -261,6 +261,21 @@ lang/                # Translation JSON files (20 languages)
 **src/models/campaign.py** - Drop campaigns:
 
 - `DropsCampaign`: Campaign with game, timeframe, allowed channels
+- `DropsCampaign.mining_selection()` separates local targeting from raw eligibility.
+  Select unclaimed wanted watch rewards within the usual one-hour lookahead, then
+  include their valid unclaimed prerequisite branches even when those prerequisite
+  benefit types are disabled. Claimed prerequisites short-circuit; ignored, missing,
+  cyclic, non-watch or unavailable unclaimed branches cannot justify mining. Recompute
+  on time, preference and claim changes without a persistent selection cache.
+  `can_mine`, `can_mine_within`, `first_mining_drop` and wanted remaining minutes
+  share this selection across queueing, discovery, watching, local guesses, estimates
+  and claim continuation. Presently usable channels precede future-only/unusable
+  candidates before the 199-channel cap; retain game rank, ACL and viewer ordering
+  within usable tiers. Do not conflate this policy with raw `can_earn`, ignore
+  mineability, `can_reconcile_progress`, authoritative sibling updates or claims.
+  Disabled-type progress and already-earned claims remain valid; local estimates
+  stay limited to selected work and are not Twitch confirmation. Tests:
+  `tests/test_benefit_selection.py`, including real discovery/cap and watch-loop paths.
 - Admit `timeBasedDrops` only as a list of objects with unique nonblank string IDs
   within that campaign. Refuse missing/null/scalar/object collections and malformed
   or duplicate rows with fixed `MinerException` before constructing drop models or
@@ -275,7 +290,7 @@ lang/                # Translation JSON files (20 languages)
   enabled ACL. Without an ACL, the streamed category must still match. Explicit
   `ignore_channel_status=True` checks retain their discovery-only status bypass.
 - `WatchService.can_watch()` requires the campaign's game in `wanted_games`, a live
-  channel, and `campaign.can_earn(channel)`. Special categories bypass the channel's
+  channel, and `campaign.can_mine(channel)`. Special categories bypass the channel's
   drops-enabled flag; regular campaigns still require it. Account eligibility, campaign
   and drop timing, prerequisites, claims, and ignore rules remain enforced.
 - Channel priority still uses the streamed category; channels outside `wanted_games`
@@ -905,7 +920,7 @@ of unattended collection during persistent outages or a transactional GUI refres
   `tests/test_progress_integration.py` also covers unchanged observations recovering
   capped rewards during pending polls: superseded session/null/error/timeout replies
   must not undo recovery or estimate another minute, while a fresh downward poll works.
-- `DropsCampaign.bump_minutes()` must update all eligible drops before testing whether
+- `DropsCampaign.bump_minutes()` must update all eligible selected-branch drops before testing whether
   any reached the estimate limit. Evaluate `_bump_minutes()` eagerly; a short-circuiting
   generator leaves later rewards unchanged. Preserve eligibility and the estimate cap,
   request at most one channel switch per batch, and display only after the batch.

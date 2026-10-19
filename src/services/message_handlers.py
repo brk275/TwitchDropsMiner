@@ -241,7 +241,7 @@ class MessageHandlerService:
                         break
                     await asyncio.sleep(2)
 
-            if campaign.can_earn(watching_channel):
+            if campaign.can_mine(watching_channel):
                 self._twitch.restart_watching()
             else:
                 self._twitch.request_inventory_refresh()

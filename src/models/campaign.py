@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from itertools import chain
 from typing import TYPE_CHECKING
@@ -24,6 +25,14 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger("TwitchDrops")
+
+
+@dataclass(frozen=True)
+class CampaignMiningSelection:
+    """Wanted rewards and the unclaimed prerequisite work needed for them."""
+
+    targets: tuple[TimedDrop, ...]
+    branches: tuple[TimedDrop, ...]
 
 
 class DropsCampaign:
@@ -112,6 +121,88 @@ class DropsCampaign:
     def is_drop_mineable(self, drop_id: str) -> bool:
         """Return whether an unclaimed drop is part of a useful reward branch."""
         return drop_id in self.mineable_drop_ids
+
+    def mining_selection(
+        self, allowed_benefits: dict[str, bool] | None = None, *, stamp: datetime | None = None,
+    ) -> CampaignMiningSelection:
+        """Select wanted branches within the normal one-hour discovery horizon.
+
+        This is a local targeting policy, separate from raw eligibility, Twitch
+        observations and claims. Recompute against current preferences and time.
+        """
+        now = datetime.now(timezone.utc)
+        if stamp is None:
+            stamp = now + timedelta(hours=1)
+        if (not self.eligible or not self._valid or self.ends_at <= now
+                or self.starts_at >= stamp):
+            return CampaignMiningSelection((), ())
+        if allowed_benefits is None:
+            allowed_benefits = self._twitch.settings.mining_benefits
+        available_after = max(now, self.starts_at)
+        available_before = min(stamp, self.ends_at)
+        mineable = self.mineable_drop_ids
+        branches: dict[str, frozenset[str] | None] = {}
+
+        def collect(drop_id: str, visiting: frozenset[str]) -> frozenset[str] | None:
+            drop = self.timed_drops.get(drop_id)
+            if drop is None:
+                return None
+            if drop.is_claimed:
+                return frozenset()
+            if drop_id in visiting or drop_id not in mineable:
+                return None
+            if drop_id in branches:
+                return branches[drop_id]
+            if drop.ends_at <= available_after or drop.starts_at >= available_before:
+                branches[drop_id] = None
+                return None
+            branch = {drop_id}
+            for prerequisite_id in drop.precondition_drops:
+                prerequisite = collect(prerequisite_id, visiting | {drop_id})
+                if prerequisite is None:
+                    branches[drop_id] = None
+                    return None
+                branch.update(prerequisite)
+            branches[drop_id] = frozenset(branch)
+            return branches[drop_id]
+
+        targets: list[TimedDrop] = []
+        selected_ids: set[str] = set()
+        for drop in self.watch_drops:
+            if not drop.has_wanted_unclaimed_benefits(allowed_benefits):
+                continue
+            if (branch := collect(drop.id, frozenset())) is not None:
+                targets.append(drop)
+                selected_ids.update(branch)
+        return CampaignMiningSelection(
+            tuple(targets), tuple(drop for drop in self.watch_drops if drop.id in selected_ids),
+        )
+
+    def can_mine(self, channel: Channel | None = None) -> bool:
+        """Whether a wanted branch can currently progress on this channel."""
+        return self._base_can_earn(channel) and any(
+            drop._base_can_earn() for drop in self.mining_selection().branches
+        )
+
+    def can_mine_within(
+        self, stamp: datetime, allowed_benefits: dict[str, bool] | None = None,
+    ) -> bool:
+        return any(
+            drop._can_earn_within(stamp)
+            for drop in self.mining_selection(allowed_benefits, stamp=stamp).branches
+        )
+
+    def first_mining_drop(self, channel: Channel | None = None) -> TimedDrop | None:
+        return min(
+            (drop for drop in self.mining_selection().branches if drop.can_earn(channel)),
+            key=lambda drop: drop.remaining_minutes, default=None,
+        )
+
+    @property
+    def mining_remaining_minutes(self) -> int:
+        return max(
+            (drop.total_remaining_minutes for drop in self.mining_selection().targets), default=0,
+        )
 
     @property
     def time_triggers(self) -> set[datetime]:
@@ -284,11 +375,11 @@ class DropsCampaign:
 
     def bump_minutes(self, channel: Channel) -> None:
         """
-        Bump the minute counter for all earnable drops in this campaign.
+        Bump local estimates only for earnable work in wanted branches.
         Used when websocket updates aren't available.
         """
         # NOTE: Use a temporary list to ensure all drops are bumped before checking
-        limits_reached = [drop._bump_minutes(channel) for drop in self.drops]
+        limits_reached = [drop._bump_minutes(channel) for drop in self.mining_selection().branches]
         if any(limits_reached):
             # Executes if any drop's extra_current_minutes reach MAX_EXTRA_MINUTES
             # TODO: Figure out a better way to handle this case
@@ -297,7 +388,7 @@ class DropsCampaign:
                 "has reached the maximum extra minutes limit!"
             )
             self._twitch.change_state(State.CHANNEL_SWITCH)
-        if (first_drop := self.first_drop) is not None:
+        if (first_drop := self.first_mining_drop(channel)) is not None:
             first_drop.display()
 
     def has_wanted_unclaimed_benefits(self, allowed_benefits: dict[str, bool]) -> bool:

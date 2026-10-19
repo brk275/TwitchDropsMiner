@@ -625,7 +625,7 @@ class Twitch:
                 # Handle manual mode: check if manual game still has drops
                 if self.is_manual_mode():
                     manual_has_drops = any(
-                        campaign.can_earn_within(next_hour)
+                        campaign.can_mine_within(next_hour)
                         and campaign.game == self._manual_target_game
                         for campaign in self.inventory
                     )
@@ -693,7 +693,7 @@ class Twitch:
                 acl_channels: set[Channel] = set()
                 next_hour = datetime.now(timezone.utc) + timedelta(hours=1)
                 for campaign in self.inventory:
-                    if campaign.game in self.wanted_games and campaign.can_earn_within(next_hour):
+                    if campaign.game in self.wanted_games and campaign.can_mine_within(next_hour):
                         if campaign.allowed_channels:
                             acl_channels.update(campaign.allowed_channels)
                         else:
@@ -779,7 +779,7 @@ class Twitch:
                     # check if there's any channels we can watch first
                     if self.can_watch(channel):
                         if (active_campaign := self.get_active_campaign(channel)) is not None and (
-                            active_drop := active_campaign.first_drop
+                            active_drop := active_campaign.first_mining_drop(channel)
                         ) is not None:
                             active_drop.display(countdown=False, subone=True)
                         break
@@ -846,7 +846,7 @@ class Twitch:
                     self.watch(new_watching)
                     # Display the active drop for the new channel
                     if (active_campaign := self.get_active_campaign(new_watching)) is not None and (
-                        active_drop := active_campaign.first_drop
+                        active_drop := active_campaign.first_mining_drop(new_watching)
                     ) is not None:
                         active_drop.display(countdown=False, subone=True)
                     self._state_change.clear()

@@ -125,7 +125,7 @@ async def test_real_websocket_claim_continuation_cannot_republish_completed_prog
     twitch.gui.progress = manager
     twitch.gui.display_drop = MethodType(WebGUIManager.display_drop, twitch.gui)
     twitch.gui.broadcast_wanted_items_now = AsyncMock()
-    monkeypatch.setattr(drop.campaign, "can_earn", MagicMock(return_value=False))
+    monkeypatch.setattr(drop.campaign, "can_mine", MagicMock(return_value=False))
 
     async def accepted():
         if switch_during_claim:

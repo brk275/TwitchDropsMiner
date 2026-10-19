@@ -49,6 +49,19 @@ channel selection retains its existing behavior.
 emotes, and other rewards. These choices are separate from the display filters on
 the Inventory tab.
 
+Source builds target wanted reward branches consistently across channel selection,
+queueing and local progress estimates. A disabled reward type can still be mined
+when it is a prerequisite for a wanted reward, but an unrelated disabled reward
+does not justify watching just because a wanted reward for the same game starts
+later. The usual one-hour lookahead applies to the wanted reward itself. Currently
+usable channels are retained ahead of future-only work when the tracking limit is
+reached; normal game ranking and channel eligibility still apply.
+
+These preferences do not discard progress Twitch reports for other rewards or
+prevent claiming already-earned rewards. Local estimates are not evidence of Twitch
+credit. This does not add deadline scheduling, change inventory refresh timing or
+guarantee that a stream will remain available.
+
 ## Channels and manual selection
 
 TDM chooses among live channels that can earn your selected rewards. Game priorities,

@@ -60,7 +60,9 @@ def _campaign(
     if magic_mock_settings:
         twitch.settings = MagicMock()
     else:
-        twitch.settings = SimpleNamespace(drop_name_blacklist=blacklist or [])
+        twitch.settings = SimpleNamespace(
+            drop_name_blacklist=blacklist or [], mining_benefits={"DIRECT_ENTITLEMENT": True},
+        )
     return DropsCampaign(
         twitch,
         {

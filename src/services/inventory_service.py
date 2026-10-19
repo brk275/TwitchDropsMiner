@@ -321,11 +321,11 @@ class InventoryService:
 
         campaigns: list[DropsCampaign] = []
         for campaign in self._twitch.inventory:
-            if campaign.game in self._twitch.wanted_games and campaign.can_earn(watching_channel):
+            if campaign.game in self._twitch.wanted_games and campaign.can_mine(watching_channel):
                 campaigns.append(campaign)
 
         if campaigns:
-            campaigns.sort(key=lambda c: c.remaining_minutes)
+            campaigns.sort(key=lambda c: c.mining_remaining_minutes)
             return campaigns[0]
 
         return None

@@ -22,7 +22,7 @@ GAME = {"id": "1", "name": "Game"}
 def client():
     return SimpleNamespace(
         gui=MagicMock(), _campaigns={},
-        settings=SimpleNamespace(drop_name_blacklist=[]),
+        settings=SimpleNamespace(drop_name_blacklist=[], mining_benefits={"DIRECT_ENTITLEMENT": True}),
     )
 
 
