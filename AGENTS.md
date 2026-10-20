@@ -206,9 +206,9 @@ lang/                # Translation JSON files (20 languages)
 - Inventory and catalog campaign collections accept only lists of objects with unique,
   nonblank string IDs, or explicit null using the existing empty-list fallback. Reject
   false/zero/empty strings/objects and malformed or duplicate rows with fixed redacted
-  `GQLException` before detail fan-out, model replacement, GUI clearing or maintenance
+  `GQLInventoryListInvalid` before detail fan-out, model replacement, GUI clearing or maintenance
   cancellation. Preserve opaque IDs, inventory precedence and ACTIVE/UPCOMING catalog
-  filtering. This does not validate every envelope/model field, add retry, change auth
+  filtering. Admission does not validate every envelope/model field, change auth
   handling or make GUI replacement transactional. Tests:
   `tests/test_inventory_campaign_list_admission.py`, using real imported GQL dispatch.
 - `InventoryService.get_active_campaign(channel)` honors an explicit channel even
@@ -657,16 +657,18 @@ claim and policy changes must be reflected on the next call. Regression coverage
 
 ### State Machine Flow
 
-Inventory refresh recovery catches only `GQLRequestFailed`, the fixed GQLException
+Inventory refresh recovery catches `GQLRequestFailed`, the fixed GQLException
 subtype for `SessionRequestExhausted` after safe imported reads exhaust transient
-retries. Generic REQUEST, invalid JSON, TLS, non-5xx HTTP and ambiguous mutation
-failures do not qualify. Try at most three complete
+retries, and `GQLInventoryListInvalid`, raised only at campaign-list admission before
+inventory replacement. Generic REQUEST, invalid JSON, TLS, non-5xx HTTP and ambiguous
+mutation failures do not qualify. Try at most three complete
 refreshes with 30/60-second waits. Preserve cancellation, authentication failures,
-malformed replies and model errors without retry. Do not retry claims or other state
+other malformed replies and model errors without retry. Do not retry claims or other state
 steps. Waits wake on EXIT or mining-hours closure without accelerating on unrelated
 state events; defer refresh until reopening. Keep successful inventory publication
 and ordinary request-level safe-read limits unchanged. Tests:
-`tests/test_inventory_refresh_recovery.py`. This is bounded recovery, not a promise
+`tests/test_inventory_refresh_recovery.py` and `tests/test_inventory_list_recovery.py`.
+This is bounded recovery, not a promise
 of unattended collection during persistent outages or a transactional GUI refresh.
 
 1. **IDLE** - Waiting for campaigns or user action

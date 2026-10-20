@@ -31,6 +31,7 @@ from src.diagnostics import Diagnostics
 from src.drop_history import DropHistory
 from src.exceptions import (
     ExitRequest,
+    GQLInventoryListInvalid,
     GQLRequestFailed,
     RequestException,
 )
@@ -509,7 +510,7 @@ class Twitch:
                 return
 
     async def _fetch_inventory_with_recovery(self) -> bool:
-        """Retry only exhausted imported transport reads, with a finite budget."""
+        """Retry exhausted safe reads or rejected campaign lists with a finite budget."""
         for attempt in range(3):
             if self._state is State.EXIT:
                 return False
@@ -519,7 +520,7 @@ class Twitch:
             try:
                 await self.fetch_inventory()
                 return True
-            except GQLRequestFailed:
+            except (GQLRequestFailed, GQLInventoryListInvalid):
                 if attempt == 2:
                     raise
                 await self._wait_inventory_retry(30 * (attempt + 1))

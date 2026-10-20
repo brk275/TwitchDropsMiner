@@ -16,7 +16,7 @@ from dateutil.parser import isoparse
 
 from src.api import GQLClient
 from src.config import GQL_OPERATIONS
-from src.exceptions import ExitRequest, GQLException
+from src.exceptions import ExitRequest, GQLException, GQLInventoryListInvalid
 from src.i18n import _
 from src.models import DropsCampaign
 from src.utils import chunk
@@ -140,13 +140,13 @@ class InventoryService:
         if records is None:
             return {}
         if not isinstance(records, list):
-            raise GQLException("Invalid campaign list response")
+            raise GQLInventoryListInvalid()
         campaigns: dict[str, JsonType] = {}
         for record in records:
             campaign_id = record.get("id") if isinstance(record, dict) else None
             if (not isinstance(campaign_id, str) or not campaign_id.strip()
                     or campaign_id in campaigns):
-                raise GQLException("Invalid campaign list response")
+                raise GQLInventoryListInvalid()
             campaigns[campaign_id] = record
         return campaigns
 

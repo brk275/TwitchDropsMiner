@@ -190,9 +190,11 @@ metadata updates, without downloading stream media bodies.
 Neither recovery nor accepted telemetry proves that Twitch awarded progress.
 
 Temporary imported-session inventory reads get up to two additional refresh attempts
-after their transport retries are exhausted, waiting 30 and 60 seconds. Persistent
-failures still surface. Cancellation and mining hours interrupt these waits;
-malformed replies and authentication failures do not enter this recovery loop.
+after their transport retries are exhausted, waiting 30 and 60 seconds. Rejected
+campaign collections use the same limited refresh recovery, retaining the previous
+inventory until a valid refresh succeeds. Persistent failures still surface rather
+than accepting invalid data. Cancellation and mining hours interrupt these waits;
+other malformed replies and authentication failures do not enter this recovery loop.
 Automatic service-error retries are limited to known persisted read-only requests.
 Claims, other writes and mixed batches are not replayed after ambiguous failures.
 

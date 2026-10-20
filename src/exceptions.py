@@ -105,6 +105,13 @@ class GQLRequestFailed(GQLException):
         super().__init__("Authenticated GraphQL request failed (SESSION_REQUEST)")
 
 
+class GQLInventoryListInvalid(GQLException):
+    """A rejected campaign collection has not replaced the current inventory."""
+
+    def __init__(self):
+        super().__init__("Invalid campaign list response")
+
+
 class GQLInvalidResponse(GQLException):
     """A malformed structured reply is not evidence for estimated progress."""
 
