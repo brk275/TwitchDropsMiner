@@ -1352,6 +1352,16 @@ The application uses a web-based interface accessible via browser:
 - Installs dependencies from `pyproject.toml`, then removes installed pip and its vendored
   modules; Python's bundled `ensurepip` bootstrap wheel remains. Dependency changes
   require rebuilding the image.
+- Keep metadata-only `BUILD_DATE`, `VCS_REF` and `VERSION` declarations and OCI
+  labels after filesystem-building instructions so metadata changes do not invalidate
+  dependency/source caches. Retain all label names, empty defaults and runtime
+  configuration. These arguments do not set the Python package version or refresh
+  packages; security rebuilds must still use `--pull --no-cache`. The Docker release
+  workflow sets `pull: true` and `no-cache: true` explicitly; validation retains its
+  cache and does not publish. Never dispatch a release as part of cache testing.
+  Regressions:
+  `tests/test_docker_metadata_cache.py` plus actual metadata-only builds on both
+  architectures, verifying labels, unchanged runtime configuration and shared layers.
 - Exposes port 8080
 - Health check on the public `/healthz` endpoint
 

@@ -49,6 +49,14 @@ Alpine packages. The runtime includes noVNC's browser library; its unused websoc
 server dependencies are excluded. Published images need a maintainer rebuild to
 pick up fixes; Chromium updates depend on availability in Alpine's repositories.
 
+Source builds declare image metadata (`BUILD_DATE`, `VCS_REF`, `VERSION`) after
+package installation and source layers so label-only changes can reuse those
+caches; see Docker's [build-argument cache rules](https://docs.docker.com/reference/dockerfile/#impact-on-build-caching).
+These arguments do not change the application's package version or refresh
+dependencies. Use the security-rebuild command above when fresh packages are needed.
+The Docker release workflow explicitly pulls current bases and bypasses layer caches;
+validation and ordinary local builds can reuse cached layers.
+
 To retain file logs outside the container, also mount `./logs:/app/logs`. You can read
 the container's console output with:
 
