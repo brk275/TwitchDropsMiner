@@ -213,6 +213,16 @@ in those batch replies retain the previous state. A request failure is not proof
 a campaign expired or an account became unlinked. Report recurring fixed validation
 errors instead of deleting credentials or repeatedly clearing all data.
 
+Live channel checks retain task ownership through the request. Repeated events before
+dispatch share one check; events during a request queue a delayed, sequential follow-up.
+Replies superseded by a newer applied stream observation cannot restore stale state.
+Stream-down and removal retire pending checks; account cleanup joins them even when
+cancellation takes time. Failed lookups retain known stream state. A queued event can
+retry a failed lookup, but authentication failures, shutdown requests and publication
+errors do not trigger that retry. Account cleanup also invalidates old checks even
+if an adapter explicitly clears task cancellation. This does not order every
+discovery/bulk response or establish Twitch earning progress.
+
 Rediscovery reselects a live channel when the watched channel is removed from the
 tracking list, including at its capacity limit, or is no longer eligible in the
 refreshed snapshot. It does not keep watching the old, untracked channel object.

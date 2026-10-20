@@ -102,6 +102,7 @@ class Twitch:
         self.watching_channel: AwaitableValue[Channel] = AwaitableValue()
         self._watching_task: asyncio.Task[None] | None = None
         self._channel_tasks: set[asyncio.Task[Any]] = set()
+        self._channel_tasks_generation: int = 0
         self._watching_restart = asyncio.Event()
         # Manual mode tracking
         self._manual_target_channel: Channel | None = None
@@ -240,6 +241,7 @@ class Twitch:
 
     async def _stop_channel_tasks(self) -> None:
         """Drain online checks even after their pending display marker is cleared."""
+        self._channel_tasks_generation += 1
         tasks = tuple(self._channel_tasks)
         for task in tasks:
             if not task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.

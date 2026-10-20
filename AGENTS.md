@@ -177,6 +177,21 @@ lang/                # Translation JSON files (20 languages)
 
 **src/services/** - Business logic layer (fully implemented):
 
+- `Channel` owns managed stream refreshes for their entire delay/query/follow-up
+  lifetime, separately from the pending-online display marker. Coalesce events
+  before dispatch and serialize event-driven follow-ups. Retire publication authority
+  on offline/removal and newer applied stream observations, including nulls and
+  same-broadcast replacements. Cancellation requests independently prevent late
+  publication/name fill. Keep retired workers registered until completion so account
+  cleanup joins them; never spawn autonomous retry children or let an old done callback
+  clear a replacement. `_stop_channel_tasks()` advances an account generation before
+  cancellation; captured reads and follow-ups must reject that retired generation
+  even if an adapter calls `uncancel()`. Retry only failed lookups with a queued event,
+  not login/exit or publication errors. Preserve direct-call interfaces, playlist cache continuity,
+  known stream state on failure and existing display semantics. This is not universal
+  discovery/bulk ordering or proof of earning. Regressions:
+  `tests/test_channel_refresh_ownership.py`.
+
 - `DeadlineService` is fork-only opt-in through `TDM_SMART_DEADLINES=true`.
   Preserve saved ranks, manual mode, strict/fallback and all earning gates. Budget
   real watched minutes only, all unique unclaimed prerequisites with individual

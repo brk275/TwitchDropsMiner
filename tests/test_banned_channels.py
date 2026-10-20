@@ -416,7 +416,9 @@ async def test_delayed_online_check_cannot_redisplay_a_filtered_banned_channel(m
         channel.remove()
         assert manager.get_channels() == []
         release.set()
-        await asyncio.wait_for(asyncio.gather(*tasks), 1)
+        outcomes = await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), 1)
+        assert all(not isinstance(result, BaseException)
+                   or isinstance(result, asyncio.CancelledError) for result in outcomes)
         assert manager.get_channels() == []
         assert not WatchService(client).can_watch(channel)
     finally:
