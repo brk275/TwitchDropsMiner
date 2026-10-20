@@ -99,6 +99,14 @@ If the channel becomes unavailable, TDM tries another eligible channel for that 
 Use **Return to Auto Mode** to resume normal game priorities. Manual mode also ends
 when its game has no remaining eligible drops or no suitable channel is available.
 
+Source builds keep the manual game pinned across live channel updates. If the
+watched channel changes category, TDM tries an eligible replacement for the original
+game. Without one, it resumes automatic selection among tracked channels in the
+same pass. An explicit eligible channel choice can replace the manual target;
+choosing an uncategorized special-event participant clears the previous manual
+target. Returning to automatic mode also removes the manual game's temporary
+priority boost. Your saved game rankings remain unchanged.
+
 ### Now Watching and dashboard updates
 
 **Show thumbnail** is off on each page load. Enabling it displays a Twitch JPEG

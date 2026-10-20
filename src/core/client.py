@@ -846,19 +846,22 @@ class Twitch:
 
                 # Handle user selection
                 if selected_channel is not None and self.can_watch(selected_channel):
-                    # Check if this is a game change -> enter manual mode
-                    if watching_channel and selected_channel.game != watching_channel.game:
+                    if self.is_manual_mode() and selected_channel.game is None:
+                        self.clear_manual_mode("Selected channel has no game")
+                    elif self.is_manual_mode() or (
+                        watching_channel and selected_channel.game != watching_channel.game
+                    ):
                         self.enter_manual_mode(selected_channel)
                     new_watching = selected_channel
                 # Handle manual mode
                 elif self.is_manual_mode():
                     # Try to stay on manual target channel
-                    if self._manual_target_channel and self.can_watch(self._manual_target_channel):
+                    if self._manual_target_channel and self.can_watch_in_current_mode(self._manual_target_channel):
                         new_watching = self._manual_target_channel
                     else:
                         # Manual channel offline, find another channel for same game
                         for channel in channels.values():
-                            if channel.game == self._manual_target_game and self.can_watch(channel):
+                            if self.can_watch_in_current_mode(channel):
                                 new_watching = channel
                                 self._manual_target_channel = channel
                                 game_name = (
@@ -872,9 +875,11 @@ class Twitch:
                                 break
                         # No channels available for manual game -> exit manual mode
                         if new_watching is None:
-                            self.exit_manual_mode("No channels available for manual game")
+                            self.clear_manual_mode("No channels available for manual game")
+                if self._state is State.EXIT:  # type: ignore[comparison-overlap]  # Mode publication may request shutdown.
+                    continue
                 # Auto-select best channel based on priority
-                else:
+                if new_watching is None and not self.is_manual_mode():
                     for channel in sorted(
                         channels.values(), key=self._channel_service.get_mining_priority
                     ):
@@ -891,7 +896,7 @@ class Twitch:
                     ) is not None:
                         active_drop.display(countdown=False, subone=True)
                     self._state_change.clear()
-                elif watching_channel is not None and self.can_watch(watching_channel):
+                elif watching_channel is not None and self.can_watch_in_current_mode(watching_channel):
                     # Continue watching current channel
                     if self.is_manual_mode() and self._manual_target_game:
                         status_text = f"🎯 Manual Mode: Watching {watching_channel.name} for {self._manual_target_game.name}"
@@ -920,6 +925,10 @@ class Twitch:
     def can_watch(self, channel: Channel) -> bool:
         """Delegate to WatchService."""
         return self.is_mining_time() and self._watch_service.can_watch(channel)
+
+    def can_watch_in_current_mode(self, channel: Channel) -> bool:
+        """Delegate automatic replacements while preserving the manual game."""
+        return self.is_mining_time() and self._watch_service.can_watch_in_current_mode(channel)
 
     def should_switch(self, channel: Channel) -> bool:
         """Delegate to WatchService."""
@@ -960,10 +969,11 @@ class Twitch:
         # Broadcast manual mode change to GUI
         self.gui.broadcast_manual_mode_change(self.get_manual_mode_info())
 
-    def clear_manual_mode(self, reason: str = "") -> bool:
+    def clear_manual_mode(self, reason: str = "", *, restore_priorities: bool = True) -> bool:
         """Clear manual targeting without changing the state machine.
 
-        Returns whether any manual target was present.
+        Restore automatic priorities unless inventory is being discarded. Returns
+        whether any manual target was present.
         """
         if self._manual_target_channel is None and self._manual_target_game is None:
             return False
@@ -975,6 +985,8 @@ class Twitch:
 
         self._manual_target_channel = None
         self._manual_target_game = None
+        if restore_priorities:
+            self.wanted_games = self._stream_selector.get_wanted_games(self.settings, self.inventory)
         self.gui.broadcast_manual_mode_change(self.get_manual_mode_info())
         return True
 

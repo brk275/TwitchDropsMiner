@@ -35,8 +35,10 @@ def _client():
         watching_channel=AwaitableValue(),
         request=MagicMock(),
         request_games_update=MagicMock(),
+        is_manual_mode=lambda: False,
     )
     client._channel_service = ChannelService(client)
+    client.can_watch_in_current_mode = WatchService(client).can_watch_in_current_mode
     return client
 
 

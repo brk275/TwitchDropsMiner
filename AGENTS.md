@@ -157,6 +157,19 @@ lang/                # Translation JSON files (20 languages)
   Reconcile manual channel references too, retaining the manual game intent.
   Regressions in `tests/test_discovery_watch_recovery.py` include actual tracking-cap
   eviction, fresh bans and drops-disabled streams in automatic and manual mode.
+- `WatchService.can_watch_in_current_mode()` shares manual-game admission across
+  live callbacks and the main selector. Preserve generic `can_watch()` for explicit
+  choices, special-category ACL eligibility and progress reconciliation. Revalidate
+  the manual target's current category; use an eligible same-game alternative or
+  clear manual mode and run normal automatic selection in the same state pass.
+  An explicit eligible choice refreshes an existing manual target, including a
+  same-game channel change; an uncategorized choice clears prior manual intent.
+  Clearing manual intent restores ordinary runtime game priorities before publishing
+  the mode change; cache/account teardown skips that recalculation before discarding
+  inventory. Do not consume a shutdown request during manual-exit fallthrough.
+  Preserve saved rankings, automatic ties, earning gates, mining hours and pending
+  requests. This does not establish Twitch progress. Regressions:
+  `tests/test_manual_game_selection.py`.
 - Composes `_AuthState`, `HTTPClient`, and `GQLClient`
 - Delegates to service layer for business logic
 - Drop progress monitoring via periodic "watch" payloads

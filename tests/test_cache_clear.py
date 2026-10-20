@@ -42,6 +42,9 @@ def _make_cache_test_client() -> tuple[Any, dict[str, object], MagicMock, MagicM
     twitch._watching_restart = asyncio.Event()
     twitch._manual_target_channel = channel
     twitch._manual_target_game = game
+    twitch._stream_selector = SimpleNamespace(
+        get_wanted_games=MagicMock(side_effect=AssertionError("Do not select during cache teardown")),
+    )
 
     twitch.websocket = MagicMock(name="websocket")
     twitch.gui = SimpleNamespace(
@@ -106,6 +109,7 @@ def test_clear_cached_state_discards_only_derived_runtime_state():
     assert twitch.settings == settings_snapshot
     assert twitch._auth_state is original_auth_state
     assert auth_state.mock_calls == []
+    twitch._stream_selector.get_wanted_games.assert_not_called()
 
 
 @pytest.mark.asyncio

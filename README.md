@@ -24,7 +24,8 @@ services operated for other users are outside its support scope.
 - [Mine other eligible games as fallback](docs/usage.md#choose-games-and-priorities)
   while preserving your saved priority list.
 - Choose reward types, track campaigns and rewards, and ignore drops you do not want;
-  see [selection guidance](docs/usage.md#choose-games-and-priorities).
+  see [game selection](docs/usage.md#choose-games-and-priorities) and
+  [manual channel selection](docs/usage.md#channels-and-manual-selection).
 - Skip channels while Twitch reports an active ban, including temporary bans.
 - Sign in inside the dashboard; TDM saves and renews your session automatically.
 - Review claimed-drop history, export it to CSV, and receive Telegram or Discord notifications.
