@@ -138,6 +138,12 @@ lang/                # Translation JSON files (20 languages)
 - Starts the FastAPI web server (uvicorn on port 8080)
 - Runs the main asyncio event loop
 - Handles signals (SIGINT, SIGTERM on Linux) and exit codes
+- Startup logging reports only whether an outbound proxy is configured. Never log
+  the proxy URL, userinfo, host, path or query, including malformed values; do not
+  modify the actual proxy setting or routing. This does not sanitize old logs or
+  all exception paths. Regressions: `tests/test_startup_proxy_redaction.py` execute
+  the real entrypoint with mocked miner/server work and inspect log records,
+  console output and the rotating file log.
 
 **src/core/client.py** - Central client (`Twitch` class):
 

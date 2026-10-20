@@ -306,6 +306,11 @@ File logs are written to `logs/TDM.log`; the supplied Compose configuration pers
 that directory. A custom `docker run` needs a `./logs:/app/logs` mount to retain those
 files outside the container.
 
+Source builds report only `Proxy: configured` or `Proxy: disabled` at startup,
+without printing the outbound proxy URL or embedded credentials. This does not change
+the configured proxy or routing, remove sensitive values from older logs,
+or guarantee that every exception is sanitized; inspect excerpts before sharing.
+
 Before [opening an issue](https://github.com/rangermix/TwitchDropsMiner/issues), search
 for an existing report and read [CONTRIBUTING.md](../CONTRIBUTING.md). Include the TDM
 version or source revision, installation method, operating system, relevant browser,
