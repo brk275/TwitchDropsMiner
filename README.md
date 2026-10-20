@@ -39,7 +39,7 @@ When reporting a problem, include the image tag and digest or the Git commit.
 
 See [dashboard and progress guidance](docs/usage.md#progress-display),
 [local claim history](docs/usage.md#drop-history), and
-[source-build recovery](docs/troubleshooting.md#source-build-recovery).
+[source-build recovery for network and channel failures](docs/troubleshooting.md#source-build-recovery).
 For bug reports, **Settings → Dump diagnosis data** saves deidentified state and
 bounded, sanitized API evidence locally; see [diagnosis data](docs/troubleshooting.md#save-diagnosis-data).
 

@@ -151,6 +151,12 @@ lang/                # Translation JSON files (20 languages)
   or a hard cleanup deadline. Regressions: `tests/test_shutdown_mining_ownership.py`.
 
 - State machine: IDLE, INVENTORY_FETCH, GAMES_UPDATE, CHANNELS_CLEANUP, CHANNELS_FETCH, CHANNEL_SWITCH, EXIT
+- Channel rediscovery clears a watched owner missing from the retained channels or
+  no longer eligible in the refreshed snapshot. Do not continue the old object:
+  it may no longer receive offline events. Preserve eligible refreshed owners.
+  Reconcile manual channel references too, retaining the manual game intent.
+  Regressions in `tests/test_discovery_watch_recovery.py` include actual tracking-cap
+  eviction, fresh bans and drops-disabled streams in automatic and manual mode.
 - Composes `_AuthState`, `HTTPClient`, and `GQLClient`
 - Delegates to service layer for business logic
 - Drop progress monitoring via periodic "watch" payloads

@@ -791,13 +791,26 @@ class Twitch:
                 self.websocket.add_topics(to_add_topics)
                 # relink watching channel after cleanup
                 # NOTE: this replaces 'self.watching_channel's internal value with the new object
-                # Don't call stop_watching() here - let CHANNEL_SWITCH handle it to avoid clearing drop display
+                # An omitted channel no longer receives tracked stream updates.
+                if self._manual_target_channel is not None:
+                    refreshed_target = channels.get(self._manual_target_channel.id)
+                    if (refreshed_target is None or refreshed_target.game != self._manual_target_game
+                            or not self.can_watch(refreshed_target)):
+                        refreshed_target = next((
+                            channel for channel in channels.values()
+                            if channel.game == self._manual_target_game and self.can_watch(channel)
+                        ), None)
+                    if refreshed_target is not None:
+                        self._manual_target_channel = refreshed_target
+                    else:
+                        self.clear_manual_mode("No channels available for manual game")
                 watching_channel = self.watching_channel.get_with_default(None)
                 if watching_channel is not None:
                     new_watching: Channel | None = channels.get(watching_channel.id)
                     if new_watching is not None and self.can_watch(new_watching):
                         self.watch(new_watching, update_status=False)
-                    # If channel not found, CHANNEL_SWITCH will handle selecting a new one
+                    else:
+                        self.stop_watching()
                     del new_watching
                 # pre-display the active drop with a substracted minute
                 for channel in channels.values():

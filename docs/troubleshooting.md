@@ -211,6 +211,13 @@ in those batch replies retain the previous state. A request failure is not proof
 a campaign expired or an account became unlinked. Report recurring fixed validation
 errors instead of deleting credentials or repeatedly clearing all data.
 
+Rediscovery reselects a live channel when the watched channel is removed from the
+tracking list, including at its capacity limit, or is no longer eligible in the
+refreshed snapshot. It does not keep watching the old, untracked channel object.
+Manual mode retains the selected game when an eligible same-game alternative is
+available; without one, it returns to automatic selection. This recovery depends
+on discovery running and does not guarantee uninterrupted progress.
+
 Claims need usable, error-free confirmation. An invalid reply remains unconfirmed,
 and malformed claim-ready IDs are ignored without discarding a known ID. When explicit
 claim state is absent, completion is inferred only when all of a drop's rewards have
