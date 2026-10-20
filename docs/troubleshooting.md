@@ -220,6 +220,10 @@ Manual mode retains the selected game when an eligible same-game alternative is
 available; without one, it returns to automatic selection. This recovery depends
 on discovery running and does not guarantee uninterrupted progress.
 
+Malformed live viewer-count updates retain the previous count, avoiding invalid
+sort values. Later valid nonnegative integer counts, including zero, still apply.
+This does not validate all initial channel metadata or prove earning progress.
+
 Claims need usable, error-free confirmation. An invalid reply remains unconfirmed,
 and malformed claim-ready IDs are ignored without discarding a known ID. When explicit
 claim state is absent, completion is inferred only when all of a drop's rewards have

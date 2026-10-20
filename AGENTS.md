@@ -268,6 +268,11 @@ lang/                # Translation JSON files (20 languages)
 - `Stream` class: Active stream with game, viewers, drop status
 - Stream URL fetching and validation
 - ACL-based vs directory channels
+- `Channel.viewers` assignments accept only plain nonnegative integers. Invalid
+  live viewcount updates retain the previous count without coercion or changing
+  stream identity/status; later valid counts, including zero, remain accepted.
+  This guards live assignments, not initial GraphQL stream metadata or already
+  corrupted models. Regressions: `tests/test_channel_viewer_updates.py`.
 - `Channel.banned` accepts an error-free, matching-channel `user.self.banStatus`
   object with boolean `isPermanent`. Both true and false mean an active ban; false
   identifies a temporary ban. Null explicitly clears a ban. Missing, malformed or
