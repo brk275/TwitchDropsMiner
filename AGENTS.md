@@ -359,6 +359,18 @@ lang/                # Translation JSON files (20 languages)
 
 **src/models/drop.py** - Drop types:
 
+- `ClaimState` retains only accepted claim acknowledgements by campaign/drop identity
+  for one authenticated account lifetime. Bind each campaign to that owner. Reconcile
+  replacement inventory and the installed model synchronously before optional delivery;
+  normalize claimed minutes without replaying history or alerts. Cache clearing and
+  same-account credential renewal retain evidence. Authentication replacement retires
+  the old owner after its work drains, even on cancellation, then creates an empty one.
+  Never use account-unbound persisted history as claim authority, fabricate confirmation
+  after cancellation or replay ambiguous writes. This evidence is process-local, not
+  progress receipt metadata or persistence across restarts. Inventory display accepts
+  only its exact campaign/drop owner. Serialize its sends, reject superseded queued
+  snapshots and finish an admitted emit before its replacement; no delivery retry or
+  hard timeout is added. Regressions: `tests/test_claim_inventory_ownership.py`.
 - `TimedDrop`: Drops with minute requirements and progress
 - `TimedDrop.update_minutes()` accepts only a plain integer before arithmetic or
   state changes. Ignore booleans, floats (including NaN/infinity), strings,

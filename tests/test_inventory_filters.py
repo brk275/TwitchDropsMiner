@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.config.settings import default_settings
+from src.models.claim_state import ClaimState
 from src.utils import merge_json
 from src.web.managers.inventory import InventoryManager
 from tests.javascript_helpers import APP_JS, NODE, extract_javascript_function
@@ -52,6 +53,8 @@ class TestInventoryDropUpdates(unittest.IsolatedAsyncioTestCase):
         starts_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
         ends_at = starts_at + timedelta(days=1)
         campaign = SimpleNamespace(
+            _twitch=SimpleNamespace(),
+            claim_state=ClaimState(),
             id="campaign-1",
             name="Campaign 1",
             game=SimpleNamespace(name="Game 1", box_art_url="https://example.test/game.jpg"),
@@ -81,6 +84,7 @@ class TestInventoryDropUpdates(unittest.IsolatedAsyncioTestCase):
             ends_at=ends_at,
         )
         campaign.drops = [drop]
+        campaign.timed_drops = {drop.id: drop}
 
         await manager.add_campaign(campaign)
         broadcaster.emit.reset_mock()

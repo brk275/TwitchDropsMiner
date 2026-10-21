@@ -19,6 +19,7 @@ from src.config import GQL_OPERATIONS
 from src.exceptions import ExitRequest, GQLException, GQLInventoryListInvalid
 from src.i18n import _
 from src.models import DropsCampaign
+from src.models.claim_state import ClaimState
 from src.utils import chunk
 
 
@@ -183,11 +184,14 @@ class InventoryService:
         5. Updates GUI with campaign information
         6. Sets up maintenance triggers for campaign timing changes
         """
+        claim_state = ClaimState.for_client(self._twitch)
         status_update = self._twitch.gui.status.update
         status_update(_.t["gui"]["status"]["fetching_inventory"])
 
         # fetch in-progress campaigns (inventory)
         response = await self._twitch.gql_request(GQL_OPERATIONS["Inventory"])
+        if not claim_state.active:
+            return
         inventory: JsonType = response["data"]["currentUser"]["inventory"]
         inventory_data = self._campaigns_by_id(inventory["dropCampaignsInProgress"])
 
@@ -196,6 +200,8 @@ class InventoryService:
 
         # fetch general available campaigns data (campaigns)
         response = await self._twitch.gql_request(GQL_OPERATIONS["Campaigns"])
+        if not claim_state.active:
+            return
         available_by_id = self._campaigns_by_id(response["data"]["currentUser"]["dropCampaigns"])
         applicable_statuses = ("ACTIVE", "UPCOMING")
         available_campaigns: dict[str, JsonType] = {
@@ -229,6 +235,9 @@ class InventoryService:
                 task.cancel()
             await asyncio.gather(*fetch_campaigns_tasks, return_exceptions=True)
 
+        if not claim_state.active:
+            return
+
         # filter out invalid campaigns
         for campaign_id in list(inventory_data.keys()):
             if inventory_data[campaign_id]["game"] is None:
@@ -242,6 +251,13 @@ class InventoryService:
         campaigns.sort(key=lambda c: c.active, reverse=True)
         campaigns.sort(key=lambda c: c.upcoming and c.starts_at or c.ends_at)
         campaigns.sort(key=lambda c: c.eligible, reverse=True)
+
+        # Accepted claims are monotonic within this account, even if the read
+        # preceded the acknowledgement or omitted its instance ID.
+        for campaign in campaigns:
+            for drop in campaign.drops:
+                if claim_state.contains(campaign.id, drop.id):
+                    drop._set_claimed()
 
         self._clear_inventory_state()
         switch_triggers: set[datetime] = set()

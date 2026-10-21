@@ -184,19 +184,39 @@ class BaseDrop:
             return []
         return [benefit.name for benefit in self.benefits if benefit.is_wanted(allowed_benefits)]
 
-    def _apply_claim_result(self, result: bool) -> bool:
-        """Commit a claim result synchronously; return whether it is newly claimed."""
-        newly_claimed = result and not self.is_claimed
-        if newly_claimed:
+    def _set_claimed(self) -> None:
+        """Apply positive state without replaying claim history or notifications."""
+        if not self.is_claimed:
             self.is_claimed = True
             self.campaign.progress_revision += 1
+
+    def _current_drop(self) -> BaseDrop | None:
+        campaigns = getattr(self._twitch, "_campaigns", None)
+        campaign = campaigns.get(self.campaign.id) if isinstance(campaigns, dict) else None
+        if campaign is not None and campaign.claim_state is self.campaign.claim_state:
+            return campaign.timed_drops.get(self.id)
+        return None
+
+    def _apply_claim_result(self, result: bool) -> bool:
+        """Commit accepted evidence and both model owners before optional delivery."""
+        newly_claimed = False
+        if result and not self.is_claimed:
+            newly_claimed = self.campaign.claim_state.confirm(self.campaign.id, self.id)
+            self._set_claimed()
+            if (current := self._current_drop()) is not None and current is not self:
+                current._set_claimed()
+        if newly_claimed:
             # A mixed campaign can still earn unwanted rewards after its last
             # wanted claim. Rebuild policy so fallback can take over promptly.
             self._twitch.request_games_update()
         return newly_claimed
 
     async def claim(self) -> bool:
+        if not self.campaign.claim_state.active:
+            return False
         result = await self._claim()
+        if not self.campaign.claim_state.active:
+            return False
         # Commit confirmed state before an optional notification can be cancelled.
         if self._apply_claim_result(result):
             claim_text = (
@@ -242,6 +262,8 @@ class BaseDrop:
         """
         Returns True if the claim succeeded, False otherwise.
         """
+        if self.campaign.claim_state.contains(self.campaign.id, self.id):
+            self._set_claimed()
         if self.is_claimed:
             return True
         if not self.can_claim:
@@ -414,8 +436,15 @@ class TimedDrop(BaseDrop):
             self.extra_current_minutes = 0
             if newly_claimed:
                 self._twitch.drop_history.record(self, self.campaign)
+            if (current := self._current_drop()) is not None and current is not self:
+                current._on_state_changed()
         self._on_state_changed()
         return newly_claimed
+
+    def _set_claimed(self) -> None:
+        super()._set_claimed()
+        self.real_current_minutes = self.required_minutes
+        self.extra_current_minutes = 0
 
     def display(self, *, countdown: bool = True, subone: bool = False) -> None:
         """Display this drop in the GUI with progress information."""

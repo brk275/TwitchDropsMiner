@@ -29,6 +29,29 @@ class InventoryManager:
         self._cache = cache
         self._campaigns: dict[str, dict[str, Any]] = {}
         self._batch_mode: bool = False
+        self._owners: dict[str, DropsCampaign] = {}
+        self._revisions: dict[str, int] = {}
+        self._generation = 0
+        self._send_lock = asyncio.Lock()
+
+    async def _emit_current(
+        self, event: str, data: dict[str, Any], generation: int,
+        campaign: DropsCampaign | None = None, revision: int = 0,
+    ) -> None:
+        async with self._send_lock:
+            if generation != self._generation:
+                return
+            if campaign is not None and (
+                not campaign.claim_state.active
+                or self._owners.get(campaign.id) is not campaign
+                or event != "campaign_add" and self._revisions.get(campaign.id) != revision
+            ):
+                return
+            if event == "campaign_add" and campaign is not None:
+                data = self._campaigns[campaign.id]
+            if event == "inventory_batch_update":
+                data = {"campaigns": list(self._campaigns.values())}
+            await self._broadcaster.emit(event, data)
 
     @staticmethod
     def _campaign_progress(
@@ -113,7 +136,17 @@ class InventoryManager:
     def clear(self):
         """Clear all campaigns from inventory."""
         self._campaigns.clear()
-        asyncio.create_task(self._broadcaster.emit("inventory_clear", {}))
+        self._owners.clear()
+        self._revisions.clear()
+        self._generation += 1
+        asyncio.create_task(self._emit_current("inventory_clear", {}, self._generation))
+
+    @staticmethod
+    def _is_current_owner(campaign: DropsCampaign) -> bool:
+        current = getattr(campaign._twitch, "_campaigns", None)
+        return campaign.claim_state.active and (
+            not isinstance(current, dict) or current.get(campaign.id) is campaign
+        )
 
     async def add_campaign(self, campaign: DropsCampaign):
         """Add a campaign to the inventory display.
@@ -121,15 +154,21 @@ class InventoryManager:
         Args:
             campaign: The drop campaign to add
         """
+        if not self._is_current_owner(campaign):
+            return
         campaign_data = self._serialize_campaign(campaign)
         if campaign_data is None:
             return
 
         self._campaigns[campaign.id] = campaign_data
+        self._owners[campaign.id] = campaign
+        revision = self._revisions[campaign.id] = self._revisions.get(campaign.id, 0) + 1
 
         # Only emit immediately if not in batch mode
         if not self._batch_mode:
-            await self._broadcaster.emit("campaign_add", campaign_data)
+            await self._emit_current(
+                "campaign_add", campaign_data, self._generation, campaign, revision,
+            )
 
     def update_drop(self, drop: TimedDrop):
         """Update a specific drop's progress within its campaign.
@@ -138,11 +177,14 @@ class InventoryManager:
             drop: The drop to update
         """
         campaign_id = drop.campaign.id
-        if campaign_id in self._campaigns:
+        if (drop.campaign.claim_state.active
+                and self._owners.get(campaign_id) is drop.campaign
+                and drop.campaign.timed_drops.get(drop.id) is drop):
             campaign_data = self._serialize_campaign(drop.campaign)
             if campaign_data is None:
                 return
             self._campaigns[campaign_id] = campaign_data
+            revision = self._revisions[campaign_id] = self._revisions.get(campaign_id, 0) + 1
             drop_data = next(
                 (item for item in campaign_data["drops"] if item["id"] == drop.id),
                 None,
@@ -153,15 +195,15 @@ class InventoryManager:
                 # mineable. Re-broadcast the complete inventory using the established
                 # batch contract instead of sending an invalid hidden-drop update.
                 asyncio.create_task(
-                    self._broadcaster.emit(
-                        "inventory_batch_update",
-                        {"campaigns": list(self._campaigns.values())},
+                    self._emit_current(
+                        "inventory_batch_update", {}, self._generation,
+                        drop.campaign, revision,
                     )
                 )
                 return
             campaign_progress = self._campaign_progress(campaign_data["drops"])
             asyncio.create_task(
-                self._broadcaster.emit(
+                self._emit_current(
                     "drop_update",
                     {
                         "campaign_id": campaign_id,
@@ -169,20 +211,26 @@ class InventoryManager:
                         "drop": drop_data,
                         "drops": campaign_data["drops"],
                     },
+                    self._generation, drop.campaign, revision,
                 )
             )
 
     def refresh_campaigns(self, campaigns: Iterable[DropsCampaign]) -> None:
         """Re-serialize and broadcast all campaign policy state atomically."""
         refreshed: dict[str, dict[str, Any]] = {}
+        owners: dict[str, DropsCampaign] = {}
         for campaign in campaigns:
+            if not self._is_current_owner(campaign):
+                continue
             if (campaign_data := self._serialize_campaign(campaign)) is not None:
                 refreshed[campaign.id] = campaign_data
+                owners[campaign.id] = campaign
         self._campaigns = refreshed
+        self._owners = owners
+        self._revisions.clear()
+        self._generation += 1
         asyncio.create_task(
-            self._broadcaster.emit(
-                "inventory_batch_update", {"campaigns": list(refreshed.values())}
-            )
+            self._emit_current("inventory_batch_update", {}, self._generation)
         )
 
     def start_batch(self):
@@ -193,6 +241,9 @@ class InventoryManager:
         """
         self._batch_mode = True
         self._campaigns.clear()
+        self._owners.clear()
+        self._revisions.clear()
+        self._generation += 1
 
     async def finalize_batch(self):
         """Finalize batch mode and emit all campaigns atomically.
@@ -201,8 +252,7 @@ class InventoryManager:
         preventing UI flicker from individual adds.
         """
         self._batch_mode = False
-        campaigns_data = list(self._campaigns.values())
-        await self._broadcaster.emit("inventory_batch_update", {"campaigns": campaigns_data})
+        await self._emit_current("inventory_batch_update", {}, self._generation)
 
     def get_campaigns(self) -> list[dict[str, Any]]:
         """Get all campaigns in inventory.

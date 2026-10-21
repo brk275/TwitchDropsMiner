@@ -12,6 +12,7 @@ from dateutil.parser import isoparse
 from src.config.constants import State
 from src.exceptions import MinerException
 from src.models.channel import Channel
+from src.models.claim_state import ClaimState
 from src.models.drop import TimedDrop
 from src.models.game import Game
 from src.utils import DropIgnoreEvaluation, DropIgnorePolicy, DropIgnoreReason
@@ -48,6 +49,7 @@ class DropsCampaign:
                 raise MinerException("Invalid campaign drop list")
             drop_data_by_id[drop_id] = drop_data
         self._twitch: Twitch = twitch
+        self.claim_state = ClaimState.for_client(twitch)
         # Shared progress updates can affect every eligible sibling drop.
         self.progress_revision: int = 0
         self.id: str = data["id"]

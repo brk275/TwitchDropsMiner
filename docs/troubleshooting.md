@@ -238,6 +238,13 @@ Claims need usable, error-free confirmation. An invalid reply remains unconfirme
 and malformed claim-ready IDs are ignored without discarding a known ID. When explicit
 claim state is absent, completion is inferred only when all of a drop's rewards have
 award history within its time window. An inference is not a new claim acknowledgement.
+Source builds retain accepted claim acknowledgements during the current login, so an
+overlapping or later stale inventory read cannot make those rewards unclaimed again.
+Refreshing or clearing derived cache does not resend those claims or repeat alerts.
+Old campaign models cannot overwrite newer dashboard state. Account replacement
+discards this process-local evidence after old work drains; saved claim history is
+not used to mark another account's rewards claimed. These protections do not persist
+across process restarts, retry cancelled notifications or prove new earning progress.
 Post-claim progress checks are advisory, time out after five seconds, and do not resend
 the claim or prevent the normal restart/refresh decision when their result is unusable.
 

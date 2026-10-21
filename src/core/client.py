@@ -38,6 +38,7 @@ from src.exceptions import (
 from src.i18n import _
 from src.models.campaign import DropsCampaign
 from src.models.channel import Channel
+from src.models.claim_state import ClaimState
 from src.services.channel_service import ChannelService
 from src.services.deadline_service import DeadlineService
 from src.services.inventory_service import InventoryService
@@ -81,6 +82,7 @@ class Twitch:
         self.inventory: list[DropsCampaign] = []
         self._drops: dict[str, TimedDrop] = {}
         self._campaigns: dict[str, DropsCampaign] = {}
+        self._claim_state = ClaimState()
         self._mnt_triggers: deque[datetime] = deque()
         # Client type and auth
         self._client_type: ClientInfo = ClientType.ANDROID_APP
@@ -205,6 +207,8 @@ class Twitch:
                 raise error
             yield
         finally:
+            self._claim_state.retire()
+            self._claim_state = ClaimState()
             self._auth_state.clear()
             self._channel_service.clear_bans()
             self.diagnostics.clear()

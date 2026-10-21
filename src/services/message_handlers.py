@@ -214,6 +214,14 @@ class MessageHandlerService:
                 return
             campaign = drop.campaign
             await drop.claim()
+            if not campaign.claim_state.active:
+                return
+            # Claim delivery can overlap a full inventory replacement.
+            drop = self._twitch._drops.get(drop_id)
+            if drop is None or drop.campaign.claim_state is not campaign.claim_state:
+                self._twitch.request_inventory_refresh()
+                return
+            campaign = drop.campaign
             drop.display()
 
             # About 4-20s after claiming the drop, next drop can be started
@@ -243,6 +251,14 @@ class MessageHandlerService:
                         break
                     await asyncio.sleep(2)
 
+            if not campaign.claim_state.active:
+                return
+            current = self._twitch._drops.get(drop_id)
+            if current is not None and current.campaign.claim_state is campaign.claim_state:
+                campaign = current.campaign
+            else:
+                self._twitch.request_inventory_refresh()
+                return
             if campaign.can_mine(watching_channel):
                 self._twitch.restart_watching()
             else:
