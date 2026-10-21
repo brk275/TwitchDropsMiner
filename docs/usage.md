@@ -236,6 +236,16 @@ Source builds accept whole-minute inventory refresh intervals from 1 to 1,440.
 Invalid saved intervals use the 30-minute default. An interval does not guarantee
 immediate discovery of campaigns announced between refreshes.
 
+Source builds also reassess known campaigns at their start/end times and just after
+rewards enter the normal one-hour selection lookahead. This lets earlier required
+drops become selectable without waiting for the next inventory read. These wakeups
+use normal game selection, claim-ready checks and channel searches; saved rankings,
+reward filters, manual mode and mining hours still apply. They do not widen the
+lookahead, prove Twitch credit or guarantee that a participating channel is available.
+
+The periodic inventory deadline stays unchanged. Editing its interval applies to
+the next cycle. Campaigns not yet returned by Twitch still require an inventory read.
+
 Clearing cache is useful for recovery; it cannot correct inaccurate campaign details
 returned by Twitch. If progress or eligibility still looks wrong, follow
 [Troubleshooting](troubleshooting.md).

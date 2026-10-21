@@ -39,7 +39,8 @@ For source builds, follow the [installation guide](docs/installation.md#build-a-
 When reporting a problem, include the image tag and digest or the Git commit.
 
 See [dashboard and progress guidance](docs/usage.md#progress-display),
-[local claim history](docs/usage.md#drop-history), and
+[local claim history](docs/usage.md#drop-history),
+[known campaign wakeups](docs/usage.md#refreshing-and-clearing-cache), and
 [source-build recovery for inventory reads, confirmed claims and stale channel lookups](docs/troubleshooting.md#source-build-recovery).
 For bug reports, **Settings → Dump diagnosis data** saves deidentified state and
 bounded, sanitized API evidence locally; see [diagnosis data and redacted logs](docs/troubleshooting.md#save-diagnosis-data).

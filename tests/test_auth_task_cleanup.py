@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.models.channel import Channel
-from src.websocket.websocket import Websocket
 from src.web.managers.login import LoginFormManager
+from src.websocket.websocket import Websocket
 from tests.test_session_lifecycle import miner
 
 
@@ -83,7 +83,7 @@ async def test_cancelled_fanout_drains_children_and_releases_provider_lock(tmp_p
             service.fetch_campaigns = AsyncMock(return_value={"one": data})
             monkeypatch.setattr("src.services.inventory_service.DropsCampaign", lambda *args: SimpleNamespace(
                 id="one", active=True, upcoming=False, ends_at=1, eligible=True,
-                drops=[], can_earn_within=lambda *_: False,
+                drops=[], can_earn_within=lambda *_: False, mining_time_triggers=set(),
             ))
             client.gui.inv.add_campaign = blocked
         operation = service.fetch_inventory()

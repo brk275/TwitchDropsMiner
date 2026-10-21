@@ -1,8 +1,8 @@
 """
-Maintenance service for periodic inventory reloads and cleanup triggers.
+Maintenance service for periodic inventory reloads and local policy triggers.
 
-This service manages scheduled tasks that trigger inventory fetches and channel cleanups
-based on campaign timing (starts/ends) and hourly reload cycles.
+This service queues game recalculation at known campaign boundaries while preserving
+the configured periodic inventory reload cycle.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
-from src.config import CALL, State
+from src.config import CALL
 from src.utils import task_wrapper
 
 
@@ -28,8 +28,8 @@ class MaintenanceService:
     Service responsible for periodic maintenance tasks.
 
     Handles:
-    - Hourly inventory reloads
-    - Campaign-triggered channel cleanups (when drops start/end)
+    - Configured periodic inventory reloads
+    - Campaign-triggered game recalculation
     - Task scheduling based on time triggers
     """
 
@@ -47,14 +47,14 @@ class MaintenanceService:
         """
         Execute the maintenance task loop.
 
-        This task monitors time triggers for channel cleanup and performs
-        periodic inventory reloads approximately every 60 minutes. The task
-        exits after each reload cycle and is restarted by fetch_inventory.
+        Keep the inventory deadline anchored to this cycle's configured interval.
+        Known policy changes queue the normal games-update path, including its
+        claim-ready checks and channel discovery. Inventory fetch restarts the task.
 
         The maintenance logic:
-        1. Wait until the next trigger (either a campaign time trigger or next hour)
-        2. If the trigger is a campaign timing change, request channel cleanup
-        3. After reaching the next hour boundary, request inventory reload
+        1. Wait for the next known boundary or periodic inventory deadline.
+        2. Coalesce elapsed boundaries into one queued games update.
+        3. At the periodic deadline, request inventory instead.
         """
         now = datetime.now(timezone.utc)
         next_period = now + timedelta(
@@ -68,10 +68,10 @@ class MaintenanceService:
                 break
 
             next_trigger = next_period
-            while self._twitch._mnt_triggers and self._twitch._mnt_triggers[0] <= next_trigger:
-                next_trigger = self._twitch._mnt_triggers.popleft()
+            if self._twitch._mnt_triggers:
+                next_trigger = min(next_trigger, self._twitch._mnt_triggers[0])
 
-            trigger_type: str = "Reload" if next_trigger == next_period else "Cleanup"
+            trigger_type: str = "Reload" if next_trigger == next_period else "Games update"
             logger.log(
                 CALL,
                 (
@@ -86,10 +86,15 @@ class MaintenanceService:
             now = datetime.now(timezone.utc)
             if now >= next_period:
                 break
+            if now < next_trigger:
+                # Timer resolution or a wall-clock correction can wake us early.
+                continue
 
             if next_trigger != next_period:
-                logger.log(CALL, "Maintenance task requests channels cleanup")
-                self._twitch.change_state(State.CHANNELS_CLEANUP)
+                while self._twitch._mnt_triggers and self._twitch._mnt_triggers[0] <= now:
+                    self._twitch._mnt_triggers.popleft()
+                logger.log(CALL, "Maintenance task requests games update")
+                self._twitch.request_games_update()
 
         # this triggers a restart of this task every (up to) <timedelta> minutes
         logger.log(CALL, "Maintenance task requests a reload")

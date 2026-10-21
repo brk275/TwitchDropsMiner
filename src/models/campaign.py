@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from dateutil.parser import isoparse
 
-from src.config.constants import State
+from src.config.constants import MINING_LOOKAHEAD, State
 from src.exceptions import MinerException
 from src.models.channel import Channel
 from src.models.claim_state import ClaimState
@@ -134,7 +134,7 @@ class DropsCampaign:
         """
         now = datetime.now(timezone.utc)
         if stamp is None:
-            stamp = now + timedelta(hours=1)
+            stamp = now + MINING_LOOKAHEAD
         if (not self.eligible or not self._valid or self.ends_at <= now
                 or self.starts_at >= stamp):
             return CampaignMiningSelection((), ())
@@ -214,6 +214,19 @@ class DropsCampaign:
                 *((d.starts_at, d.ends_at) for d in self.timed_drops.values()),
             )
         )
+
+    @property
+    def mining_time_triggers(self) -> set[datetime]:
+        """Known eligibility and strict lookahead-admission boundaries, independent of policy."""
+        triggers = self.time_triggers
+        for start in (self.starts_at, *(drop.starts_at for drop in self.drops)):
+            try:
+                # Selection excludes equality with the horizon, so wake just after it.
+                triggers.add(start - MINING_LOOKAHEAD + timedelta.resolution)
+            except OverflowError:
+                # A pre-datetime.min admission is already past any representable clock.
+                continue
+        return triggers
 
     @property
     def active(self) -> bool:

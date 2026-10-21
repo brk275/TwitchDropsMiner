@@ -53,6 +53,7 @@ MAX_CHANNELS = MAX_TOPICS // TOPICS_PER_CHANNEL
 DEFAULT_LANG = "English"
 
 # Intervals and Delays
+MINING_LOOKAHEAD = timedelta(hours=1)
 PING_INTERVAL = timedelta(minutes=3)
 PING_TIMEOUT = timedelta(seconds=10)
 ONLINE_DELAY = timedelta(seconds=120)

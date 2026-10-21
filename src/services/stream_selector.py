@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
+from src.config import MINING_LOOKAHEAD
 from src.config.settings import Settings
 from src.models.campaign import DropsCampaign
 from src.models.game import Game
@@ -11,7 +12,7 @@ class StreamSelector:
     ) -> list[dict]:
         wanted_drops = []
         for drop in campaign.mining_selection(
-            mining_benefits, stamp=now + timedelta(hours=1),
+            mining_benefits, stamp=now + MINING_LOOKAHEAD,
         ).targets:
             filtered_benefits = drop.get_wanted_unclaimed_benefits(mining_benefits)
 
@@ -87,7 +88,7 @@ class StreamSelector:
         games_to_watch = settings.games_to_watch
         mining_benefits = settings.mining_benefits
         now = datetime.now(timezone.utc)
-        next_hour = now + timedelta(hours=1)
+        next_hour = now + MINING_LOOKAHEAD
 
         for game_name in games_to_watch:
             wanted_campaigns = []

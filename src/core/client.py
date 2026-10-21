@@ -5,7 +5,7 @@ import logging
 import os
 from collections import OrderedDict, abc, deque
 from contextlib import asynccontextmanager, suppress
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from functools import partial
 from time import time
 from typing import TYPE_CHECKING, Any, Final, Literal
@@ -22,6 +22,7 @@ from src.auth.session_controller import SessionController
 from src.config import (
     COOKIES_PATH,
     MAX_CHANNELS,
+    MINING_LOOKAHEAD,
     ClientType,
     State,
     WebsocketTopic,
@@ -617,7 +618,7 @@ class Twitch:
                 # figure out which games we want based on selected priorities
                 self.wanted_games.clear()
                 games_to_watch: list[str] = self.settings.games_to_watch
-                next_hour: datetime = datetime.now(timezone.utc) + timedelta(hours=1)
+                next_hour: datetime = datetime.now(timezone.utc) + MINING_LOOKAHEAD
                 logger.info("games_to_watch: %s", games_to_watch)
                 logger.info("priority_list_only: %s", self.settings.priority_list_only)
                 logger.info(
@@ -720,7 +721,7 @@ class Twitch:
                 # NOTE: we use another set so that we can set them online separately
                 no_acl: set[Game] = set()
                 acl_channels: set[Channel] = set()
-                next_hour = datetime.now(timezone.utc) + timedelta(hours=1)
+                next_hour = datetime.now(timezone.utc) + MINING_LOOKAHEAD
                 for campaign in self.inventory:
                     if campaign.game in self.wanted_games and campaign.can_mine_within(next_hour):
                         if campaign.allowed_channels:

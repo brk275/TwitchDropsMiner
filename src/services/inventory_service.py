@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from dateutil.parser import isoparse
@@ -261,13 +261,12 @@ class InventoryService:
 
         self._clear_inventory_state()
         switch_triggers: set[datetime] = set()
-        next_hour = datetime.now(timezone.utc) + timedelta(hours=1)
 
         # add the campaigns to the internal inventory
         for campaign in campaigns:
             self._twitch._drops.update({drop.id: drop for drop in campaign.drops})
-            if campaign.can_earn_within(next_hour):
-                switch_triggers.update(campaign.time_triggers)
+            # Preferences can change without an inventory read. Keep their future events too.
+            switch_triggers.update(campaign.mining_time_triggers)
             self._twitch.inventory.append(campaign)
             self._twitch._campaigns[campaign.id] = campaign
 

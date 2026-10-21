@@ -272,6 +272,22 @@ lang/                # Translation JSON files (20 languages)
   Catalog metadata must not mask invalid retained minutes, claims or requirements.
 - `WatchService`: Drop mining watch payload logic
 - `MaintenanceService`: Periodic maintenance tasks
+- `MINING_LOOKAHEAD` is the existing fixed one-hour targeting horizon, shared by
+  campaign selection, queueing, manual eligibility and discovery. Keep actual raw
+  `time_triggers` separate from `DropsCampaign.mining_time_triggers`, which also
+  includes each campaign/drop start minus the horizon plus `timedelta.resolution`:
+  equality is excluded by selection. Skip unrepresentable pre-minimum admission
+  timestamps without losing raw events. Inventory retains all known timing events
+  independently of mutable preferences, deduplicates/sorts them and trims past events.
+  Maintenance queues `request_games_update()` rather than replacing the active state;
+  normal claim-ready checks and discovery can consequently run earlier. Coalesce
+  elapsed events after a delayed wake; retain and re-arm an event until its timestamp
+  is actually due, including after early timer wakes or clock corrections.
+  Preserve periodic inventory deadline precedence,
+  next-cycle interval edits, manual intent, off-hours deferral, pending inventory and
+  EXIT priority, account task ownership and claim/progress rules. This does not widen
+  selection, discover unknown campaigns or establish earning. Regressions:
+  `tests/test_campaign_wakeups.py` and `tests/test_campaign_wakeup_runtime.py`.
 - `MessageHandlerService`: Websocket message routing and handling
 - Claim-ready cooldown polling reuses `WatchService._current_drop_reading()` and the
   watch poll's five-second request timeout. Unusable returned data, GQLException
@@ -1061,8 +1077,12 @@ Persisted operations are defined in `src/config/operations.py` as `GQL_OPERATION
 
 Runs in background to trigger:
 
-- Channel cleanup when drops start/end (based on time_triggers)
-- Inventory reload every ~60 minutes
+- Queued game recalculation at known starts/ends and strict one-hour admission events
+  from `mining_time_triggers`, including normal claim-ready checks and discovery.
+- Inventory reload at the cycle's configured interval, not an unconditional hourly
+  read. Local wakeups keep that deadline anchored; interval edits apply next cycle.
+- Early wakes retain events; late wakes coalesce elapsed events. Manual intent,
+  mining hours, current inventory work and EXIT retain their normal precedence.
 
 ### Translation System
 
