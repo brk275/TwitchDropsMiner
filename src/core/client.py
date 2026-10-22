@@ -464,9 +464,10 @@ class Twitch:
         self.gui.print(message, collapse_key=collapse_key)
 
     def _remove_channel_topics(self, channels: abc.Iterable[Channel]) -> None:
-        """Remove websocket topics for a list of channels."""
+        """Retire stream refreshes and remove subscriptions without GUI churn."""
         topics_to_remove: list[str] = []
         for channel in channels:
+            channel._retire_stream_refresh()
             topics_to_remove.append(WebsocketTopic.as_str("Channel", "StreamState", channel.id))
             topics_to_remove.append(WebsocketTopic.as_str("Channel", "StreamUpdate", channel.id))
         if topics_to_remove:

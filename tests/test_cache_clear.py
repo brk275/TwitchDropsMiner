@@ -12,6 +12,8 @@ from fastapi import HTTPException
 
 from src.config import State, WebsocketTopic
 from src.core.client import Twitch
+from src.models.channel import Channel
+from src.models.game import Game
 from src.services.inventory_service import InventoryService
 from src.services.watch_service import WatchService
 from src.utils import AwaitableValue
@@ -26,8 +28,7 @@ def _make_cache_test_client() -> tuple[Any, dict[str, object], MagicMock, MagicM
         "games_to_watch": ["Game A"],
     }
     auth_state = MagicMock(name="auth_state")
-    game = SimpleNamespace(name="Game A")
-    channel = SimpleNamespace(id=123, name="channel-a", game=game)
+    game = Game({"id": "1", "name": "Game A"})
 
     twitch.settings = settings
     twitch._auth_state = auth_state
@@ -36,11 +37,8 @@ def _make_cache_test_client() -> tuple[Any, dict[str, object], MagicMock, MagicM
     twitch._drops = {"drop-a": object()}
     twitch._mnt_triggers = deque([datetime.now(timezone.utc)])
     twitch.wanted_games = [game]
-    twitch.channels = OrderedDict([(channel.id, channel)])
     twitch.watching_channel = AwaitableValue()
-    twitch.watching_channel.set(channel)
     twitch._watching_restart = asyncio.Event()
-    twitch._manual_target_channel = channel
     twitch._manual_target_game = game
     twitch._stream_selector = SimpleNamespace(
         get_wanted_games=MagicMock(side_effect=AssertionError("Do not select during cache teardown")),
@@ -60,6 +58,14 @@ def _make_cache_test_client() -> tuple[Any, dict[str, object], MagicMock, MagicM
         inv=SimpleNamespace(clear=MagicMock(name="inventory_clear")),
         progress=SimpleNamespace(stop_timer=MagicMock(name="stop_timer")),
     )
+    channel = Channel.from_directory(twitch, {
+        "id": "456", "game": {"id": "1", "name": "Game A"},
+        "viewersCount": 1, "title": "Fixture stream",
+        "broadcaster": {"id": "123", "login": "channel-a", "displayName": "channel-a"},
+    }, drops_enabled=True)
+    twitch.channels = OrderedDict([(channel.id, channel)])
+    twitch.watching_channel.set(channel)
+    twitch._manual_target_channel = channel
     twitch._watch_service = WatchService(twitch)
 
     maintenance_task = MagicMock(name="maintenance_task")
@@ -73,6 +79,8 @@ def test_clear_cached_state_discards_only_derived_runtime_state():
     settings_snapshot = settings.copy()
     original_settings = twitch.settings
     original_auth_state = twitch._auth_state
+    channel = twitch.channels[123]
+    stream, generation = channel._stream, channel._refresh_generation
 
     InventoryService(twitch).clear_cached_state()
 
@@ -87,6 +95,8 @@ def test_clear_cached_state_discards_only_derived_runtime_state():
     assert twitch._manual_target_channel is None
     assert twitch._manual_target_game is None
     assert twitch._mnt_task is None
+    assert channel._stream is stream
+    assert channel._refresh_generation != generation
 
     twitch.gui.clear_drop.assert_called_once_with()
     twitch.gui.channels.clear_watching.assert_called_once_with()

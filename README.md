@@ -40,7 +40,7 @@ When reporting a problem, include the image tag and digest or the Git commit.
 
 See [dashboard and progress guidance](docs/usage.md#progress-display),
 [local claim history](docs/usage.md#drop-history),
-[channel refresh ordering](docs/usage.md#channels-and-manual-selection),
+[channel refresh ordering and rediscovery](docs/usage.md#channels-and-manual-selection),
 [known campaign wakeups](docs/usage.md#refreshing-and-clearing-cache), and
 [source-build recovery for inventory reads, confirmed claims and stale channel lookups](docs/troubleshooting.md#source-build-recovery).
 For bug reports, **Settings → Dump diagnosis data** saves deidentified state and

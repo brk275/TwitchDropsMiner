@@ -163,6 +163,13 @@ lang/                # Translation JSON files (20 languages)
   Reconcile manual channel references too, retaining the manual game intent.
   Regressions in `tests/test_discovery_watch_recovery.py` include actual tracking-cap
   eviction, fresh bans and drops-disabled streams in automatic and manual mode.
+- Removing channel subscriptions also retires stream-refresh publication authority
+  through the existing Channel helper, including cleanup and tracking-cap eviction.
+  Preserve known stream/cache state and batch GUI publication; do not invoke an
+  individual GUI removal. Keep cancelled managed workers registered until drained.
+  Other channels whose subscriptions remain tracked keep their refreshes. Regressions:
+  `tests/test_discovery_refresh_retirement.py`, including real state-machine watch
+  ownership and cancellation-suppressing adapters. This does not prove Twitch credit.
 - `WatchService.can_watch_in_current_mode()` shares manual-game admission across
   live callbacks and the main selector. Preserve generic `can_watch()` for explicit
   choices, special-category ACL eligibility and progress reconciliation. Revalidate

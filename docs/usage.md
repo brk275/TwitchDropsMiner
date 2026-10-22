@@ -110,6 +110,10 @@ priority boost. Your saved game rankings remain unchanged.
 Source builds ignore a delayed bulk channel reply when a newer stream observation,
 offline event, channel removal or account retirement has already superseded it.
 This also applies to same-broadcast replacements and repeated offline observations.
+When rediscovery removes channel subscriptions, pending stream lookups lose their
+authority to publish or redirect watching afterward. Existing stream details remain
+available until the normal batch dashboard update. Other channels whose subscriptions
+remain tracked continue their own refreshes.
 It does not change game rankings, refresh intervals or reward eligibility, and does
 not establish that Twitch has credited viewing time.
 
