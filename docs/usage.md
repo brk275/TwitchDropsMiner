@@ -107,6 +107,12 @@ choosing an uncategorized special-event participant clears the previous manual
 target. Returning to automatic mode also removes the manual game's temporary
 priority boost. Your saved game rankings remain unchanged.
 
+Source builds ignore a delayed bulk channel reply when a newer stream observation,
+offline event, channel removal or account retirement has already superseded it.
+This also applies to same-broadcast replacements and repeated offline observations.
+It does not change game rankings, refresh intervals or reward eligibility, and does
+not establish that Twitch has credited viewing time.
+
 ### Now Watching and dashboard updates
 
 **Show thumbnail** is off on each page load. Enabling it displays a Twitch JPEG

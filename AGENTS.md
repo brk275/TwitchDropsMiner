@@ -224,9 +224,14 @@ lang/                # Translation JSON files (20 languages)
   caller's existing batch GUI publication; do not add callbacks, requests or claims.
   Regressions: `tests/test_channel_offline_refresh.py`, using real channels/watch policy.
   Errored nulls, including GQL server-error field nullification, remain unknown.
-  Capture each input stream object's identity before awaiting; an offline reply must
-  not erase a newer replacement, even with the same broadcast ID. This scoped guard
-  does not change existing non-null update ordering or add a general stream revision.
+  Capture each input stream object's identity and existing stream/account generation
+  before awaiting. A superseded bulk reply must not overwrite an intervening applied
+  stream observation, offline event, removal or account retirement, including when
+  both states are offline or the broadcast ID is unchanged. Keep the identity guard
+  for offline replies and existing batch validation, failure/drain and publication
+  behavior. This does not order in-place viewer changes or unpublished concurrent
+  reads and does not prove Twitch credit. Regressions:
+  `tests/test_bulk_stream_ordering.py`.
 - `InventoryService`: Campaign and drop inventory operations
 - Admit claimed benefit history only as a list of objects with nonblank string IDs
   and parseable timezone-aware `lastAwardedAt` strings. Empty lists are valid; null,
