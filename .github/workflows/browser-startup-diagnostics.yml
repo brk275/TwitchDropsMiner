@@ -41,7 +41,10 @@ jobs:
           dpkg-query -W xvfb xauth xserver-common 2>/dev/null || true
           if command -v xvfb-run >/dev/null; then
             sha256sum "$(command -v xvfb-run)"
+            sed -n '1,240p' "$(command -v xvfb-run)"
           fi
+          readlink -f /bin/sh
+          dpkg-query -W dash bash 2>/dev/null || true
       - name: Probe owned browser startup without Twitch credentials
         env:
           TDM_SYNTHETIC_BROWSER_DIAGNOSTICS: '1'
