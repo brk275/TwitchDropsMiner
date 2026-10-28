@@ -1,0 +1,52 @@
+name: Fork browser startup diagnostics
+
+on:
+  push:
+    branches: [codex/ubuntu26-browser-diagnostics]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.repository == 'brk275/TwitchDropsMiner'
+    name: ${{ matrix.os }} / ${{ matrix.display }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
+        display: [auto, headless]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: Install locked test dependencies
+        run: |
+          uv venv env --python 3.12
+          source env/bin/activate
+          uv sync --active --extra dev --locked --python 3.12
+      - name: Record synthetic test environment
+        run: |
+          cat /etc/os-release
+          command -v xvfb-run xauth Xvfb chromium chromium-browser google-chrome || true
+          dpkg-query -W xvfb xauth xserver-common 2>/dev/null || true
+          if command -v xvfb-run >/dev/null; then
+            sha256sum "$(command -v xvfb-run)"
+          fi
+      - name: Probe owned browser startup without Twitch credentials
+        env:
+          TDM_SYNTHETIC_BROWSER_DIAGNOSTICS: '1'
+          DISPLAY_MODE: ${{ matrix.display }}
+        run: |
+          source env/bin/activate
+          python -m pytest -p tests.browser_startup_diagnostics --diagnostic-display="$DISPLAY_MODE" -q -rs --capture=tee-sys \
+            tests/test_server_renewal.py::test_owned_browser_pipe_reaches_fake_chromium_on_fds_3_and_4 \
+            tests/test_server_renewal.py::test_real_owned_chromium_opens_no_tcp_listener \
+            tests/test_server_renewal.py::test_real_chromium_closed_target_fails_page_commands_fast

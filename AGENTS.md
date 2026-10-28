@@ -42,6 +42,10 @@ It is the repository's contribution policy, not optional background reading.
 
 ### Issue triage
 
+- `browser-startup-diagnostics.yml` is fork-only synthetic investigation, not release
+  qualification. Its explicit pytest plugin is limited to three no-auth browser tests.
+  Never load it against live login, print credentials or infer Twitch acceptance from it.
+
 - `.github/ISSUE_TEMPLATE/bug_report.yml` requires the running app version,
   installation method, hosting environment, dashboard browser/device, reproduction
   steps, expected/actual behavior, redacted evidence, and troubleshooting results.

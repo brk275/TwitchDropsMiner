@@ -221,6 +221,7 @@ reporting a problem. Use the [bug-report form](https://github.com/rangermix/Twit
 with the running app version, hosting environment, reproduction steps, and redacted evidence.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for bug reports, translations,
 and development, including CI validation. CI lint checks validate source without rewriting it.
+Fork-only synthetic browser diagnostics do not establish Twitch login or mining health.
 This fork uses AI-assisted development with automated checks and
 independent review. Agents acknowledge work in the relevant issue or PR before starting
 and post the outcome there when work ends or pauses.
