@@ -18,7 +18,8 @@ services operated for other users are outside its support scope.
 
 ![Twitch Drops Miner web dashboard](./screenshot.png)
 
-- Choose and prioritize games, or let TDM discover available campaigns.
+- [Choose and prioritize games](docs/usage.md#choose-games-and-priorities), or let TDM
+  discover available campaigns.
 - [Mine other eligible games as fallback](docs/usage.md#choose-games-and-priorities)
   while preserving your saved priority list.
 - Track campaigns and rewards, and ignore drops you do not want.
