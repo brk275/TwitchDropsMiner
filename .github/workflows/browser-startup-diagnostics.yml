@@ -10,7 +10,9 @@ permissions:
 
 jobs:
   diagnose:
-    if: github.repository == 'brk275/TwitchDropsMiner'
+    if: >-
+      github.repository == 'brk275/TwitchDropsMiner' &&
+      github.ref == 'refs/heads/codex/ubuntu26-browser-diagnostics'
     name: ${{ matrix.os }} / ${{ matrix.display }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
