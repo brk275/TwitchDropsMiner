@@ -166,6 +166,13 @@ lang/                # Translation JSON files (20 languages)
 - `Stream` class: Active stream with game, viewers, drop status
 - Stream URL fetching and validation
 - ACL-based vs directory channels
+- `Channel.stream_revision` advances on applied stream observations, viewer updates,
+  offline events (including already-offline channels), and removal. Bulk discovery
+  snapshots revisions before awaiting Twitch and skips superseded live responses.
+  Preserve fresh response handling, null-response behavior, cancellation/draining,
+  playlist caching and callbacks. This is local observation ordering, not Twitch-side
+  sequencing or a repair for all asynchronous per-channel refreshes. Regressions:
+  `tests/test_bulk_stream_ordering.py`.
 - `Channel.banned` accepts an error-free, matching-channel `user.self.banStatus`
   object with boolean `isPermanent`. Both true and false mean an active ban; false
   identifies a temporary ban. Null explicitly clears a ban. Missing, malformed or

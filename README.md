@@ -42,6 +42,7 @@ check Twitch progress. See the [dashboard guide](docs/usage.md#account-link-over
 
 Source builds ignore progress-poll responses superseded by newer campaign observations
 or inventory reloads. Fresh Twitch readings can still correct local progress.
+See the [channel guide](docs/usage.md#channels-and-manual-selection) for stream-refresh handling.
 
 Use **Settings → Dump diagnosis data** for bug reports. It saves
 deidentified miner state and recent sanitized API responses in your data volume;
