@@ -142,7 +142,9 @@ class MessageHandlerService:
 
         # Channel going from OFFLINE to ONLINE
         if stream_before is None and stream_after is not None:
-            if self._twitch.can_watch(channel) and self._twitch.should_switch(channel):
+            if is_watching_this and not self._twitch.can_watch_in_current_mode(channel):
+                self._twitch.change_state(State.CHANNEL_SWITCH)
+            elif self._twitch.can_watch_in_current_mode(channel) and self._twitch.should_switch(channel):
                 self._twitch.print(_.t["status"]["goes_online"].format(channel=channel.name))
                 self._twitch.watch(channel)
             else:
@@ -163,14 +165,14 @@ class MessageHandlerService:
                 f"{stream_after.drops_enabled and '✔' or '❌'})"
             )
 
-            if is_watching_this and not self._twitch.can_watch(channel):
+            if is_watching_this and not self._twitch.can_watch_in_current_mode(channel):
                 # Watching this channel but can't watch it anymore
                 logger.info(f"{channel.name} status updated, switching... {drops_status}")
                 self._twitch.change_state(State.CHANNEL_SWITCH)
             elif not is_watching_this:
                 # Not watching this channel
                 logger.info(f"{channel.name} status updated {drops_status}")
-                if self._twitch.can_watch(channel) and self._twitch.should_switch(channel):
+                if self._twitch.can_watch_in_current_mode(channel) and self._twitch.should_switch(channel):
                     self._twitch.watch(channel)
 
         # Channel was OFFLINE and stays OFFLINE

@@ -98,8 +98,11 @@ class WatchService:
         Returns:
             True if we should switch to this channel, False otherwise
         """
+        if self._twitch.is_manual_mode() and not self.can_watch_in_current_mode(channel):
+            return False
+
         watching_channel = self._twitch.watching_channel.get_with_default(None)
-        if watching_channel is None or not self.can_watch(watching_channel):
+        if watching_channel is None or not self.can_watch_in_current_mode(watching_channel):
             return True
 
         channel_order = self._twitch._channel_service.get_mining_priority(channel)
@@ -111,6 +114,13 @@ class WatchService:
             or channel_order == watching_order  # or the order is the same
             # and this channel is ACL-based and the watching channel isn't
             and channel.acl_based > watching_channel.acl_based
+        )
+
+    def can_watch_in_current_mode(self, channel: Channel) -> bool:
+        """Apply manual game intent without narrowing explicit user candidates."""
+        return self.can_watch(channel) and (
+            not self._twitch.is_manual_mode()
+            or channel.game == self._twitch._manual_target_game
         )
 
     def watch(self, channel: Channel, *, update_status: bool = True) -> None:
