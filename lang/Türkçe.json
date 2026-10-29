@@ -265,6 +265,8 @@
             "mining_hours_save_error": "Madencilik saatleri kaydedilemedi. Tekrar deneyin.",
             "proxy_save_error": "Proxy kaydedilemedi. Parolasını yeniden girip tekrar deneyin.",
             "discord": {
+                "thread_id": "Konu kimliği (isteğe bağlı)",
+                "thread_id_hint": "Webhook kanalındaki mevcut konu. Normal metin kanalı için boş bırakın.",
                 "name": "Discord Bildirimleri",
                 "description": "Drop talep ettiğinde Discord'da bildirim al.",
                 "webhook_url": "Discord Webhook URL'si",

@@ -265,6 +265,8 @@
             "mining_hours_save_error": "Nu s-au putut salva orele. Încercați din nou.",
             "proxy_save_error": "Proxy-ul nu a putut fi salvat. Introdu din nou parola și încearcă din nou.",
             "discord": {
+                "thread_id": "ID fir (opțional)",
+                "thread_id_hint": "Fir existent în canalul webhookului. Lăsați gol pentru un canal text obișnuit.",
                 "name": "Notificări Discord",
                 "description": "Primește notificări pe Discord când revendici drop-uri.",
                 "webhook_url": "URL Webhook Discord",

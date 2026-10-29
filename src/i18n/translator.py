@@ -250,6 +250,8 @@ class GUIDiscordSettings(TypedDict):
     description: str
     webhook_url: str
     webhook_url_hint: str
+    thread_id: str
+    thread_id_hint: str
     setup_steps: list[str]
     success: str
     saved: str

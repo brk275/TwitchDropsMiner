@@ -1471,6 +1471,10 @@ function updateSettingsUI(settings, authoritative = false, changedFields = []) {
         proxyIndicator.title = proxyUrl ? `Proxy active: ${proxyUrl}` : 'Proxy disabled';
     }
 
+    const discordThreadInput = document.getElementById('discord-thread-id');
+    if (discordThreadInput && Object.hasOwn(settings, 'discord_thread_id')) {
+        discordThreadInput.value = settings.discord_thread_id;
+    }
     const discordWebhookInput = document.getElementById('discord-webhook-url');
     if (discordWebhookInput) {
         discordWebhookInput.value = '';
@@ -2237,13 +2241,14 @@ async function verifyProxy() {
     }
 }
 
-async function saveDiscordSettings(webhookUrl, removeWebhook = false) {
+async function saveDiscordSettings(webhookUrl, removeWebhook = false, threadId = '') {
     const dc = state.translations.gui?.settings?.discord || {};
     try {
         const response = await fetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ discord_webhook_url: webhookUrl, discord_remove_webhook: removeWebhook })
+            body: JSON.stringify({ discord_webhook_url: webhookUrl, discord_remove_webhook: removeWebhook,
+                discord_thread_id: threadId })
         });
         if (!response.ok) throw new Error();
         const data = await response.json();
@@ -2261,6 +2266,7 @@ async function updateDiscordSettings(action) {
     if (!result) return;
     const dc = state.translations.gui?.settings?.discord || {};
     const webhookUrl = input ? input.value.trim() : '';
+    const threadId = document.getElementById('discord-thread-id')?.value.trim() || '';
     result.style.display = 'block';
     if (action !== 'remove' && !webhookUrl && !state.settings.discord_configured) {
         result.className = 'verify-result error';
@@ -2268,7 +2274,7 @@ async function updateDiscordSettings(action) {
         return;
     }
     state.discordActionPending = true;
-    const controls = ['save-discord-btn', 'test-discord-btn', 'remove-discord-btn', 'discord-webhook-url']
+    const controls = ['save-discord-btn', 'test-discord-btn', 'remove-discord-btn', 'discord-webhook-url', 'discord-thread-id']
         .map(id => document.getElementById(id)).filter(Boolean);
     controls.forEach(control => { control.disabled = true; });
     result.className = 'verify-result loading';
@@ -2279,12 +2285,13 @@ async function updateDiscordSettings(action) {
             const response = await fetch('/api/settings/test-discord', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ discord_webhook_url: webhookUrl })
+                body: JSON.stringify({ discord_webhook_url: webhookUrl, discord_thread_id: threadId })
             });
             if (!response.ok || (await response.json()).success !== true) throw new Error();
         }
         saving = true;
-        await saveDiscordSettings(action === 'remove' ? '' : webhookUrl, action === 'remove');
+        await saveDiscordSettings(action === 'remove' ? '' : webhookUrl, action === 'remove',
+            action === 'remove' ? '' : threadId);
         result.className = 'verify-result success';
         result.textContent = action === 'test' ? (dc.success || 'Discord connection successful!')
             : action === 'remove' ? (dc.removed || 'Webhook removed. Discord notifications are disabled.')
@@ -2935,6 +2942,8 @@ function applyTranslations(t) {
                 'settings-discord-header': 'name', 'settings-discord-help': 'description',
                 'settings-discord-webhook-url-label': 'webhook_url',
                 'settings-discord-webhook-url-hint': 'webhook_url_hint',
+                'settings-discord-thread-id-label': 'thread_id',
+                'settings-discord-thread-id-hint': 'thread_id_hint',
                 'settings-discord-credentials-help': 'credentials_help',
                 'save-discord-btn': 'save_settings', 'test-discord-btn': 'test_connection',
                 'remove-discord-btn': 'remove_webhook'

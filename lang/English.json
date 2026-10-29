@@ -222,6 +222,8 @@
             "mining_hours_save_error": "Could not save mining hours. Please try again.",
             "proxy_save_error": "Could not save the proxy. Re-enter its password and try again.",
             "discord": {
+                "thread_id": "Thread ID (optional)",
+                "thread_id_hint": "Existing thread in the webhook's channel. Leave blank for a normal text channel.",
                 "name": "Discord Notifications",
                 "description": "Receive notifications on Discord when you claim drops.",
                 "webhook_url": "Discord Webhook URL",

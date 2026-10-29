@@ -265,6 +265,8 @@
             "mining_hours_save_error": "Mining-Zeiten konnten nicht gespeichert werden. Bitte erneut versuchen.",
             "proxy_save_error": "Der Proxy konnte nicht gespeichert werden. Gib das Passwort erneut ein und versuche es noch einmal.",
             "discord": {
+                "thread_id": "Thread-ID (optional)",
+                "thread_id_hint": "Bestehender Thread im Kanal des Webhooks. Für einen normalen Textkanal leer lassen.",
                 "name": "Discord-Benachrichtigungen",
                 "description": "Erhalte Benachrichtigungen auf Discord, wenn du Drops einlöst.",
                 "webhook_url": "Discord-Webhook-URL",

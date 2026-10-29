@@ -10,6 +10,8 @@ from urllib.parse import urlsplit
 
 import aiohttp
 
+from src.config.settings import DiscordThreadSettings
+
 
 if TYPE_CHECKING:
     from src.diagnostics import Diagnostics
@@ -57,15 +59,20 @@ def _truncate(text: str, limit: int = 1024) -> str:
 class DiscordNotifier:
     """Service for sending drop claim notifications via a Discord webhook."""
 
-    def __init__(self, webhook_url: str | None = None, *, diagnostics: Diagnostics | None = None):
+    def __init__(
+        self, webhook_url: str | None = None, *, thread_id: str = "",
+        diagnostics: Diagnostics | None = None,
+    ):
         """
         Initialize Discord notifier.
 
         Args:
             webhook_url: Discord webhook URL (e.g.,
                 https://discord.com/api/webhooks/ID/TOKEN)
+            thread_id: Optional existing thread in the webhook's channel.
         """
         self.webhook_url = webhook_url if self.is_valid_webhook(webhook_url) else None
+        self.thread_id = DiscordThreadSettings.normalize(thread_id)
         self.enabled = bool(self.webhook_url)
         self.diagnostics = diagnostics
 
@@ -173,6 +180,7 @@ class DiscordNotifier:
         try:
             async with aiohttp.ClientSession() as session, session.post(
                 self.webhook_url,
+                params={"thread_id": self.thread_id} if self.thread_id else None,
                 json=payload,
                 allow_redirects=False,
                 timeout=aiohttp.ClientTimeout(total=10),

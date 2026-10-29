@@ -265,6 +265,8 @@
             "mining_hours_save_error": "Kunne ikke gemme minedriftstiden. Prøv igen.",
             "proxy_save_error": "Proxyen kunne ikke gemmes. Indtast adgangskoden igen, og prøv igen.",
             "discord": {
+                "thread_id": "Tråd-ID (valgfrit)",
+                "thread_id_hint": "Eksisterende tråd i webhookens kanal. Lad feltet stå tomt for en normal tekstkanal.",
                 "name": "Discord-underretninger",
                 "description": "Få besked på Discord, når du gør krav på drops.",
                 "webhook_url": "Discord-webhook-URL",

@@ -222,6 +222,8 @@
             "mining_hours_save_error": "A bányászati idő nem menthető. Próbáld újra.",
             "proxy_save_error": "A proxy mentése nem sikerült. Add meg újra a jelszavát, és próbáld újra.",
             "discord": {
+                "thread_id": "Szálazonosító (nem kötelező)",
+                "thread_id_hint": "Meglévő szál a webhook csatornájában. Normál szöveges csatornához hagyja üresen.",
                 "name": "Discord értesítések",
                 "description": "Értesítést kapsz Discordon, amikor lehozod a dropokat.",
                 "webhook_url": "Discord webhook URL",

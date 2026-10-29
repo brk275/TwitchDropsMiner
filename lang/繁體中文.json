@@ -265,6 +265,8 @@
             "mining_hours_save_error": "無法儲存執行時段，請重試。",
             "proxy_save_error": "無法儲存代理。請重新輸入密碼後再試一次。",
             "discord": {
+                "thread_id": "討論串 ID（選填）",
+                "thread_id_hint": "Webhook 所在頻道中的現有討論串。一般文字頻道請留空。",
                 "name": "Discord 通知",
                 "description": "領取掉落物時在 Discord 上接收通知。",
                 "webhook_url": "Discord Webhook 網址",

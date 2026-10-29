@@ -265,6 +265,8 @@
             "mining_hours_save_error": "De miningtijden konden niet worden opgeslagen. Probeer opnieuw.",
             "proxy_save_error": "De proxy kon niet worden opgeslagen. Voer het wachtwoord opnieuw in en probeer het opnieuw.",
             "discord": {
+                "thread_id": "Thread-ID (optioneel)",
+                "thread_id_hint": "Bestaande thread in het kanaal van de webhook. Laat leeg voor een normaal tekstkanaal.",
                 "name": "Discord-meldingen",
                 "description": "Ontvang meldingen op Discord wanneer je drops opent.",
                 "webhook_url": "Discord-webhook-URL",

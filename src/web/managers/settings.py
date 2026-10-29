@@ -9,7 +9,12 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from src.config.reward_priority import RewardPriority
-from src.config.settings import InventoryFilterSettings, MiningHoursSettings, default_settings
+from src.config.settings import (
+    DiscordThreadSettings,
+    InventoryFilterSettings,
+    MiningHoursSettings,
+    default_settings,
+)
 from src.i18n.translator import _
 from src.models.game import Game
 from src.services.discord_service import DiscordNotifier
@@ -144,6 +149,11 @@ class SettingsManager:
         if requested_hours is not None:
             requested_hours = MiningHoursSettings.normalize(requested_hours)
         previous_webhook = getattr(self._settings, "discord_webhook_url", "")
+        requested_thread = None
+        if "discord_thread_id" in settings_data:
+            requested_thread = DiscordThreadSettings.normalize(settings_data["discord_thread_id"])
+        if settings_data.get("discord_remove_webhook") is True:
+            requested_thread = ""
         new_webhook = previous_webhook
         if settings_data.get("discord_remove_webhook") is True:
             new_webhook = ""
@@ -249,6 +259,7 @@ class SettingsManager:
         if requested_reward_priority is not None:
             self._settings.reward_priority = requested_reward_priority
         self._settings.discord_webhook_url = new_webhook
+        self.check_and_update_setting("discord_thread_id", requested_thread)
         try:
             self._settings.save()
         except Exception:

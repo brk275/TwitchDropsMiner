@@ -30,6 +30,7 @@ default_settings = {
     "connection_quality": 1,
     "dark_mode": False,
     "discord_webhook_url": "",
+    "discord_thread_id": "",
     "drop_name_blacklist": [],
     "games_to_watch": [],
     "language": DEFAULT_LANG,
@@ -64,6 +65,22 @@ default_settings = {
     "telegram_bot_token": "",
     "telegram_chat_id": "",
 }
+
+
+class DiscordThreadSettings:
+    """Keep optional Discord snowflakes as bounded strings, never JS numbers."""
+
+    @staticmethod
+    def normalize(value: object) -> str:
+        if not isinstance(value, str):
+            raise ValueError("invalid_discord_thread_id")
+        value = value.strip()
+        if value and (
+            re.fullmatch(r"[1-9][0-9]{0,19}", value) is None
+            or int(value) > 18446744073709551615
+        ):
+            raise ValueError("invalid_discord_thread_id")
+        return value
 
 
 class MiningHoursSettings:
@@ -123,6 +140,7 @@ class Settings:
     connection_quality: int
     dark_mode: bool
     discord_webhook_url: str
+    discord_thread_id: str
     drop_name_blacklist: list[str]
     games_to_watch: list[str]
     language: str
@@ -151,6 +169,7 @@ class Settings:
         if "mining_hours" in settings:
             settings["mining_hours"] = MiningHoursSettings.normalize(settings["mining_hours"])
         settings["reward_priority"] = RewardPriority.normalize(settings.get("reward_priority", []))
+        settings["discord_thread_id"] = DiscordThreadSettings.normalize(settings.get("discord_thread_id", ""))
         merge_json(settings, default_settings)
         settings.pop("allow_helper_connection", None)
         for key, value in settings.items():
@@ -163,6 +182,7 @@ class Settings:
         )
 
     def save(self) -> None:
+        self.discord_thread_id = DiscordThreadSettings.normalize(self.discord_thread_id)
         self.reward_priority = RewardPriority.normalize(self.reward_priority)
         self.mining_hours = MiningHoursSettings.normalize(self.mining_hours)
         self.drop_name_blacklist = DropIgnorePolicy.normalize_keywords(

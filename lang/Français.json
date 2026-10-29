@@ -265,6 +265,8 @@
             "mining_hours_save_error": "Impossible d’enregistrer les horaires. Réessayez.",
             "proxy_save_error": "Impossible d’enregistrer le proxy. Saisissez à nouveau son mot de passe et réessayez.",
             "discord": {
+                "thread_id": "ID du fil (facultatif)",
+                "thread_id_hint": "Fil existant dans le canal du webhook. Laissez vide pour un canal textuel normal.",
                 "name": "Notifications Discord",
                 "description": "Recevez des notifications sur Discord lorsque vous réclamez des drops.",
                 "webhook_url": "URL du webhook Discord",

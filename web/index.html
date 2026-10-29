@@ -407,6 +407,11 @@
                             <input type="password" id="discord-webhook-url" autocomplete="off" placeholder="https://discord.com/api/webhooks/ID/TOKEN">
                             <small id="settings-discord-webhook-url-hint">Paste the full Webhook URL (it embeds your secret token).</small>
                         </label>
+                        <label>
+                            <span id="settings-discord-thread-id-label">Thread ID (optional)</span>
+                            <input type="text" id="discord-thread-id" inputmode="numeric" maxlength="20" autocomplete="off" aria-describedby="settings-discord-thread-id-hint">
+                            <small id="settings-discord-thread-id-hint">Existing thread in the webhook's channel. Leave blank for a normal text channel.</small>
+                        </label>
                         <div class="button-group">
                             <button id="save-discord-btn" class="secondary-btn">Save Settings</button>
                             <button id="test-discord-btn" class="secondary-btn">Test Connection</button>

@@ -265,6 +265,8 @@
             "mining_hours_save_error": "No se pudo guardar el horario. Inténtalo de nuevo.",
             "proxy_save_error": "No se pudo guardar el proxy. Vuelve a introducir su contraseña e inténtalo de nuevo.",
             "discord": {
+                "thread_id": "ID del hilo (opcional)",
+                "thread_id_hint": "Hilo existente en el canal del webhook. Déjalo vacío para un canal de texto normal.",
                 "name": "Notificaciones de Discord",
                 "description": "Recibe notificaciones en Discord cuando reclames drops.",
                 "webhook_url": "URL de Webhook de Discord",

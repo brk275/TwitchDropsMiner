@@ -265,6 +265,8 @@
             "mining_hours_save_error": "Impossibile salvare gli orari. Riprova.",
             "proxy_save_error": "Impossibile salvare il proxy. Reinserisci la password e riprova.",
             "discord": {
+                "thread_id": "ID del thread (facoltativo)",
+                "thread_id_hint": "Thread esistente nel canale del webhook. Lascia vuoto per un normale canale di testo.",
                 "name": "Notifiche Discord",
                 "description": "Ricevi notifiche su Discord quando riscatti i drop.",
                 "webhook_url": "URL Webhook di Discord",

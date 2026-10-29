@@ -42,7 +42,7 @@ global.fetch = async (url, options) => {
     calls.push(JSON.parse(options.body)); return response({ discord_configured: false, discord_webhook_url: '' });
 };
 await updateDiscordSettings('remove');
-assert.deepEqual(calls, [{ discord_webhook_url: '', discord_remove_webhook: true }]);
+assert.deepEqual(calls, [{ discord_webhook_url: '', discord_remove_webhook: true, discord_thread_id: '' }]);
 assert.equal(state.settings.discord_configured, false);
 assert.equal(result.textContent, 'Webhook entfernt');
 assert.equal(document.getElementById('discord-webhook-url').placeholder, 'https://discord.com/api/webhooks/ID/TOKEN');
@@ -116,6 +116,54 @@ await updateDiscordSettings('test');
 await updateDiscordSettings('save');
 assert.deepEqual(calls, []);
 assert.equal(result.className, 'verify-result error');
+""")
+
+
+def test_thread_snapshot_is_tested_and_saved_without_number_conversion():
+    run_ui(r"""
+updateSettingsUI({ discord_configured: true, discord_thread_id: '123456789012345678' });
+let finishTest;
+global.fetch = async (url, options) => {
+    const body = JSON.parse(options.body);
+    calls.push({url, body});
+    if (url.endsWith('test-discord')) {
+        return new Promise(resolve => { finishTest = () => resolve(response()); });
+    }
+    return response({discord_configured: true, discord_thread_id: body.discord_thread_id});
+};
+const pending = updateDiscordSettings('test');
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(document.getElementById('discord-thread-id').disabled, true);
+document.getElementById('discord-thread-id').value = '999';
+await updateDiscordSettings('remove');
+assert.equal(calls.length, 1);
+finishTest();
+await pending;
+assert.equal(calls.length, 2);
+assert.equal(calls[0].body.discord_thread_id, '123456789012345678');
+assert.equal(calls[1].body.discord_thread_id, '123456789012345678');
+assert.equal(document.getElementById('discord-thread-id').disabled, false);
+assert.equal(document.getElementById('discord-thread-id').value, '123456789012345678');
+""")
+
+
+def test_partial_update_preserves_thread_draft_and_blank_clears():
+    run_ui(r"""
+updateSettingsUI({discord_configured: true, discord_thread_id: '123'});
+document.getElementById('discord-thread-id').value = '456';
+updateSettingsUI({dark_mode: true});
+assert.equal(document.getElementById('discord-thread-id').value, '456');
+webhook('synthetic-url');
+document.getElementById('discord-thread-id').value = '';
+global.fetch = async (url, options) => {
+    calls.push(JSON.parse(options.body));
+    return response({discord_configured: true, discord_thread_id: ''});
+};
+await updateDiscordSettings('test');
+assert.equal(calls.length, 2);
+assert.equal(calls[0].discord_thread_id, '');
+assert.equal(calls[1].discord_thread_id, '');
+assert.equal(result.className, 'verify-result success');
 """)
 
 

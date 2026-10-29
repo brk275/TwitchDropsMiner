@@ -45,8 +45,30 @@ missing; the absence of a Telegram message does not mean a claim failed.
    when the test message was delivered.
 
 Leave the URL blank to reuse the saved webhook. The browser receives only a masked
-placeholder. **Remove Webhook** deletes the saved URL and disables Discord alerts;
+placeholder. **Remove Webhook** deletes the saved URL and Thread ID and disables Discord alerts;
 enter a new URL to enable them again. This does not delete the webhook in Discord.
+
+### Existing forum threads (source builds)
+
+For an existing forum post or thread, enter its numeric **Thread ID (optional)**
+separately from the webhook URL. Enable Discord's **User Settings → Advanced →
+Developer Mode**, then right-click the target post/thread and select **Copy Channel
+ID**. The thread must belong to the webhook's channel. Use a positive decimal ID
+(at most 20 ASCII digits, no leading zero, no greater than 18446744073709551615),
+not a channel link or a thread name. IDs stay strings to preserve every digit.
+
+Leave Thread ID blank and save to reset to normal text-channel routing. Unlike the
+webhook URL, a blank Thread ID clears the saved value. A forum webhook needs an
+existing thread; TDM never creates posts or threads. Test Connection tests the
+displayed destination and then saves it; Save Settings sends no message.
+
+TDM supplies the ID using Discord's
+[`thread_id` query parameter](https://docs.discord.com/developers/resources/webhook#execute-webhook),
+without accepting query parameters in the webhook URL. Discord may automatically
+unarchive the specified thread. Permissions, deleted/locked threads, or a thread
+in another channel can prevent delivery. Check the target in Discord after a test;
+an accepted webhook response does not guarantee a visible message. This option
+requires a source build containing the feature until included in a release.
 
 Discord alerts cover live-event, startup and inventory claims just like Telegram.
 Claim embeds include the first available public Twitch reward image. Bundles still

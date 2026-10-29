@@ -265,6 +265,8 @@
             "mining_hours_save_error": "Gagal menyimpan jam mining. Coba lagi.",
             "proxy_save_error": "Proxy tidak dapat disimpan. Masukkan ulang kata sandinya, lalu coba lagi.",
             "discord": {
+                "thread_id": "ID utas (opsional)",
+                "thread_id_hint": "Utas yang sudah ada di kanal webhook. Kosongkan untuk kanal teks biasa.",
                 "name": "Notifikasi Discord",
                 "description": "Terima notifikasi di Discord saat kamu mengklaim drop.",
                 "webhook_url": "URL Webhook Discord",

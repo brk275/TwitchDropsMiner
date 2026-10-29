@@ -265,6 +265,8 @@
             "mining_hours_save_error": "Nie udało się zapisać godzin. Spróbuj ponownie.",
             "proxy_save_error": "Nie udało się zapisać proxy. Wprowadź ponownie hasło i spróbuj jeszcze raz.",
             "discord": {
+                "thread_id": "ID wątku (opcjonalne)",
+                "thread_id_hint": "Istniejący wątek w kanale webhooka. Pozostaw puste dla zwykłego kanału tekstowego.",
                 "name": "Powiadomienia Discord",
                 "description": "Otrzymuj powiadomienia na Discordzie, gdy odbierzesz dropy.",
                 "webhook_url": "Adres URL webhooka Discord",

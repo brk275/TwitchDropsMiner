@@ -265,6 +265,8 @@
             "mining_hours_save_error": "Čas těžby se nepodařilo uložit. Zkuste to znovu.",
             "proxy_save_error": "Proxy se nepodařilo uložit. Zadejte znovu heslo a zkuste to znovu.",
             "discord": {
+                "thread_id": "ID vlákna (volitelné)",
+                "thread_id_hint": "Existující vlákno v kanálu webhooku. Pro běžný textový kanál ponechte prázdné.",
                 "name": "Notifikace Discord",
                 "description": "Dostávejte upozornění na Discordu, když obdržíte dropy.",
                 "webhook_url": "URL webhooku Discord",

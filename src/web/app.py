@@ -18,7 +18,7 @@ from pydantic import BaseModel, StrictBool, field_validator
 
 from src.config.paths import DATA_DIR
 from src.config.reward_priority import RewardPriority
-from src.config.settings import InventoryFilterSettings, MiningHoursSettings
+from src.config.settings import DiscordThreadSettings, InventoryFilterSettings, MiningHoursSettings
 from src.services.game_order import TemporaryGameOrder
 from src.version import __version__
 from src.web.auth import AuthAPI, AuthMiddleware, AuthSocketServer, WebAuth
@@ -92,6 +92,7 @@ class SettingsUpdate(BaseModel):
     connection_quality: int | None = None
     minimum_refresh_interval_minutes: int | None = None
     discord_webhook_url: str | None = None
+    discord_thread_id: str = ""
     discord_remove_webhook: StrictBool | None = None
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None
@@ -99,6 +100,11 @@ class SettingsUpdate(BaseModel):
     inventory_list_view: bool | None = None
     mining_benefits: dict[str, bool] | None = None
     mining_hours: dict | None = None
+
+    @field_validator("discord_thread_id", mode="before")
+    @classmethod
+    def validate_discord_thread_id(cls, value: object) -> str:
+        return DiscordThreadSettings.normalize(value)
 
     @field_validator("reward_priority")
     @classmethod
@@ -136,6 +142,12 @@ class ProxyVerifyRequest(BaseModel):
 
 class DiscordTestRequest(BaseModel):
     discord_webhook_url: str = ""
+    discord_thread_id: str = ""
+
+    @field_validator("discord_thread_id", mode="before")
+    @classmethod
+    def validate_discord_thread_id(cls, value: object) -> str:
+        return DiscordThreadSettings.normalize(value)
 
 
 class TelegramTestRequest(BaseModel):
@@ -336,8 +348,12 @@ async def test_discord(request: DiscordTestRequest):
     if not DiscordNotifier.is_valid_webhook(webhook_url):
         return {"success": False, "error": "invalid_discord_webhook"}
     try:
+        thread_id = DiscordThreadSettings.normalize(
+            request.discord_thread_id if "discord_thread_id" in request.model_fields_set
+            else getattr(gui_manager.settings._settings, "discord_thread_id", "")
+        )
         result = await DiscordNotifier(
-            webhook_url, diagnostics=getattr(twitch_client, "diagnostics", None)
+            webhook_url, thread_id=thread_id, diagnostics=getattr(twitch_client, "diagnostics", None)
         ).test_connection()
         return {"success": result}
     except Exception:

@@ -215,7 +215,8 @@ class BaseDrop:
             webhook_url = self._twitch.settings.discord_webhook_url
             if webhook_url:
                 await DiscordNotifier(
-                    webhook_url, diagnostics=getattr(self._twitch, "diagnostics", None)
+                    webhook_url, thread_id=getattr(self._twitch.settings, "discord_thread_id", ""),
+                    diagnostics=getattr(self._twitch, "diagnostics", None)
                 ).notify_drop_claimed(self)
         except Exception:
             # Exception messages may contain the URL's secret token.

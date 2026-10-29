@@ -114,6 +114,7 @@ class TestNotificationGatedOnClaim(unittest.IsolatedAsyncioTestCase):
         self.drop.update_claim("inst-1")
         self.twitch = self.campaign._twitch
         self.twitch.settings.discord_webhook_url = "https://discord.com/api/webhooks/111/aaa_bbb"
+        self.twitch.settings.discord_thread_id = ""
         self.twitch.gql_request = AsyncMock(
             return_value={"data": {"claimDropRewards": {"status": "ELIGIBLE_FOR_ALL"}}}
         )
