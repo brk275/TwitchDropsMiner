@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import uuid4
 
 
 class TemporaryGameOrder:
@@ -18,6 +19,8 @@ class TemporaryGameOrder:
     def __init__(self) -> None:
         self._names: list[str] = []
         self._ranks: dict[str, int] = {}
+        self._revision = 0
+        self._instance_id = uuid4().hex
 
     @property
     def active(self) -> bool:
@@ -47,8 +50,11 @@ class TemporaryGameOrder:
 
     def set(self, value: Any) -> None:
         names = self.normalize(value)
+        if names == self._names:
+            return
         self._names = names
         self._ranks = {name.casefold(): index for index, name in enumerate(names)}
+        self._revision += 1
 
     def clear(self) -> bool:
         """Clear the order; return whether anything changed."""
@@ -63,4 +69,7 @@ class TemporaryGameOrder:
         return self._ranks.get(game_name.casefold(), len(self._names))
 
     def info(self) -> dict[str, Any]:
-        return {"active": self.active, "games": self.names}
+        return {
+            "active": self.active, "games": self.names,
+            "revision": self._revision, "instance_id": self._instance_id,
+        }

@@ -362,6 +362,24 @@ lang/                # Translation JSON files (20 languages)
   restore the previous order with translated
   `gui.wanted.save_error` on failure. Coverage: `tests/test_wanted_queue_order.py`
   and `tests/test_wanted_queue_frontend.py`.
+- Wanted-order metadata includes a monotonic `revision` and a random runtime-only
+  `instance_id` owned by `TemporaryGameOrder`. Only normalized state changes advance
+  the revision; reads, duplicate sets and empty clears do not. Preserve both fields
+  in HTTP, initial state and order broadcasts. Authorized `get_wanted_items` recovery
+  also emits current order metadata, not just the tree. Reject older/foreign-instance
+  metadata; an initial identity transition, including legacy-to-versioned, retires
+  pending replies and prior queue errors. Legacy initial snapshots retire replies;
+  omitted `game_order` also restores default order controls.
+  Legacy responses without versions have best-effort observation guards only, not
+  causal ordering guarantees. Every accepted unversioned external receipt advances
+  the local guard, even with equal values, because intermediate packets can be lost.
+  Equal versioned revisions do not advance observations; use pure `paintGameOrder()`
+  for busy/finally/translation renders. Failed Reset never restores
+  a snapshot, and failed reorders restore only their own optimistic tree. Keep these
+  guards feature-owned; do not change drag/touch deferral or general tree ordering.
+  `tests/test_wanted_order_versions.py` and `tests/test_wanted_order_response_frontend.py`
+  cover protocol and causal controls. Changed `app.js` requires the authorized release
+  workflow's version/cache-key bump before deployment; this source fix does not run it.
 - Mining list supports drag ordering and editable integer priority numbers. Clamp valid
   ranks to the list bounds; reject blank/fractional values without changing settings.
   Keep priority and remove-control labels translated and accessible. Regression tests in

@@ -64,6 +64,7 @@ const lines = [], toasts = [], bodies = [];
 function addConsoleLine(line) { lines.push(line); }
 function showToast(message, type) { toasts.push({message, type}); }
 function clearDropProgress() {}
+function updateGameOrder() {}
 let fetchResponse = body => ({ok: true, json: async () => ({success: true, paused: body.paused, resume_at: null})});
 async function fetch(url, options) {
     assert.equal(url, '/api/pause');

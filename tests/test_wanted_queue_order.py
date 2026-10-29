@@ -41,11 +41,13 @@ class TestTemporaryGameOrder:
 
     def test_rank_listed_first_then_everything_else(self):
         order = ordered("Second", "First")
+        instance = order.info()["instance_id"]
         assert [order.rank(name) for name in ("first", "SECOND", "Other", None)] == [1, 0, 2, 2]
-        assert order.info() == {"active": True, "games": ["Second", "First"]}
+        assert order.info() == {"active": True, "games": ["Second", "First"],
+                                "revision": 1, "instance_id": instance}
         assert order.clear() is True
         assert order.clear() is False
-        assert order.info() == {"active": False, "games": []}
+        assert order.info() == {"active": False, "games": [], "revision": 2, "instance_id": instance}
 
 
 class TestQueueOrder:
@@ -196,7 +198,7 @@ class TestLifecycle:
         assert twitch.game_order.names == ["Beta", "Alpha"]
         twitch.request_games_update.assert_called_once()
         twitch.gui.broadcast_wanted_items.assert_called_once()
-        twitch.gui.broadcast_game_order.assert_called_with({"active": True, "games": ["Beta", "Alpha"]})
+        twitch.gui.broadcast_game_order.assert_called_with(twitch.game_order.info())
         twitch.clear_game_order()
         assert not twitch.game_order.active
         twitch.request_games_update.reset_mock()
@@ -236,10 +238,13 @@ def client(tmp_path, monkeypatch):
 class TestAPI:
     def test_sets_and_resets_the_order(self, client):
         browser, twitch = client
+        instance = twitch.game_order.info()["instance_id"]
         reply = browser.post("/api/wanted-order", json={"games": ["Beta", " beta ", "Alpha"]})
-        assert reply.json() == {"success": True, "active": True, "games": ["Beta", "Alpha"]}
+        assert reply.json() == {"success": True, "active": True, "games": ["Beta", "Alpha"],
+                                "revision": 1, "instance_id": instance}
         reply = browser.post("/api/wanted-order", json={"games": []})
-        assert reply.json() == {"success": True, "active": False, "games": []}
+        assert reply.json() == {"success": True, "active": False, "games": [],
+                                "revision": 2, "instance_id": instance}
 
     @pytest.mark.parametrize("body", [{}, {"games": "Beta"}, {"games": [1]}, {"games": ["x" * 201]}])
     def test_rejects_invalid_input_without_echo(self, client, body):
