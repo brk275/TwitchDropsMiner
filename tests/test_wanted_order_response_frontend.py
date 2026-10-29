@@ -96,6 +96,35 @@ assert.equal(state.gameOrderServerRevision,2);
 """)
 
 
+def test_rejected_initial_metadata_cannot_render_its_paired_initial_queue():
+    run_order(r"""
+handlers.initial_state({game_order:info(0),wanted_items:tree});
+fetch=async()=>response(info(1,['Beta','Alpha','Gamma']));
+await saveWantedOrder(['Beta','Alpha','Gamma']);
+handlers.wanted_items_update([tree[1],tree[0]]);
+const observed=state.gameOrderRevision,epoch=state.gameOrderEpoch;
+handlers.initial_state({game_order:info(0),wanted_items:tree});
+assert.equal(state.gameOrderServerRevision,1);
+assert.deepEqual(gameOrder.games,['Beta','Alpha','Gamma']);
+assert.deepEqual(names(),['Beta','Alpha'],'rejected initial metadata must not resurrect Gamma');
+assert.equal(state.gameOrderRevision,observed);assert.equal(state.gameOrderEpoch,epoch);
+""")
+
+
+@pytest.mark.parametrize('context', ['same-revision', 'new-instance', 'legacy-omitted'])
+@pytest.mark.parametrize('empty', [False, True])
+def test_accepted_initial_metadata_renders_its_paired_initial_queue(context, empty):
+    run_order('const context=' + json.dumps(context) + ',empty=' + json.dumps(empty) + ';' + r"""
+handlers.initial_state({game_order:info(1,['Beta','Alpha','Gamma']),wanted_items:tree});
+const snapshot={wanted_items:empty?[]:[tree[1]]};
+if(context==='same-revision')snapshot.game_order=info(1,['Beta','Alpha','Gamma']);
+if(context==='new-instance')snapshot.game_order=info(0,[],B);
+handlers.initial_state(snapshot);
+assert.equal(lastWantedTree,snapshot.wanted_items);
+assert.deepEqual(list().querySelectorAll('.wanted-game-group').map(row=>row.dataset.game),empty?[]:['Beta']);
+""")
+
+
 @pytest.mark.parametrize('initial_first', [False, True])
 def test_same_instance_initial_keeps_pending_newer_http(initial_first):
     run_order('const initialFirst=' + json.dumps(initial_first) + ';' + r"""

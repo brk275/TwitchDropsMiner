@@ -257,8 +257,8 @@ socket.on('initial_state', (data) => {
         clearDropProgress();
     }
 
-    updateGameOrder(data.game_order === undefined ? { active: false, games: [] } : data.game_order, true);
-    if (data.wanted_items) {
+    const gameOrderAccepted = updateGameOrder(data.game_order === undefined ? { active: false, games: [] } : data.game_order, true);
+    if (data.wanted_items && gameOrderAccepted) {
         renderWantedItems(data.wanted_items);
     }
 });
