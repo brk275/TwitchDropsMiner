@@ -559,9 +559,10 @@ progress to an ignored drop while the miner intentionally targets another reward
 - On POSIX, `OwnedChromium` (renewal/SDK issuance, run as root) uses
   `--remote-debugging-pipe` and never opens a DevTools TCP port: CDP has no
   authentication, and the `tdm-browser` login UID shares loopback. A small exec
-  launcher remaps the pipe to fds 3/4 so PID and process-group cleanup are unchanged;
-  it then execs the private `xvfb-run` wrapper when present, which passes fds 3/4
-  through to Chromium untouched (verified in the Alpine image). Xvfb and the wrapper
+  launcher remaps the pipe to fds 3/4 immediately before Chromium, after the private
+  `xvfb-run` wrapper when present. The wrapper may overwrite/close fd 3; carry pipe
+  ends through it on collision-safe descriptors at or above 64, closing parent copies
+  and partial allocations on failure. Preserve the owned process group. Xvfb and the wrapper
   also inherit copies, so a Chromium crash reaches EOF once the wrapper cleans up.
   `DevToolsPipe` multiplexes flattened `Target.attachToTarget` sessions with
   NUL-delimited messages, bounds each session's backlog to 16 MiB by bytes (one read
@@ -570,8 +571,11 @@ progress to an ignored drop while the miner intentionally targets another reward
   before sending, including after target detachment.
   Windows keeps the loopback port (no `pass_fds`). The login capture Chromium keeps
   its port because it runs as `tdm-browser` with a profile that UID already owns.
-  `tests/test_server_renewal.py` checks launch arguments and descriptors, and, with a
+  `tests/test_browser_pipe_wrapper.py` covers descriptor-closing wrappers and partial
+  allocation cleanup. `tests/test_server_renewal.py` checks launch arguments and descriptors, and, with a
   local Chromium on Linux, that the browser process group opens no TCP listener.
+  Python validation runs on Ubuntu 24.04 and 26.04 to retain both display-wrapper
+  behaviors; do not replace this with one moving ubuntu-latest label.
 - `SessionAPI` exposes sanitized status and finish/retry/logout actions, plus optional
   desktop-helper enable/cancel actions guarded by dashboard authentication and CSRF.
   There is no general session upload/export or renewal HTTP route. The binary
@@ -638,6 +642,14 @@ progress to an ignored drop while the miner intentionally targets another reward
   failures with verification disabled, alter global SSL defaults, or change browser,
   Twitch validation, miner, admission, redirect or receipt-reconciliation checks.
   Keep `helper.insecure_help` and `helper.insecure_warning` in every locale.
+  `PrivateResolver` limits `--insecure` to `https://` destinations whose host resolves
+  only to 10/8, 172.16/12, 192.168/16, 127/8, ::1, fc00::/7 or fe80::/10 (IPv4-mapped
+  forms are unwrapped). 100.64/10 stays excluded because ISP customers share it.
+  `HelperHTTP` vets once before connecting, then the connector resolves only the vetted
+  host to those pinned addresses. Refusals use the fixed `HELPER_INSECURE_TLS` code
+  without echoing the URL, after the warning. Do not widen the address list or apply
+  the opt-out elsewhere without user approval. Coverage: `tests/test_helper_tls.py` and
+  `tests/test_helper_insecure_tls.py`, both in the four-platform helper test list.
 - Keep the released helper instructions and download links aligned with the four build
   targets: Windows x64, Linux x64, macOS arm64, and macOS x64. Users choose the helper
   computer's platform and match the miner release. The login screen's **Use desktop
@@ -647,6 +659,18 @@ progress to an ignored drop while the miner intentionally targets another reward
   as the default. On macOS, users must quit the helper-owned browser instance to flush
   its profile. Keep the release-ready README, installation examples, login guide, and
   generated release-note instructions consistent with these behaviors.
+- The helper's optional `--ca-file PATH` adds CA certificates for its TDM connection
+  only, through `HelperHTTP.trust()`: system trust via truststore plus the file's
+  certificates. Verification and hostname checks stay on. It is mutually exclusive
+  with `--insecure`. Only certificates passing OpenSSL's CA check (normally `CA:TRUE`)
+  are loaded, because truststore passes only those to Windows/macOS verification;
+  missing, unreadable, non-PEM, key-only or server-only files fail before connecting
+  with the fixed `HELPER_CA_FILE` code. Never print the path or file contents; the CLI
+  prints only the fixed `ca_file_in_use` note, for HTTPS destinations.
+  `tests/test_helper_ca_file.py` runs real handshakes and is in the native helper
+  workflow's four-platform test list; keep its certificates within Apple's TLS rules
+  (serverAuth, short validity) and generated through config files that macOS LibreSSL
+  also accepts.
 
 ### Dashboard authentication
 
