@@ -74,7 +74,7 @@ class InventoryService:
         self._twitch.gui.channels.clear()
         self._twitch.gui.clear_channel_selection()
 
-        self._twitch.clear_manual_mode("Local cache cleared")
+        self._twitch.clear_manual_mode("Local cache cleared", restore_priorities=False)
         self._twitch.wanted_games.clear()
         self._clear_inventory_state()
         self._twitch.gui.set_games(set())

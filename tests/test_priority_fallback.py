@@ -43,6 +43,7 @@ def _campaign(
 ):
     now = datetime.now(timezone.utc)
     twitch = MagicMock()
+    twitch.is_manual_mode.return_value = False
     twitch.settings = settings or _settings()
     return DropsCampaign(
         twitch,
@@ -335,6 +336,8 @@ async def test_final_wanted_claim_recalculates_policy_and_releases_priority(stri
     twitch._schedule_changed = asyncio.Event()
     twitch._games_update_pending = False
     twitch._inventory_loaded = True
+    twitch._manual_target_channel = None
+    twitch._manual_target_game = None
     twitch.request_games_update = MagicMock(wraps=twitch.request_games_update)
     selected = _campaign("priority", "Priority", settings=settings, drops=[
         _drop("Wanted badge", benefit_type="BADGE"),

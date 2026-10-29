@@ -152,6 +152,17 @@ lang/                # Translation JSON files (20 languages)
 **src/core/client.py** - Central client (`Twitch` class):
 
 - State machine: IDLE, INVENTORY_FETCH, GAMES_UPDATE, CHANNELS_CLEANUP, CHANNELS_FETCH, CHANNEL_SWITCH, EXIT
+- `WatchService.can_watch_in_current_mode()` shares manual-game admission across
+  live channel callbacks and the state-machine selector. Keep generic `can_watch()`
+  for explicit choices and special-category eligibility. Revalidate the manual
+  target's current category; recover on an eligible same-game channel or clear
+  manual mode and run automatic selection in the same pass. Explicit choices can
+  retarget an existing manual selection; an uncategorized choice clears it.
+  Clearing manual intent restores priorities through `StreamSelector` with the
+  current `TemporaryGameOrder` before publishing the mode change; cache teardown
+  skips recalculation. Preserve reentrant EXIT requests during mode publication,
+  saved rankings, earning gates, pause and mining hours. Regression coverage:
+  `tests/test_manual_game_selection.py`.
 - Composes `_AuthState`, `HTTPClient`, and `GQLClient`
 - Delegates to service layer for business logic
 - Drop progress monitoring via periodic "watch" payloads

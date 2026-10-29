@@ -92,6 +92,14 @@ If the channel becomes unavailable, TDM tries another eligible channel for that 
 Use **Return to Auto Mode** to resume normal game priorities. Manual mode also ends
 when its game has no remaining eligible drops or no suitable channel is available.
 
+Source builds containing the manual-intent fix keep that game pinned across live
+channel updates, including temporary queue reordering. If the watched channel
+changes category, TDM tries an eligible replacement for the original game, then
+resumes automatic selection if none is available. An explicit eligible choice can
+replace the manual target; an uncategorized special-event choice clears it.
+Returning to automatic mode restores the current temporary queue order, or normal
+game priorities when no temporary order is active. Saved rankings stay unchanged.
+
 ### Special Events and IRL campaigns
 
 Include the campaign's category in **Mining list**. These campaigns can progress

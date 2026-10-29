@@ -24,6 +24,7 @@ CHANNEL_ID = 100
 @pytest.fixture
 def twitch():
     client = MagicMock()
+    client.is_manual_mode.return_value = False
     client.settings.drop_name_blacklist = []
     client.settings.telegram_bot_token = ""
     client.settings.telegram_chat_id = ""
