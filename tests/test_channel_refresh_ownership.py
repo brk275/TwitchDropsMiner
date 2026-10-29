@@ -154,6 +154,60 @@ async def test_current_refresh_still_performs_the_optional_lookup(monkeypatch):
     twitch.on_channel_update.assert_called_once()
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("retirement", ["offline", "topics", "observation", "registry"])
+async def test_retired_raw_response_is_discarded_before_parsing(monkeypatch, retirement):
+    twitch, target = setup(monkeypatch, False)
+    twitch.websocket = MagicMock()
+    target._display_name = None
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def request(operation):
+        entered.set()
+        await release.wait()
+        return {"malformed_retired_response": True}
+
+    twitch.gql_request = AsyncMock(side_effect=request)
+    worker = asyncio.create_task(target.get_stream())
+    try:
+        await asyncio.wait_for(entered.wait(), 1)
+        if retirement == "offline":
+            target.set_offline()
+        elif retirement == "topics":
+            Twitch._remove_channel_topics(twitch, [target])
+        elif retirement == "observation":
+            target.external_update(live(target.id)["data"]["user"], [])
+        else:
+            await Twitch._stop_channel_tasks(twitch)
+        observed = target._stream
+        revision, generation = target.stream_revision, target._refresh_generation
+        release.set()
+        assert await asyncio.wait_for(worker, 1) is None
+        assert target._stream is observed
+        assert target.stream_revision == revision and target._refresh_generation == generation
+        assert target._display_name is None
+        twitch.gql_request.assert_awaited_once()
+        twitch.on_channel_update.assert_not_called()
+    finally:
+        release.set()
+        await drain(twitch, worker)
+
+
+@pytest.mark.asyncio
+async def test_current_malformed_response_is_not_hidden_by_retirement_guard(monkeypatch):
+    twitch, target = setup(monkeypatch, False)
+    target._display_name = None
+    revision, generation = target.stream_revision, target._refresh_generation
+    twitch.gql_request = AsyncMock(return_value={"malformed_current_response": True})
+
+    with pytest.raises(KeyError):
+        await target.get_stream()
+
+    assert target._stream is None and target._display_name is None
+    assert target.stream_revision == revision and target._refresh_generation == generation
+    twitch.on_channel_update.assert_not_called()
+
+
 def setup(monkeypatch, initially_online):
     monkeypatch.setattr("src.models.channel.ONLINE_DELAY", timedelta(0))
     twitch = client()
