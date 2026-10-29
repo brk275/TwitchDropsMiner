@@ -183,6 +183,7 @@ class Channel:
         "_display_name",
         "_spade_url",
         "_stream",
+        "stream_revision",
         "_pending_stream_up",
         "_watch_broadcast_id",
         "_watched_segments",
@@ -209,6 +210,7 @@ class Channel:
         self._display_name: str | None = display_name
         self._spade_url: URLType | None = None
         self._stream: Stream | None = None
+        self.stream_revision: int = 0
         self._pending_stream_up: asyncio.Task[Any] | None = None
         self._watch_broadcast_id: int | None = None
         self._watched_segments: OrderedDict[str, None] = OrderedDict()
@@ -375,6 +377,7 @@ class Channel:
     def viewers(self, value: int):
         if self._stream is not None:
             self._stream.viewers = value
+            self.stream_revision += 1
 
     @property
     def drops_enabled(self) -> bool:
@@ -390,6 +393,7 @@ class Channel:
 
     def remove(self) -> None:
         """Remove this channel from the GUI and cancel pending tasks."""
+        self.stream_revision += 1
         if self._pending_stream_up is not None:
             self._pending_stream_up.cancel()
             self._pending_stream_up = None
@@ -436,11 +440,13 @@ class Channel:
         """
         if not channel_data["stream"]:
             self._stream = None
+            self.stream_revision += 1
             return
         stream = Stream.from_get_stream(self, channel_data)
         if not stream.drops_enabled:
             stream.drops_enabled = self._check_drops_enabled(available_drops)
         self._stream = stream
+        self.stream_revision += 1
 
     async def get_stream(self) -> Stream | None:
         try:
@@ -476,6 +482,7 @@ class Channel:
         """
         old_stream = self._stream
         self._stream = await self.get_stream()
+        self.stream_revision += 1
         self._twitch.on_channel_update(self, old_stream, self._stream)
         return self._stream is not None
 
@@ -513,6 +520,7 @@ class Channel:
 
         This is called externally, if we receive an event indicating the channel is now OFFLINE.
         """
+        self.stream_revision += 1
         needs_display: bool = False
         if self._pending_stream_up is not None:
             self._pending_stream_up.cancel()

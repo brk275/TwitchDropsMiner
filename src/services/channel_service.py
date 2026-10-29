@@ -274,6 +274,7 @@ class ChannelService:
             channels: Iterable of Channel objects to check
         """
         channel_list = list(channels)
+        stream_revisions = [channel.stream_revision for channel in channel_list]
         acl_streams_map: dict[int, JsonType] = {}
         stream_gql_ops: list[GQLRequest] = [channel.stream_gql for channel in channel_list]
 
@@ -307,7 +308,9 @@ class ChannelService:
             await asyncio.gather(*stream_gql_tasks, return_exceptions=True)
 
         # Update all channels with their stream data
-        for channel in channel_list:
+        for channel, revision in zip(channel_list, stream_revisions, strict=True):
+            if channel.stream_revision != revision:
+                continue
             channel_id = channel.id
             if channel_id not in acl_streams_map:
                 continue

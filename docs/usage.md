@@ -86,6 +86,12 @@ simultaneously; this setting selects the preferred channel and campaign.
 TDM chooses among live channels that can earn your selected rewards. Game priorities,
 campaign participation, and channel eligibility all affect the choice.
 
+In source checkouts containing the bulk-discovery ordering fix, a delayed live-channel
+response cannot overwrite a newer offline event, applied stream observation, viewer
+update or channel removal. This preserves newer local state; it does not verify Twitch
+drop credit or fix every asynchronous stream-refresh race. Published images need a
+release containing the fix.
+
 You can select an eligible channel from the Main tab. Switching to a different game
 while already watching enters **Manual Mode**, which keeps that game as the target.
 If the channel becomes unavailable, TDM tries another eligible channel for that game.
