@@ -490,6 +490,8 @@ class Channel:
         except MinerException as exc:
             raise MinerException(f"Channel: {self._login}") from exc
         self._check_refresh_cancellation()
+        if not self._refresh_is_current(generation, owner):
+            return None
         channel_data: JsonType | None = response["data"]["user"]
         if not channel_data:
             return None

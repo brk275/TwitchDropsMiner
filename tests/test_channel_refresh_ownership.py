@@ -11,7 +11,13 @@ from src.core.client import Twitch
 from src.exceptions import ExitRequest, LoginException, MinerException
 from src.models.channel import Channel
 from src.services.channel_service import ChannelService
-from tests.channel_refresh_helpers import channel, client, live, setup_client
+from tests.channel_refresh_helpers import (
+    channel,
+    client,
+    force_available_drops_branch,
+    live,
+    setup_client,
+)
 from tests.test_session_lifecycle import miner
 
 
@@ -63,6 +69,89 @@ async def test_registry_generation_retires_bulk_publication_without_claiming_to_
     finally:
         release.set()
         await drain(twitch, worker)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("retirement", ["offline", "topics", "registry"])
+@pytest.mark.parametrize("adapter", ["propagates", "suppresses", "uncancels"])
+async def test_retired_first_read_does_not_start_new_optional_lookup(monkeypatch, retirement, adapter):
+    twitch, target = setup(monkeypatch, False)
+    twitch.websocket = MagicMock()
+    target._display_name = None
+    force_available_drops_branch(monkeypatch)
+    entered, cancelled, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
+    second_entered, second_release = asyncio.Event(), asyncio.Event()
+
+    async def request(operation):
+        if "channelID" in operation["variables"]:
+            second_entered.set()
+            await second_release.wait()
+            return {"data": {"channel": {"viewerDropCampaigns": []}}}
+        entered.set()
+        try:
+            await release.wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            if adapter == "propagates":
+                raise
+            if adapter == "uncancels":
+                asyncio.current_task().uncancel()
+            await release.wait()
+        response = live(target.id)
+        response["data"]["user"]["displayName"] = "Retired name"
+        return response
+
+    twitch.gql_request = AsyncMock(side_effect=request)
+    target.check_online()
+    worker = target._stream_refresh_task
+    stop = None
+    try:
+        await asyncio.wait_for(entered.wait(), 1)
+        if retirement == "offline":
+            target.set_offline()
+        elif retirement == "topics":
+            Twitch._remove_channel_topics(twitch, [target])
+        else:
+            stop = asyncio.create_task(Twitch._stop_channel_tasks(twitch))
+        await asyncio.wait_for(cancelled.wait(), 1)
+        release.set()
+        for _ in range(40):
+            if second_entered.is_set() or worker.done():
+                break
+            await asyncio.sleep(0)
+        dispatched = second_entered.is_set()
+        second_release.set()
+        await asyncio.wait_for(asyncio.gather(worker, return_exceptions=True), 1)
+        if stop is not None:
+            await asyncio.wait_for(stop, 1)
+        assert target._stream is None and target._display_name is None
+        twitch.on_channel_update.assert_not_called()
+        assert not dispatched, "Retired first read started a new AvailableDrops lookup"
+    finally:
+        release.set()
+        second_release.set()
+        if stop is not None:
+            await asyncio.gather(stop, return_exceptions=True)
+        await drain(twitch, worker)
+
+
+@pytest.mark.asyncio
+async def test_current_refresh_still_performs_the_optional_lookup(monkeypatch):
+    twitch, target = setup(monkeypatch, False)
+    target._display_name = None
+    force_available_drops_branch(monkeypatch)
+    response = live(target.id)
+    response["data"]["user"]["displayName"] = "Fresh name"
+    twitch.gql_request = AsyncMock(side_effect=[
+        response, {"data": {"channel": {"viewerDropCampaigns": []}}},
+    ])
+
+    assert await target.update_stream()
+
+    assert twitch.gql_request.await_count == 2
+    assert "channelID" in twitch.gql_request.await_args_list[1].args[0]["variables"]
+    assert target._display_name == "Fresh name"
+    twitch.on_channel_update.assert_called_once()
 
 
 def setup(monkeypatch, initially_online):

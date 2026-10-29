@@ -204,6 +204,8 @@ lang/                # Translation JSON files (20 languages)
   and deferred name filling through `_stream_generation`; account cleanup advances
   `_channel_tasks_generation` before cancelling and joining managed workers.
   Keep both fences even if a transport suppresses cancellation or calls `uncancel()`.
+  Reject a retired first response before dispatching an optional drops lookup;
+  final publication checks do not prevent new work from delaying cleanup.
   `_stream_generation` does not advance for viewer-only observations; those still
   advance `stream_revision` for bulk ordering. This is not global Twitch chronology
   or a promise that the managed registry joins unregistered direct/bulk callers.

@@ -3,12 +3,23 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from src.models.channel import Channel
+from src.models.channel import Channel, Stream
 from tests.test_priority_fallback import _campaign, _channel, _settings
 from tests.test_session_lifecycle import miner
 
 
 GAME = {"id": "1", "name": "Game"}
+
+
+def force_available_drops_branch(monkeypatch):
+    original = Stream.from_get_stream.__func__
+
+    def disabled(cls, channel, data):
+        result = original(cls, channel, data)
+        result.drops_enabled = False
+        return result
+
+    monkeypatch.setattr(Stream, "from_get_stream", classmethod(disabled))
 
 
 def client():

@@ -192,6 +192,8 @@ def test_empty_topic_removal_does_not_touch_unrelated_channels(tmp_path, monkeyp
 
     assert [channel._refresh_generation for channel in (target, selected, alternate)] == generations
     client.websocket.remove_topics.assert_not_called()
+    client.gui.channels.remove.assert_not_called()
+    client.gui.channels.display.assert_not_called()
 
 
 @pytest.mark.asyncio
