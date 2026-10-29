@@ -15,7 +15,11 @@ const state = {
     pauseRevision: 0,
     pauseServerRevision: null,
     pauseInstance: null,
-    pauseEpoch: 0
+    pauseEpoch: 0,
+    gameOrderRevision: 0,
+    gameOrderServerRevision: null,
+    gameOrderInstance: null,
+    gameOrderEpoch: 0
 };
 
 // ==================== UI Utilities ====================
@@ -253,9 +257,7 @@ socket.on('initial_state', (data) => {
         clearDropProgress();
     }
 
-    if (data.game_order) {
-        updateGameOrder(data.game_order);
-    }
+    updateGameOrder(data.game_order === undefined ? { active: false, games: [] } : data.game_order, true);
     if (data.wanted_items) {
         renderWantedItems(data.wanted_items);
     }
@@ -3097,7 +3099,7 @@ function applyTranslations(t) {
         // ID: wanted-header
         const wantedHeader = document.getElementById('wanted-header');
         if (wantedHeader) wantedHeader.textContent = t.gui.wanted.name;
-        updateGameOrder(gameOrder);
+        paintGameOrder();
         renderWantedItems(lastWantedTree);
         // Re-render wanted items to update empty message
         // Since we don't store wanted items in state globally (only receives them), we rely on updateWantedItems triggering render
@@ -3476,8 +3478,59 @@ function wantedText(key, fallback) {
     return state.translations.gui?.wanted?.[key] || fallback;
 }
 
-function updateGameOrder(info) {
-    gameOrder = { active: info?.active === true, games: Array.isArray(info?.games) ? info.games : [] };
+function isGameOrderInfo(info) {
+    const revision = info?.revision;
+    const instance = info?.instance_id;
+    const validRevision = Number.isSafeInteger(revision) && revision >= 0;
+    return typeof info?.active === 'boolean' && Array.isArray(info.games)
+        && info.games.every(name => typeof name === 'string')
+        && (revision === undefined || validRevision)
+        && (instance === undefined || (typeof instance === 'string'
+            && /^[a-f0-9]{32}$/.test(instance) && validRevision));
+}
+
+function updateGameOrder(info, initial = false) {
+    if (!isGameOrderInfo(info)) return false;
+    if (info.instance_id !== undefined) {
+        if (state.gameOrderInstance !== info.instance_id) {
+            if (state.gameOrderInstance != null && !initial) return false;
+            if (initial) {
+                // A known legacy context has receipts but no instance ID.
+                if (state.gameOrderInstance != null || (state.gameOrderRevision || 0) > 0) {
+                    state.gameOrderEpoch = (state.gameOrderEpoch || 0) + 1;
+                }
+                setWantedOrderError(false);
+            }
+            state.gameOrderInstance = info.instance_id;
+            state.gameOrderServerRevision = null;
+        }
+    } else if (initial) {
+        // Legacy snapshots cannot identify a restart, so retire pending replies.
+        state.gameOrderEpoch = (state.gameOrderEpoch || 0) + 1;
+        state.gameOrderInstance = null;
+        state.gameOrderServerRevision = null;
+        setWantedOrderError(false);
+    } else if (state.gameOrderInstance != null) {
+        return false;
+    }
+    if (info.revision !== undefined) {
+        if (state.gameOrderServerRevision != null && info.revision < state.gameOrderServerRevision) return false;
+        if (info.revision === state.gameOrderServerRevision) {
+            paintGameOrder();
+            return true;
+        }
+        state.gameOrderServerRevision = info.revision;
+    } else {
+        if (state.gameOrderServerRevision != null) return false;
+        // Equal legacy packets are still new receipts; an intermediate update may be lost.
+    }
+    state.gameOrderRevision = (state.gameOrderRevision || 0) + 1;
+    gameOrder = { active: info.active, games: [...info.games] };
+    paintGameOrder();
+    return true;
+}
+
+function paintGameOrder() {
     const note = document.getElementById('wanted-order-note');
     const reset = document.getElementById('wanted-order-reset');
     if (note) {
@@ -3501,6 +3554,8 @@ function setWantedOrderError(visible) {
 
 async function saveWantedOrder(games) {
     if (wantedOrderBusy) return false;
+    const localRevision = state.gameOrderRevision || 0;
+    const epoch = state.gameOrderEpoch || 0;
     const previous = lastWantedTree;
     let optimistic = null;
     if (games.length) {
@@ -3512,7 +3567,7 @@ async function saveWantedOrder(games) {
         optimistic = lastWantedTree;
     }
     wantedOrderBusy = true;
-    updateGameOrder(gameOrder);
+    paintGameOrder();
     try {
         const response = await fetch('/api/wanted-order', {
             method: 'POST',
@@ -3520,20 +3575,24 @@ async function saveWantedOrder(games) {
             body: JSON.stringify({ games })
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.success !== true) throw new Error('wanted_order_failed');
-        setWantedOrderError(false);
-        updateGameOrder(data);
+        if ((state.gameOrderEpoch || 0) !== epoch) return false;
+        if (!response.ok || data?.success !== true || !isGameOrderInfo(data)) throw new Error('wanted_order_failed');
+        // Versioned replies can be newer than a socket packet observed mid-request.
+        if (data.revision !== undefined || (state.gameOrderRevision || 0) === localRevision) {
+            if (updateGameOrder(data)) setWantedOrderError(false);
+        }
         return true;
     } catch (error) {
-        setWantedOrderError(true);
-        // Undo only our own optimistic view; the server may have applied the order
-        // anyway (lost reply), so fetch the real queue rather than trusting a snapshot.
-        if (optimistic === null || lastWantedTree === optimistic) renderWantedItems(previous);
-        if (typeof socket !== 'undefined') socket.emit('get_wanted_items');
+        if ((state.gameOrderEpoch || 0) === epoch) {
+            setWantedOrderError(true);
+            // Reset has no optimistic tree. Reorders may undo only their own view.
+            if (optimistic !== null && lastWantedTree === optimistic) renderWantedItems(previous);
+            if (typeof socket !== 'undefined') socket.emit('get_wanted_items');
+        }
         return false;
     } finally {
         wantedOrderBusy = false;
-        updateGameOrder(gameOrder);
+        paintGameOrder();
     }
 }
 

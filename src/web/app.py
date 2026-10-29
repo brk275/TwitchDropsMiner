@@ -639,6 +639,8 @@ async def get_wanted_items(sid):
         return
     if gui_manager:
         await sio.emit("wanted_items_update", gui_manager.get_wanted_game_tree(), to=sid)
+        if twitch_client:
+            await sio.emit("game_order_update", twitch_client.game_order.info(), to=sid)
 
 
 # Mount static files (CSS, JS, images)

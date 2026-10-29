@@ -149,6 +149,18 @@ order**, or changing **Mining list** (in Settings or with **Add to mining list**
 Inventory) returns to the saved order. To change the default order permanently, use
 **Settings → Games → Mining list**.
 
+Source checkouts containing the wanted-order response-ordering fix use a runtime
+revision and instance ID to keep delayed replies from replacing newer order
+metadata. A restarted miner's initial state retires pending replies from its old
+instance. Failed Reset requests do not restore an old queue over newer updates;
+recovery refreshes both the queue and its order controls.
+
+Older servers without this metadata retain best-effort compatibility, not guaranteed
+response ordering. Their initial snapshots replace the order context, using default
+controls when order metadata is absent. This fork-source-only fix does not change the published
+`latest` image; updated frontend assets require a release cache-key bump before
+deployment.
+
 ## Account-link override
 
 In **Settings → Mining**, **Allow mining campaigns reported as Not Linked** is off by default.

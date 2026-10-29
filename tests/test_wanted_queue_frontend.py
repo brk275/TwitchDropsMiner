@@ -8,7 +8,8 @@ from tests.test_telegram_frontend import run_javascript
 
 pytestmark = pytest.mark.skipif(NODE is None, reason="Node.js is required for frontend tests")
 
-FUNCTIONS = ['makeElement', 'makeImageElement', 'wantedText', 'updateGameOrder', 'setWantedOrderError',
+FUNCTIONS = ['makeElement', 'makeImageElement', 'wantedText', 'isGameOrderInfo', 'updateGameOrder',
+             'paintGameOrder', 'setWantedOrderError',
              'pointerPastMiddle',
              'saveWantedOrder', 'handleWantedDragStart',
              'handleWantedDragEnd', 'renderWantedItems', 'handleDragStart', 'handleWantedDragOver',
