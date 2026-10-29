@@ -136,6 +136,13 @@ expired rewards and rewards the miner cannot target. Upcoming and sequential rew
 can remain visible, so a queued reward is not necessarily earnable immediately.
 Successful claims refresh the queue.
 
+Source checkouts containing the active-campaign eligibility fix choose local
+candidates only from wanted campaigns the channel can currently earn, on a live,
+non-banned channel; regular campaigns also require drops enabled. Existing
+queue/reward priorities and remaining time apply after those checks. This
+fork-source-only fix does not change the published `latest` image. A local candidate
+is not confirmation of which reward Twitch is crediting.
+
 ### Change the queue order temporarily
 
 On **Main**, drag a game card in the Wanted Drops Queue to mine it sooner. On a touch

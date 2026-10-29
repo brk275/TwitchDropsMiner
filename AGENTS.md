@@ -211,6 +211,15 @@ lang/                # Translation JSON files (20 languages)
 - `WatchService.should_switch()` allows replacement of an unwatchable current channel
   before comparing priorities. Healthy streams keep the existing priority rules; tied
   `MAX_INT` participants must still take over after an offline or ineligible stream.
+- `InventoryService.get_active_campaign()` returns a local candidate, not confirmed
+  Twitch reward allocation. An explicit channel object takes precedence over the
+  watched channel, including a same-ID object with different stream state; only an
+  omitted/None channel defaults to the watcher. Require a live, non-banned channel,
+  runtime `wanted_games` membership, `campaign.can_earn(channel)` and the same
+  special-category-or-drops-enabled guard as `WatchService` before applying existing
+  reward/temporary ranks and remaining-time sorting. Do not mutate watched state,
+  inventory, progress, or saved/runtime game orders. Regression coverage:
+  `tests/test_active_campaign_selection.py`.
 
 **src/models/drop.py** - Drop types:
 

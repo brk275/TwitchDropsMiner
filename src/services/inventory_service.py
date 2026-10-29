@@ -247,40 +247,40 @@ class InventoryService:
         """
         Determine the active campaign for a given channel (or watching channel).
 
-        Returns the campaign with the least remaining minutes that can be earned
-        on the specified channel. This is used to determine which drop is actively
-        being progressed.
+        Choose a wanted, watchable campaign using configured ranks and remaining
+        minutes. An explicit channel takes precedence over the watched channel.
+        This is a local candidate, not confirmed Twitch reward allocation.
 
         Args:
             channel: The channel to check (defaults to watching channel)
 
         Returns:
-            The active DropsCampaign, or None if no campaign can be earned
+            A local DropsCampaign candidate, or None if none can be watched
         """
         if not self._twitch.wanted_games:
             return None
 
-        watching_channel = self._twitch.watching_channel.get_with_default(channel)
-        if watching_channel is None:
-            # if we aren't watching anything, we can't earn any drops
+        watching_channel = channel if channel is not None else self._twitch.watching_channel.get_with_default(None)
+        if watching_channel is None or not watching_channel.online or watching_channel.banned:
             return None
 
         campaigns: list[DropsCampaign] = []
         for campaign in self._twitch.inventory:
-            if campaign.can_earn(watching_channel):
+            if (
+                campaign.game in self._twitch.wanted_games
+                and campaign.can_earn(watching_channel)
+                and (campaign.game.is_special() or watching_channel.drops_enabled)
+            ):
                 campaigns.append(campaign)
 
         if campaigns:
             campaigns.sort(key=lambda c: c.remaining_minutes)
             policy = RewardPriority(self._twitch.settings)
             if policy.enabled:
-                campaigns = [campaign for campaign in campaigns if campaign.game in self._twitch.wanted_games]
                 selected = {name.lower() for name in self._twitch.settings.games_to_watch}
                 campaigns.sort(key=lambda campaign: (
                     0 if campaign.game.name.lower() in selected else 1, policy.campaign_key(campaign),
                     self._twitch.wanted_games.index(campaign.game), campaign.remaining_minutes))
-            if not campaigns:
-                return None
             order = getattr(self._twitch, "game_order", None)
             if isinstance(order, TemporaryGameOrder) and order.active:
                 # Stable: the temporary dashboard order first, then the rules above.
