@@ -190,11 +190,31 @@ lang/                # Translation JSON files (20 languages)
 - ACL-based vs directory channels
 - `Channel.stream_revision` advances on applied stream observations, viewer updates,
   offline events (including already-offline channels), and removal. Bulk discovery
-  snapshots revisions before awaiting Twitch and skips superseded live responses.
+  snapshots revisions and the account task generation before awaiting Twitch and
+  skips superseded live responses. Subscription retirement advances this revision.
   Preserve fresh response handling, null-response behavior, cancellation/draining,
   playlist caching and callbacks. This is local observation ordering, not Twitch-side
   sequencing or a repair for all asynchronous per-channel refreshes. Regressions:
   `tests/test_bulk_stream_ordering.py`.
+- Managed channel refreshes keep `_stream_refresh_task` ownership through their
+  delay, requests and sequential follow-up, separately from `_pending_stream_up`'s
+  display state. Coalesce events during delay; queue one delayed follow-up for
+  events during a request. Retired workers stay in `_channel_tasks` until done.
+  Offline/removal/unsubscribe and applied stream observations revoke publication
+  and deferred name filling through `_stream_generation`; account cleanup advances
+  `_channel_tasks_generation` before cancelling and joining managed workers.
+  Keep both fences even if a transport suppresses cancellation or calls `uncancel()`.
+  `_stream_generation` does not advance for viewer-only observations; those still
+  advance `stream_revision` for bulk ordering. This is not global Twitch chronology
+  or a promise that the managed registry joins unregistered direct/bulk callers.
+  Retry only recoverable lookup failures with a queued event, not login, exit or
+  publication errors. Completion callbacks must not clear replacement ownership;
+  retrieve failures without logging exception text or causes. Preserve direct-call
+  interfaces, display semantics, known state on failure and same-broadcast playlist
+  caches. Rediscovery relinks manual/watched targets to eligible tracked objects;
+  removal must not retain an untracked watched object. Respect reentrant EXIT when
+  publishing manual-mode changes. Coverage: `tests/test_channel_refresh_ownership.py`
+  and `tests/test_discovery_refresh_retirement.py`.
 - `Channel.banned` accepts an error-free, matching-channel `user.self.banStatus`
   object with boolean `isPermanent`. Both true and false mean an active ban; false
   identifies a temporary ban. Null explicitly clears a ban. Missing, malformed or

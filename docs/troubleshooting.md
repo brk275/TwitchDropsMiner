@@ -184,6 +184,16 @@ preserves confirmed bans when a subsequent check fails, until expiry or a confir
 no-ban response. This does not override campaign eligibility or establish that Twitch
 will award progress.
 
+Source builds with refresh-ownership protection keep pending channel checks owned
+until their requests and queued follow-ups finish. Offline/removal and newer
+applied stream observations retire stale replies, including late name updates.
+Account cleanup revokes old publication authority before draining managed checks,
+even if an adapter finishes normally after cancellation. Other callers still own
+their direct and bulk operations; the registry does not join those unregistered
+tasks. A queued event can retry a failed lookup, but login, shutdown and publication
+errors do not cause that retry. These checks do not establish Twitch-side ordering
+or credited watch time; published images need a release containing the protection.
+
 ## The dashboard shows `invalid_host`
 
 The browser address uses a host name the dashboard does not trust. Use the miner's

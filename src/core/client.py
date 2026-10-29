@@ -113,6 +113,7 @@ class Twitch:
         self.watching_channel: AwaitableValue[Channel] = AwaitableValue()
         self._watching_task: asyncio.Task[None] | None = None
         self._channel_tasks: set[asyncio.Task[Any]] = set()
+        self._channel_tasks_generation: int = 0
         self._watching_restart = asyncio.Event()
         # Manual mode tracking
         self._manual_target_channel: Channel | None = None
@@ -242,9 +243,11 @@ class Twitch:
 
     async def _stop_channel_tasks(self) -> None:
         """Drain online checks even after their pending display marker is cleared."""
+        self._channel_tasks_generation += 1
         tasks = tuple(self._channel_tasks)
         for task in tasks:
-            task.cancel()
+            if not task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+                task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
     def _ensure_api_clients(self) -> None:
@@ -519,9 +522,10 @@ class Twitch:
         self.gui.print(message, collapse_key=collapse_key)
 
     def _remove_channel_topics(self, channels: abc.Iterable[Channel]) -> None:
-        """Remove websocket topics for a list of channels."""
+        """Retire channel refreshes and remove subscriptions without GUI churn."""
         topics_to_remove: list[str] = []
         for channel in channels:
+            channel._retire_stream_refresh()
             topics_to_remove.append(WebsocketTopic.as_str("Channel", "StreamState", channel.id))
             topics_to_remove.append(WebsocketTopic.as_str("Channel", "StreamUpdate", channel.id))
         if topics_to_remove:
@@ -816,15 +820,27 @@ class Twitch:
                         )
                     )
                 self.websocket.add_topics(to_add_topics)
-                # relink watching channel after cleanup
-                # NOTE: this replaces 'self.watching_channel's internal value with the new object
-                # Don't call stop_watching() here - let CHANNEL_SWITCH handle it to avoid clearing drop display
+                # Relink manual and watched targets to the tracked rediscovery objects.
+                if self.is_manual_mode() and self._manual_target_channel is not None:
+                    refreshed_target = channels.get(self._manual_target_channel.id)
+                    if refreshed_target is None or not self.can_watch_in_current_mode(refreshed_target):
+                        refreshed_target = next((
+                            channel for channel in channels.values()
+                            if self.can_watch_in_current_mode(channel)
+                        ), None)
+                    if refreshed_target is not None:
+                        self._manual_target_channel = refreshed_target
+                    else:
+                        self.clear_manual_mode("No channels available for manual game")
+                if self._state is State.EXIT:  # type: ignore[comparison-overlap]  # Mode publication may request shutdown.
+                    continue
                 watching_channel = self.watching_channel.get_with_default(None)
                 if watching_channel is not None:
                     new_watching: Channel | None = channels.get(watching_channel.id)
-                    if new_watching is not None and self.can_watch(new_watching):
+                    if new_watching is not None and self.can_watch_in_current_mode(new_watching):
                         self.watch(new_watching, update_status=False)
-                    # If channel not found, CHANNEL_SWITCH will handle selecting a new one
+                    else:
+                        self.stop_watching()
                     del new_watching
                 # pre-display the active drop with a substracted minute
                 for channel in channels.values():

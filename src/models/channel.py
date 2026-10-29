@@ -24,7 +24,7 @@ from src.config.constants import (
     URLType,
 )
 from src.config.operations import CHANNEL_BAN_QUERY, GQL_OPERATIONS
-from src.exceptions import ExitRequest, MinerException
+from src.exceptions import ExitRequest, LoginException, MinerException
 from src.models.game import Game
 from src.utils.json_utils import isonow, json_minify
 
@@ -185,6 +185,9 @@ class Channel:
         "_stream",
         "stream_revision",
         "_pending_stream_up",
+        "_stream_refresh_task",
+        "_refresh_requested",
+        "_stream_generation",
         "_watch_broadcast_id",
         "_watched_segments",
         "_last_spade_sent",
@@ -212,6 +215,9 @@ class Channel:
         self._stream: Stream | None = None
         self.stream_revision: int = 0
         self._pending_stream_up: asyncio.Task[Any] | None = None
+        self._stream_refresh_task: asyncio.Task[Any] | None = None
+        self._refresh_requested: bool = False
+        self._stream_generation: int = 0
         self._watch_broadcast_id: int | None = None
         self._watched_segments: OrderedDict[str, None] = OrderedDict()
         self._last_spade_sent: float | None = None
@@ -393,11 +399,34 @@ class Channel:
 
     def remove(self) -> None:
         """Remove this channel from the GUI and cancel pending tasks."""
-        self.stream_revision += 1
-        if self._pending_stream_up is not None:
-            self._pending_stream_up.cancel()
-            self._pending_stream_up = None
+        self._retire_stream_refresh()
         self._gui_channels.remove(self)
+
+    def _retire_stream_refresh(self) -> None:
+        self._stream_generation += 1
+        self.stream_revision += 1
+        tasks = {self._stream_refresh_task, self._pending_stream_up}
+        self._stream_refresh_task = self._pending_stream_up = None
+        self._refresh_requested = False
+        for task in tasks:
+            if task is not None and not task.done() and not task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+                task.cancel()
+
+    @staticmethod
+    def _check_refresh_cancellation() -> None:
+        task = asyncio.current_task()
+        if task is not None and task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+            raise asyncio.CancelledError
+
+    def _stream_refresh_done(self, task: asyncio.Task[Any]) -> None:
+        self._twitch._channel_tasks.discard(task)
+        if self._stream_refresh_task is task:
+            self._stream_refresh_task = None
+            self._refresh_requested = False
+        if self._pending_stream_up is task:
+            self._pending_stream_up = None
+        if not task.cancelled() and task.exception() is not None:
+            logger.log(CALL, "Channel refresh task failed")
 
     async def get_spade_url(self) -> URLType:
         """
@@ -441,25 +470,32 @@ class Channel:
         if not channel_data["stream"]:
             self._stream = None
             self.stream_revision += 1
+            self._stream_generation += 1
             return
         stream = Stream.from_get_stream(self, channel_data)
         if not stream.drops_enabled:
             stream.drops_enabled = self._check_drops_enabled(available_drops)
         self._stream = stream
         self.stream_revision += 1
+        self._stream_generation += 1
 
     async def get_stream(self) -> Stream | None:
+        generation = self._refresh_generation
+        task = asyncio.current_task()
+        owner = task if self._stream_refresh_task is task else None
         try:
             response: JsonType = await self._twitch.gql_request(self.stream_gql)
+        except (ExitRequest, LoginException):
+            raise
         except MinerException as exc:
             raise MinerException(f"Channel: {self._login}") from exc
+        self._check_refresh_cancellation()
         channel_data: JsonType | None = response["data"]["user"]
         if not channel_data:
             return None
-        # fill in display name
-        if self._display_name is None:
-            self._display_name = channel_data["displayName"]
         if not channel_data["stream"]:
+            if self._refresh_is_current(generation, owner) and self._display_name is None:
+                self._display_name = channel_data["displayName"]
             return None
         stream = Stream.from_get_stream(self, channel_data)
         if not stream.drops_enabled:
@@ -467,33 +503,84 @@ class Channel:
                 available_drops_campaigns: JsonType = await self._twitch.gql_request(
                     GQL_OPERATIONS["AvailableDrops"].with_variables({"channelID": str(self.id)})
                 )
+            except (ExitRequest, LoginException):
+                raise
             except MinerException:
                 logger.log(CALL, f"AvailableDrops GQL call failed for channel: {self._login}")
             else:
                 stream.drops_enabled = self._check_drops_enabled(
                     available_drops_campaigns["data"]["channel"]["viewerDropCampaigns"] or []
                 )
+        self._check_refresh_cancellation()
+        if self._refresh_is_current(generation, owner) and self._display_name is None:
+            self._display_name = channel_data["displayName"]
         return stream
+
+    @property
+    def _refresh_generation(self) -> tuple[int, int]:
+        return self._stream_generation, getattr(self._twitch, "_channel_tasks_generation", 0)
+
+    def _refresh_is_current(self, generation: tuple[int, int], owner: asyncio.Task[Any] | None) -> bool:
+        return (generation == self._refresh_generation
+                and (owner is None or self._stream_refresh_task is owner))
+
+    def _publish_stream(
+        self, stream: Stream | None, generation: tuple[int, int],
+        owner: asyncio.Task[Any] | None = None,
+    ) -> bool:
+        self._check_refresh_cancellation()
+        if not self._refresh_is_current(generation, owner):
+            return self.online
+        old_stream = self._stream
+        self._stream = stream
+        self.stream_revision += 1
+        self._stream_generation += 1
+        self._twitch.on_channel_update(self, old_stream, stream)
+        return self.online
 
     async def update_stream(self) -> bool:
         """
         Fetches the current channel stream, and if one exists,
         updates it's game, title, tags and viewers. Updates channel status in general.
         """
-        old_stream = self._stream
-        self._stream = await self.get_stream()
-        self.stream_revision += 1
-        self._twitch.on_channel_update(self, old_stream, self._stream)
-        return self._stream is not None
+        generation = self._refresh_generation
+        stream = await self.get_stream()
+        return self._publish_stream(stream, generation)
 
     async def _online_delay(self):
         """
         The 'stream-up' event is sent before the stream actually goes online,
         so just wait a bit and check if it's actually online by then.
         """
-        await asyncio.sleep(ONLINE_DELAY.total_seconds())
-        self._pending_stream_up = None  # for 'display' to work properly
-        await self.update_stream()
+        task = asyncio.current_task()
+        account_generation = self._refresh_generation[1]
+        while True:
+            await asyncio.sleep(ONLINE_DELAY.total_seconds())
+            if (self._stream_refresh_task is not task
+                    or self._refresh_generation[1] != account_generation):
+                return
+            self._pending_stream_up = None
+            self._refresh_requested = False
+            generation = self._refresh_generation
+            try:
+                stream = await self.get_stream()
+            except (ExitRequest, LoginException):
+                raise
+            except MinerException:
+                self._check_refresh_cancellation()
+                if self._refresh_generation[1] != account_generation:
+                    return
+                if self._stream_refresh_task is not task or not self._refresh_requested:
+                    raise
+                logger.log(CALL, "Channel refresh failed before a queued check")
+            else:
+                self._publish_stream(stream, generation, task)
+            self._check_refresh_cancellation()
+            if (self._stream_refresh_task is not task or not self._refresh_requested
+                    or self._refresh_generation[1] != account_generation):
+                return
+            self._pending_stream_up = task
+            self.display()
 
     def check_online(self) -> None:
         """
@@ -508,11 +595,17 @@ class Channel:
         This is called externally, if we receive an event about the status possibly being ONLINE
         or having to be updated.
         """
-        if self._pending_stream_up is None:
-            self._pending_stream_up = asyncio.create_task(self._online_delay())
-            self._twitch._channel_tasks.add(self._pending_stream_up)
-            self._pending_stream_up.add_done_callback(self._twitch._channel_tasks.discard)
-            self.display()
+        task = self._stream_refresh_task
+        if task is not None and not task.done() and not task.cancelling():  # type: ignore[attr-defined]  # Python 3.12 runtime.
+            if self._pending_stream_up is None:
+                self._refresh_requested = True
+            return
+        self._refresh_requested = False
+        task = asyncio.create_task(self._online_delay())
+        self._stream_refresh_task = self._pending_stream_up = task
+        self._twitch._channel_tasks.add(task)
+        task.add_done_callback(self._stream_refresh_done)
+        self.display()
 
     def set_offline(self) -> None:
         """
@@ -520,12 +613,8 @@ class Channel:
 
         This is called externally, if we receive an event indicating the channel is now OFFLINE.
         """
-        self.stream_revision += 1
-        needs_display: bool = False
-        if self._pending_stream_up is not None:
-            self._pending_stream_up.cancel()
-            self._pending_stream_up = None
-            needs_display = True
+        needs_display = self._pending_stream_up is not None
+        self._retire_stream_refresh()
         if self.online:
             old_stream = self._stream
             self._stream = None

@@ -92,6 +92,13 @@ update or channel removal. This preserves newer local state; it does not verify 
 drop credit or fix every asynchronous stream-refresh race. Published images need a
 release containing the fix.
 
+Source checkouts with refresh-ownership protection also retire pending channel
+lookups when channels go offline, are removed or lose their subscriptions. Live
+events during a lookup request a sequential follow-up rather than parallel checks.
+Rediscovery relinks watched and manual targets to eligible tracked channels, or
+resumes normal automatic selection when the manual game has no suitable target.
+These protections preserve local selection state; they do not prove drop credit.
+
 Source checkouts containing the unavailable-directory fix treat a game directory
 reported as null by Twitch as having no channels, rather than aborting discovery.
 Other selected games can still be searched. This does not suppress request errors

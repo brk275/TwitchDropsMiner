@@ -27,7 +27,8 @@ def _make_cache_test_client() -> tuple[Any, dict[str, object], MagicMock, MagicM
     }
     auth_state = MagicMock(name="auth_state")
     game = SimpleNamespace(name="Game A")
-    channel = SimpleNamespace(id=123, name="channel-a", game=game)
+    channel = SimpleNamespace(id=123, name="channel-a", game=game,
+                              _retire_stream_refresh=MagicMock(name="retire_stream_refresh"))
 
     twitch.settings = settings
     twitch._auth_state = auth_state
@@ -73,6 +74,7 @@ def test_clear_cached_state_discards_only_derived_runtime_state():
     settings_snapshot = settings.copy()
     original_settings = twitch.settings
     original_auth_state = twitch._auth_state
+    tracked_channel = next(iter(twitch.channels.values()))
 
     InventoryService(twitch).clear_cached_state()
 
@@ -82,6 +84,7 @@ def test_clear_cached_state_discards_only_derived_runtime_state():
     assert list(twitch._mnt_triggers) == []
     assert twitch.wanted_games == []
     assert twitch.channels == OrderedDict()
+    tracked_channel._retire_stream_refresh.assert_called_once_with()
     assert not twitch.watching_channel.has_value()
     assert twitch._watching_restart.is_set()
     assert twitch._manual_target_channel is None

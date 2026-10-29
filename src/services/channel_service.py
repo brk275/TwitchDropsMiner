@@ -275,6 +275,7 @@ class ChannelService:
         """
         channel_list = list(channels)
         stream_revisions = [channel.stream_revision for channel in channel_list]
+        account_generation = getattr(self._twitch, "_channel_tasks_generation", 0)
         acl_streams_map: dict[int, JsonType] = {}
         stream_gql_ops: list[GQLRequest] = [channel.stream_gql for channel in channel_list]
 
@@ -306,6 +307,9 @@ class ChannelService:
             for task in stream_gql_tasks:
                 task.cancel()
             await asyncio.gather(*stream_gql_tasks, return_exceptions=True)
+
+        if getattr(self._twitch, "_channel_tasks_generation", 0) != account_generation:
+            return
 
         # Update all channels with their stream data
         for channel, revision in zip(channel_list, stream_revisions, strict=True):
