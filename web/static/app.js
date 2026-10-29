@@ -1422,6 +1422,17 @@ function updateLoginStatus(data) {
 }
 
 function updateSettingsUI(settings, authoritative = false, changedFields = []) {
+    // Track the rendered value separately from confirmed settings so socket
+    // updates can refresh pristine fields without discarding local drafts.
+    const discordThreadInput = document.getElementById('discord-thread-id');
+    const threadPristine = discordThreadInput && discordThreadInput.value === state.discordThreadRendered;
+    const updateDiscordThread = !state.discordThreadInitialized
+        || changedFields.includes('discord_thread_draft')
+        || (authoritative && threadPristine && !state.discordActionPending);
+    // Unrelated save replies may contain a snapshot older than a Discord save.
+    if (!authoritative && !changedFields.includes('discord_thread_id') && state.discordThreadInitialized) {
+        settings = {...settings, discord_thread_id: state.settings.discord_thread_id};
+    }
     // Initial loads/socket updates own the watch list; unrelated partial-save replies do not.
     if (!authoritative && Array.isArray(state.settings.games_to_watch)) {
         settings = { ...settings, games_to_watch: state.settings.games_to_watch };
@@ -1471,9 +1482,10 @@ function updateSettingsUI(settings, authoritative = false, changedFields = []) {
         proxyIndicator.title = proxyUrl ? `Proxy active: ${proxyUrl}` : 'Proxy disabled';
     }
 
-    const discordThreadInput = document.getElementById('discord-thread-id');
-    if (discordThreadInput && Object.hasOwn(settings, 'discord_thread_id')) {
+    if (discordThreadInput && updateDiscordThread && Object.hasOwn(settings, 'discord_thread_id')) {
         discordThreadInput.value = settings.discord_thread_id;
+        state.discordThreadRendered = settings.discord_thread_id;
+        state.discordThreadInitialized = true;
     }
     const discordWebhookInput = document.getElementById('discord-webhook-url');
     if (discordWebhookInput) {
@@ -2241,7 +2253,7 @@ async function verifyProxy() {
     }
 }
 
-async function saveDiscordSettings(webhookUrl, removeWebhook = false, threadId = '') {
+async function saveDiscordSettings(webhookUrl, removeWebhook = false, threadId = '', expectedDraft = threadId) {
     const dc = state.translations.gui?.settings?.discord || {};
     try {
         const response = await fetch('/api/settings', {
@@ -2253,7 +2265,10 @@ async function saveDiscordSettings(webhookUrl, removeWebhook = false, threadId =
         if (!response.ok) throw new Error();
         const data = await response.json();
         if (data.success !== true || !data.settings) throw new Error();
-        updateSettingsUI(data.settings);
+        const threadInput = document.getElementById('discord-thread-id');
+        const draftUnchanged = threadInput && threadInput.value.trim() === expectedDraft;
+        updateSettingsUI(data.settings, false, draftUnchanged
+            ? ['discord_thread_id', 'discord_thread_draft'] : ['discord_thread_id']);
     } catch (error) {
         throw new Error(dc.save_error || 'Failed to save Discord settings.');
     }
@@ -2291,7 +2306,7 @@ async function updateDiscordSettings(action) {
         }
         saving = true;
         await saveDiscordSettings(action === 'remove' ? '' : webhookUrl, action === 'remove',
-            action === 'remove' ? '' : threadId);
+            action === 'remove' ? '' : threadId, threadId);
         result.className = 'verify-result success';
         result.textContent = action === 'test' ? (dc.success || 'Discord connection successful!')
             : action === 'remove' ? (dc.removed || 'Webhook removed. Discord notifications are disabled.')

@@ -143,7 +143,7 @@ assert.equal(calls.length, 2);
 assert.equal(calls[0].body.discord_thread_id, '123456789012345678');
 assert.equal(calls[1].body.discord_thread_id, '123456789012345678');
 assert.equal(document.getElementById('discord-thread-id').disabled, false);
-assert.equal(document.getElementById('discord-thread-id').value, '123456789012345678');
+assert.equal(document.getElementById('discord-thread-id').value, '999');
 """)
 
 
@@ -164,6 +164,88 @@ assert.equal(calls.length, 2);
 assert.equal(calls[0].discord_thread_id, '');
 assert.equal(calls[1].discord_thread_id, '');
 assert.equal(result.className, 'verify-result success');
+""")
+
+
+@pytest.mark.parametrize("draft", ["", "987654321098765432"])
+@pytest.mark.parametrize("authoritative", [True, False])
+def test_full_snapshot_preserves_blank_or_replacement_draft(draft, authoritative):
+    run_ui("const draft = " + json.dumps(draft) + ";\nconst authoritative = " +
+           json.dumps(authoritative) + ";\n" + r"""
+const saved = {discord_configured: true, discord_thread_id: '123456789012345678',
+    discord_webhook_url: 'masked', dark_mode: false};
+updateSettingsUI(saved, true);
+document.getElementById('discord-thread-id').value = draft;
+updateSettingsUI({...saved, dark_mode: true}, authoritative);
+assert.equal(document.getElementById('discord-thread-id').value, draft);
+global.fetch = async (url, options) => {
+    const body = JSON.parse(options.body);
+    calls.push(body);
+    return response({...saved, discord_thread_id: body.discord_thread_id});
+};
+await updateDiscordSettings('save');
+assert.equal(calls[0].discord_thread_id, draft);
+assert.equal(document.getElementById('discord-thread-id').value, draft);
+// An older unrelated save reply must not undo the completed Discord save.
+updateSettingsUI(saved);
+assert.equal(document.getElementById('discord-thread-id').value, draft);
+assert.equal(state.settings.discord_thread_id, draft);
+""")
+
+
+@pytest.mark.parametrize("draft", ["", "987654321098765432"])
+def test_delayed_discord_reply_preserves_newer_draft(draft):
+    run_ui("const draft = " + json.dumps(draft) + ";\n" + r"""
+updateSettingsUI({discord_configured: true, discord_thread_id: '111'});
+document.getElementById('discord-thread-id').value = '123456789012345678';
+let finishSave;
+global.fetch = async (url, options) => {
+    calls.push(JSON.parse(options.body));
+    return new Promise(resolve => { finishSave = () => resolve(response({
+        discord_configured: true, discord_thread_id: '123456789012345678'})); });
+};
+const pending = updateDiscordSettings('save');
+await new Promise(resolve => setImmediate(resolve));
+document.getElementById('discord-thread-id').value = draft;
+finishSave();
+await pending;
+assert.equal(document.getElementById('discord-thread-id').value, draft);
+assert.equal(calls[0].discord_thread_id, '123456789012345678');
+assert.equal(state.settings.discord_thread_id, '123456789012345678');
+updateSettingsUI({discord_configured: true, discord_thread_id: '111'});
+assert.equal(document.getElementById('discord-thread-id').value, draft);
+assert.equal(state.settings.discord_thread_id, '123456789012345678');
+""")
+
+
+def test_authoritative_updates_refresh_pristine_field_but_not_dirty_draft():
+    run_ui(r"""
+updateSettingsUI({discord_configured: true, discord_thread_id: '123'}, true);
+updateSettingsUI({discord_configured: true, discord_thread_id: '456'}, true);
+assert.equal(document.getElementById('discord-thread-id').value, '456');
+assert.equal(state.settings.discord_thread_id, '456');
+document.getElementById('discord-thread-id').value = '';
+updateSettingsUI({discord_configured: true, discord_thread_id: '789'}, true);
+assert.equal(document.getElementById('discord-thread-id').value, '');
+assert.equal(state.settings.discord_thread_id, '789');
+// Returning to the last rendered value makes the draft pristine again.
+document.getElementById('discord-thread-id').value = '456';
+updateSettingsUI({discord_configured: true, discord_thread_id: '999'}, true);
+assert.equal(document.getElementById('discord-thread-id').value, '999');
+assert.equal(state.settings.discord_thread_id, '999');
+""")
+
+
+def test_pending_discord_action_retains_snapshot_during_socket_update():
+    run_ui(r"""
+updateSettingsUI({discord_configured: true, discord_thread_id: '123'}, true);
+state.discordActionPending = true;
+updateSettingsUI({discord_configured: true, discord_thread_id: '456'}, true);
+assert.equal(document.getElementById('discord-thread-id').value, '123');
+assert.equal(state.settings.discord_thread_id, '456');
+state.discordActionPending = false;
+updateSettingsUI({discord_configured: true, discord_thread_id: '456'}, true);
+assert.equal(document.getElementById('discord-thread-id').value, '456');
 """)
 
 
