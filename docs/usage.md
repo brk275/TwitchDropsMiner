@@ -92,6 +92,12 @@ update or channel removal. This preserves newer local state; it does not verify 
 drop credit or fix every asynchronous stream-refresh race. Published images need a
 release containing the fix.
 
+Source checkouts containing the unavailable-directory fix treat a game directory
+reported as null by Twitch as having no channels, rather than aborting discovery.
+Other selected games can still be searched. This does not suppress request errors
+or guarantee that a selected game has participating channels. Published images need
+a release containing the fix.
+
 You can select an eligible channel from the Main tab. Switching to a different game
 while already watching enters **Manual Mode**, which keeps that game as the target.
 If the channel becomes unavailable, TDM tries another eligible channel for that game.

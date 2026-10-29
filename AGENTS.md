@@ -171,6 +171,11 @@ lang/                # Translation JSON files (20 languages)
 **src/services/** - Business logic layer (fully implemented):
 
 - `ChannelService`: Channel management and selection logic
+- A successful `GameDirectory` response with `data.game: null` has no channels,
+  like a missing game or empty edges. Preserve valid channel parsing, drops filters,
+  request-error context and process exit/cancellation. Do not convert transport or
+  arbitrary malformed responses into empty results. Regression coverage:
+  `tests/test_unavailable_game_directory.py`.
 - `InventoryService`: Campaign and drop inventory operations
 - `WatchService`: Drop mining watch payload logic
 - `MaintenanceService`: Periodic maintenance tasks
