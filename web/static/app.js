@@ -3834,6 +3834,7 @@ let historyTotal = null;
 let historyStatsData = null;
 let historyMessage = {key: 'loading', values: {}};
 let historyRequestId = 0;
+let historyStatsRequestId = 0;
 
 function historyText(key, values = {}) {
     let text = state.translations.gui?.history?.[key] || key;
@@ -4061,6 +4062,7 @@ async function toggleHistoryStats() {
     const panel = document.getElementById('history-stats-panel');
     if (!panel) return;
 
+    const requestId = ++historyStatsRequestId;
     historyStatsVisible = !historyStatsVisible;
     panel.style.display = historyStatsVisible ? 'block' : 'none';
 
@@ -4070,10 +4072,12 @@ async function toggleHistoryStats() {
         const res = await fetch('/api/history/stats');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (requestId !== historyStatsRequestId) return;
         historyStatsData = data;
         document.getElementById('history-stats-error').textContent = '';
         renderHistoryStats(data);
     } catch (err) {
+        if (requestId !== historyStatsRequestId) return;
         document.getElementById('history-stats-error').textContent = historyText('stats_error', {error: err.message});
     }
 }
@@ -4140,6 +4144,7 @@ async function clearHistory() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         historyRequestId++;
+        historyStatsRequestId++;
         historyAllEntries = [];
         historyTotal = 0;
         historyStatsData = {total_drops: 0, by_game: {}, by_month: {}};
@@ -4148,15 +4153,15 @@ async function clearHistory() {
         setHistoryTbodyMessage('cleared');
         renderHistoryPagination();
 
-        if (historyStatsVisible) {
-            const totalEl = document.getElementById('stats-total');
-            if (totalEl) totalEl.textContent = '0';
+        const errorEl = document.getElementById('history-stats-error');
+        if (errorEl) errorEl.textContent = '';
+        const totalEl = document.getElementById('stats-total');
+        if (totalEl) totalEl.textContent = '0';
 
-            ['stats-by-game', 'stats-by-month'].forEach((id) => {
-                const el = document.getElementById(id);
-                if (el) while (el.firstChild) el.removeChild(el.firstChild);
-            });
-        }
+        ['stats-by-game', 'stats-by-month'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) while (el.firstChild) el.removeChild(el.firstChild);
+        });
     } catch (err) {
         alert(historyText('clear_error', {error: err.message}));
     }

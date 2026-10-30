@@ -249,6 +249,8 @@ names and includes a UTF-8 byte-order mark for spreadsheet compatibility.
 not change your Twitch account or take away rewards.
 If saving the cleared history fails, the app reports an error and retains the
 existing records. Resolve the storage problem before trying again.
+Clearing also resets statistics; responses requested before the clear cannot
+restore older counts.
 
 ## Refreshing and clearing cache
 
