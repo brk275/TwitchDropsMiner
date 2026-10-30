@@ -161,6 +161,13 @@ lang/                # Translation JSON files (20 languages)
 
 - `ChannelService`: Channel management and selection logic
 - `InventoryService`: Campaign and drop inventory operations
+- Campaign detail batches may contain explicit `dropCampaign: null`. Skip those
+  unavailable new campaigns, not malformed envelopes, mismatched batch sizes or
+  duplicate/foreign returned IDs. Use fixed diagnostic errors without payloads.
+  Fill retained inventory's missing catalog metadata before detail lookup, keeping
+  inventory progress/claim data primary. Never create catalog-only placeholders.
+  Preserve existing fan-out cancellation/draining and retry on the normal refresh.
+  Regression coverage: `tests/test_unavailable_campaign_details.py`.
 - `WatchService`: Drop mining watch payload logic
 - `MaintenanceService`: Periodic maintenance tasks
 - `MessageHandlerService`: Websocket message routing and handling

@@ -176,6 +176,12 @@ Try **Reload Campaigns** in Inventory or **Settings → Games** after correcting
 channel data while keeping login, settings, and dashboard protection. It cannot repair
 inaccurate campaign information supplied by Twitch.
 
+Source builds with unavailable-detail handling can finish a refresh when one
+campaign's details are unavailable. Other usable campaigns and in-progress data
+from the inventory response are retained; catalog-only entries do not substitute
+for missing details. The unavailable campaign is queried again on the next normal
+refresh. This does not hide malformed replies or repair login/transport failures.
+
 TDM excludes channels when Twitch reports any active ban for your account,
 including temporary bans. A temporary ban stops excluding the channel at Twitch's
 reported expiry; otherwise a subsequent discovery or **Reload Campaigns** must confirm that
