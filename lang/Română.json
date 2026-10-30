@@ -206,6 +206,7 @@
             "actions": "Acțiuni",
             "connection_quality": "Calitatea conexiunii:",
             "minimum_refresh": "Interval minim de reîmprospătare (minute):",
+            "minimum_refresh_save_error": "Intervalul de reîmprospătare nu a putut fi salvat. Încearcă din nou.",
             "telegram": {
                 "name": "Notificări Telegram",
                 "description": "Primiți notificări pe Telegram atunci când revendicați drops.",

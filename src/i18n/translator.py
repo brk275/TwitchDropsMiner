@@ -341,6 +341,7 @@ class GUISettings(TypedDict):
     actions: str
     connection_quality: str
     minimum_refresh: str
+    minimum_refresh_save_error: str
     mining_hours: str
     mining_hours_help: str
     mining_hours_always: str

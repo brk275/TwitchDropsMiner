@@ -206,6 +206,7 @@
             "actions": "Handlinger",
             "connection_quality": "Forbindelseskvalitet:",
             "minimum_refresh": "Minimum opdateringsinterval (minutter):",
+            "minimum_refresh_save_error": "Opdateringsintervallet kunne ikke gemmes. Prøv igen.",
             "telegram": {
                 "name": "Telegram-meddelelser",
                 "description": "Modtag meddelelser på Telegram, når du samler drops.",

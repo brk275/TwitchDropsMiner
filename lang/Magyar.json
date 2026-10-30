@@ -171,6 +171,7 @@
             "actions": "Műveletek",
             "connection_quality": "Kapcsolat minősége:",
             "minimum_refresh": "Minimális frissítési intervallum (perc):",
+            "minimum_refresh_save_error": "Nem sikerült menteni a frissítési időközt. Próbáld újra.",
             "telegram": {
                 "name": "Telegram-értesítések",
                 "description": "Értesítést kaphat Telegramon, amikor dropokat gyűjt.",

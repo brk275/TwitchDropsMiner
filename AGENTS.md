@@ -445,6 +445,23 @@ lang/                # Translation JSON files (20 languages)
   change lines, language switching and broadcasts run only after a successful save.
   Regressions: `test_rejected_update_writes_prints_and_saves_nothing` and
   `test_failed_save_restores_every_field_and_defers_effects`.
+- Inventory refresh intervals accept plain integers from 1 to 1440 minutes, matching
+  the dashboard input. Share `RefreshIntervalSettings` validation across the API,
+  manager and persistence boundaries. Invalid saved intervals use the existing
+  30-minute default; reject invalid live updates before other mutation or persistence.
+  Failed saves restore the previous live interval without logging success or broadcasting.
+  Keep null/omitted updates and next-cycle scheduling semantics. Regression coverage:
+  `tests/test_refresh_interval.py`, including actual maintenance delay and HTTP redaction.
+  The dashboard uses a dedicated native-validating save, never truncates fractional
+  input, restores confirmed values on failure and renders translated errors as text.
+  Use `reportSettingsError` so failed pending saves stay visible after switching
+  Settings panels or leaving Settings; retain the inline error for returning users.
+  Successful HTTP acknowledgements merge only the interval while the captured settings
+  object remains current. Preserve newer socket snapshots and unrelated pending controls;
+  do not apply the acknowledgement's complete settings object after a newer observation.
+  General autosaves omit this setting so stale requests cannot undo explicit changes.
+  Preserve `tests/test_refresh_interval_frontend.py` and the release/cache-key gate
+  before deploying changed `app.js` assets.
 - Drop-name ignore list (`drop_name_blacklist`), empty by default. Entries are literal,
   case-insensitive substrings entered one per line; whitespace and blanks are removed and
   duplicates are casefolded while preserving the first spelling/order.
