@@ -8,6 +8,8 @@ from urllib.parse import quote
 
 import pytest
 
+from src.drop_history import DropHistory
+
 
 web_app = importlib.import_module("src.web.app")
 
@@ -94,6 +96,51 @@ async def test_delete_history_endpoint_clears():
 
     assert response == {"success": True}
     assert client.drop_history.total_count == 0
+
+
+@pytest.mark.asyncio
+async def test_delete_history_reports_storage_failure_without_exposing_details():
+    from fastapi import HTTPException
+
+    client = _fake_client()
+    with (
+        patch.object(web_app, "twitch_client", client),
+        patch.object(client.drop_history, "clear", side_effect=OSError("private filesystem detail")),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await web_app.clear_history()
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == "Failed to clear drop history"
+    assert client.drop_history.total_count == 2
+
+
+@pytest.mark.asyncio
+async def test_failed_history_clear_keeps_api_views_and_persisted_claims(tmp_path):
+    from fastapi import HTTPException
+
+    history = DropHistory(tmp_path)
+    history.record(
+        SimpleNamespace(id="sample-drop", name="Sample reward", benefits=[], required_minutes=30),
+        SimpleNamespace(id="sample-campaign", name="Sample campaign", game=SimpleNamespace(name="Sample game")),
+    )
+    before = history.get_entries()
+    client = SimpleNamespace(drop_history=history)
+    with patch.object(web_app, "twitch_client", client):
+        with (
+            patch("pathlib.Path.replace", side_effect=OSError("synthetic storage failure")),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await web_app.clear_history()
+        assert exc_info.value.status_code == 500
+        response = await web_app.get_history()
+        assert response == {"total": 1, "entries": before}
+        assert (await web_app.get_history_stats())["total_drops"] == 1
+        assert "sample-drop" in (await web_app.export_history_csv()).body.decode("utf-8")
+        assert DropHistory(tmp_path).get_entries() == before
+        assert await web_app.clear_history() == {"success": True}
+        assert (await web_app.get_history())["entries"] == []
+        assert DropHistory(tmp_path).total_count == 0
 
 
 def test_parse_history_since_accepts_date_and_datetime():

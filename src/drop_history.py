@@ -207,8 +207,13 @@ class DropHistory:
 
     def clear(self) -> None:
         """Delete all history entries from memory and disk."""
+        previous = self._entries
         self._entries = []
-        self._save()
+        try:
+            self._save(raise_on_error=True)
+        except OSError:
+            self._entries = previous
+            raise
         logger.warning("Drop history cleared.")
 
     # ------------------------------------------------------------------
@@ -234,7 +239,7 @@ class DropHistory:
         except (json.JSONDecodeError, OSError) as exc:
             logger.error(f"Failed to load drop history: {exc}")
 
-    def _save(self) -> None:
+    def _save(self, *, raise_on_error: bool = False) -> None:
         """
         Write the current state to disk atomically.
         Writes to a .tmp file first, then renames it over the real file.
@@ -255,3 +260,5 @@ class DropHistory:
             tmp.replace(self._path)
         except OSError as exc:
             logger.error(f"Failed to save drop history: {exc}")
+            if raise_on_error:
+                raise

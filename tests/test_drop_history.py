@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from src.drop_history import HISTORY_VERSION, DropHistory
 
@@ -141,6 +144,37 @@ def test_clear_deletes_entries_from_disk(tmp_path):
 
     reloaded = DropHistory(tmp_path)
     assert reloaded.total_count == 0
+
+
+@pytest.mark.parametrize("stage", ["mkdir", "open", "write", "replace"])
+def test_failed_clear_preserves_history_and_can_be_retried(tmp_path, caplog, stage):
+    history = _fresh_history(tmp_path)
+    history.record(_MockDrop(), _MockCampaign())
+    before = history.get_entries()
+    saved = history._path.read_bytes()
+    caplog.clear()
+    target = "src.drop_history.json.dump" if stage == "write" else f"pathlib.Path.{stage}"
+
+    with patch(target, side_effect=OSError("synthetic storage failure")), pytest.raises(OSError):
+        history.clear()
+
+    assert history.get_entries() == before
+    assert history._path.read_bytes() == saved
+    assert DropHistory(tmp_path).get_entries() == before
+    assert "Drop history cleared." not in caplog.text
+
+    history.clear()
+    assert history.total_count == 0
+    assert DropHistory(tmp_path).total_count == 0
+
+
+def test_failed_record_still_keeps_confirmed_claim_in_memory(tmp_path):
+    history = _fresh_history(tmp_path)
+    with patch("pathlib.Path.replace", side_effect=OSError("synthetic storage failure")):
+        history.record(_MockDrop(), _MockCampaign())
+    assert history.total_count == 1
+    history.record(_MockBroadcasterDrop(), _MockBroadcasterCampaign())
+    assert DropHistory(tmp_path).total_count == 2
 
 
 def test_unknown_version_file_is_ignored(tmp_path):
