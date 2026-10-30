@@ -192,6 +192,8 @@ selected day; displayed claim times use your browser's local timezone.
 names and includes a UTF-8 byte-order mark for spreadsheet compatibility.
 **Clear** deletes all local history, including records hidden by a filter. It does
 not change your Twitch account or take away rewards.
+If saving the cleared history fails, the app reports an error and retains the
+existing records. Resolve the storage problem before trying again.
 
 ## Refreshing and clearing cache
 

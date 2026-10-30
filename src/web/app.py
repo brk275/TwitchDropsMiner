@@ -515,7 +515,10 @@ async def clear_history():
     if not twitch_client:
         raise HTTPException(status_code=503, detail="Twitch client not initialized")
 
-    twitch_client.drop_history.clear()
+    try:
+        twitch_client.drop_history.clear()
+    except OSError:
+        raise HTTPException(status_code=500, detail="Failed to clear drop history") from None
     return {"success": True}
 
 
