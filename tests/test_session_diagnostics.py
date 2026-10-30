@@ -7,8 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from src.auth.imported_session import _TransientRequest
-from src.auth.session_bundle import SessionError
+from src.auth.session_bundle import SessionError, TransientSessionRequest
 from src.auth.session_diagnostics import SessionDiagnostic
 
 
@@ -81,9 +80,9 @@ def test_annotate_fills_unknown_fields_without_overwriting_inner_failure():
 
 
 def test_annotation_preserves_transient_retry_subclass_and_redacts_unknown_context():
-    error = _TransientRequest()
+    error = TransientSessionRequest()
     assert error.annotate(stage="captured_validation", reason="connection", upstream_status=503) is error
-    assert isinstance(error, _TransientRequest) and error.code == "REQUEST"
+    assert isinstance(error, TransientSessionRequest) and error.code == "REQUEST"
     error.annotate(code="private-code", stage="private-stage", reason="private-reason",
                    operation="private-op", http_status=True, private="secret")
     assert error.diagnostic == SessionDiagnostic("REQUEST", "captured_validation", "connection",
