@@ -182,7 +182,8 @@ lang/                # Translation JSON files (20 languages)
   duplicate/foreign returned IDs. Use fixed diagnostic errors without payloads.
   Fill retained inventory's missing catalog metadata before detail lookup, keeping
   inventory progress/claim data primary. Never create catalog-only placeholders.
-  Preserve existing fan-out cancellation/draining and retry on the normal refresh.
+  Preserve existing fan-out cancellation/draining. Normal detail retries depend
+  on continued ACTIVE/UPCOMING catalog availability; there is no separate retry queue.
   Regression coverage: `tests/test_unavailable_campaign_details.py`.
 - `WatchService`: Drop mining watch payload logic
 - `MaintenanceService`: Periodic maintenance tasks

@@ -179,8 +179,10 @@ inaccurate campaign information supplied by Twitch.
 Source builds with unavailable-detail handling can finish a refresh when one
 campaign's details are unavailable. Other usable campaigns and in-progress data
 from the inventory response are retained; catalog-only entries do not substitute
-for missing details. The unavailable campaign is queried again on the next normal
-refresh. This does not hide malformed replies or repair login/transport failures.
+for missing details. Later refreshes request details again only for campaigns still
+listed as ACTIVE or UPCOMING; there is no separate retry queue. Usable inventory
+data may be retained without another detail request. Malformed replies and
+login/transport failures still report errors.
 
 TDM excludes channels when Twitch reports any active ban for your account,
 including temporary bans. A temporary ban stops excluding the channel at Twitch's

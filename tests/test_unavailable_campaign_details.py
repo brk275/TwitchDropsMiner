@@ -308,3 +308,34 @@ async def test_one_unavailable_campaign_does_not_block_other_detail_chunks():
     await twitch._mnt_task
     assert set(twitch._campaigns) == set(data) - {"campaign-3"}
     assert twitch.gui.inv.add_campaign.await_count == 20
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("usable_inventory_next", [False, True])
+async def test_missing_next_catalog_does_not_retry_detail_query(usable_inventory_next):
+    data = campaign_data("unavailable", minutes=13)
+    twitch = client(available=[metadata(data)], details=[response(None)])
+    service = InventoryService(twitch)
+    await service.fetch_inventory()
+    await twitch._mnt_task
+    assert twitch.inventory == []
+    assert twitch.gql_request.await_count == 3
+    twitch.gql_request.reset_mock()
+    twitch.get_auth.reset_mock()
+    twitch.gql_request.side_effect = [
+        {"data": {"currentUser": {"inventory": {
+            "dropCampaignsInProgress": [data] if usable_inventory_next else [],
+            "gameEventDrops": [],
+        }}}},
+        {"data": {"currentUser": {"dropCampaigns": []}}},
+    ]
+    await service.fetch_inventory()
+    await twitch._mnt_task
+    assert twitch.gql_request.await_count == 2
+    assert all(not isinstance(call.args[0], list) for call in twitch.gql_request.await_args_list)
+    twitch.get_auth.assert_not_awaited()
+    assert set(twitch._campaigns) == ({"unavailable"} if usable_inventory_next else set())
+    if usable_inventory_next:
+        drop = twitch._drops["unavailable-drop"]
+        assert drop.real_current_minutes == 13 and drop.claim_id == "claim-unavailable"
+        assert not drop.is_claimed
