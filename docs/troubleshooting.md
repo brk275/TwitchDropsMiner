@@ -150,6 +150,12 @@ If TDM 2.2.0 says it is watching but Twitch inventory does not advance, update t
 requests without downloading stream audio or video. A Watching label or accepted
 telemetry alone does not establish progress; compare with Twitch inventory.
 
+Source builds containing progress-response validation skip missing or malformed
+observations returned by the query client and try again at the normal polling
+cadence. Such a reply does not add estimated minutes or confirm that the session
+is signed out. Errors inside the query client before it returns remain outside
+this protection, as do other transport, login or Twitch outages.
+
 Check the campaign on Twitch and work through these conditions:
 
 1. The Twitch account is linked to the correct game account and is eligible for the

@@ -222,9 +222,21 @@ class WatchService:
                         ),
                         timeout=5,
                     )
-                    drop_data: JsonType | None = context["data"]["currentUser"][
-                        "dropCurrentSession"
-                    ]
+                    # Missing observation data is not a confirmed absent session.
+                    if not isinstance(context, dict) or not isinstance(data := context.get("data"), dict):
+                        continue
+                    user = data.get("currentUser")
+                    if not isinstance(user, dict) or "dropCurrentSession" not in user:
+                        continue
+                    drop_data: JsonType | None = user["dropCurrentSession"]
+                    if drop_data is not None and (
+                        not isinstance(drop_data, dict)
+                        or not isinstance(drop_data.get("dropID"), str)
+                        or not drop_data["dropID"]
+                        or type(drop_data.get("currentMinutesWatched")) is not int
+                        or drop_data["currentMinutesWatched"] < 0
+                    ):
+                        continue
                 except (GQLException, TimeoutError):
                     drop_data = None
 

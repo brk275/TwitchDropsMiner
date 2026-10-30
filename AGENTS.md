@@ -756,13 +756,18 @@ progress to an ignored drop while the miner intentionally targets another reward
   successful claim transition. Sibling progress shares this revision. CurrentDrop polling
   snapshots drop identity and campaign revision before awaiting Twitch; discard replies
   superseded by observations, claims or model replacement/removal without estimating a
-  minute. Snapshot the fallback campaign before the request too; null, errored or timed-out
-  replies may estimate only against that same campaign and unchanged revision. Fresh
+  minute. Missing/malformed CurrentDrop envelopes or session fields returned by
+  `gql_request` skip the observation without estimating progress or terminating watching.
+  Errors raised inside GQLClient before it returns are outside this guard.
+  A non-null session requires a
+  nonempty string drop ID and nonnegative integer minutes (not a boolean).
+  Snapshot the fallback campaign before the request too; an explicit null session,
+  GQLException or timeout may estimate only against that same campaign and unchanged revision. Fresh
   polls can still correct progress downward. Keep this separate from estimated-minute
   bumps. Regression coverage: `tests/test_stale_progress.py`.
   Playlist/transport, lifecycle, and controlled-clock regressions live in
   `tests/test_playlist_watch.py`, `tests/test_watch_transport.py`, and
-  `tests/test_watch_poll_cadence.py`.
+  `tests/test_watch_poll_cadence.py`, and `tests/test_progress_response_validation.py`.
 
 ### GraphQL Operations
 
