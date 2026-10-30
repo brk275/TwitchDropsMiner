@@ -382,6 +382,8 @@ lang/                # Translation JSON files (20 languages)
   `tests/test_refresh_interval.py`, including actual maintenance delay and HTTP redaction.
   The dashboard uses a dedicated native-validating save, never truncates fractional
   input, restores confirmed values on failure and renders translated errors as text.
+  Use `reportSettingsError` so failed pending saves stay visible after switching
+  Settings panels or leaving Settings; retain the inline error for returning users.
   Successful HTTP acknowledgements merge only the interval while the captured settings
   object remains current. Preserve newer socket snapshots and unrelated pending controls;
   do not apply the acknowledgement's complete settings object after a newer observation.

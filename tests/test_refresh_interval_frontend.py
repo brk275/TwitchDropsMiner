@@ -190,6 +190,40 @@ for (const translation of [...translations, {gui: {settings: {minimum_refresh_sa
 """)
 
 
+@pytest.mark.parametrize("destination", ("visible", "other_panel", "other_tab"))
+@pytest.mark.parametrize("failure", ("http", "network"))
+def test_pending_save_failure_remains_visible_after_navigation(destination, failure):
+    run_javascript(FUNCTIONS, UI_SETUP + f"""
+const panel = {{hidden: false}};
+let settingsActive = true;
+const settingsTab = {{classList: {{contains: () => settingsActive}}}};
+refreshError.closest = selector => selector === '.settings-panel' ? panel : settingsTab;
+Object.defineProperty(refreshError, 'innerHTML', {{set() {{throw new Error('No HTML injection');}}}});
+const toasts = [];
+function showToast(message, kind) {{toasts.push({{message, kind}});}}
+let finish, reject;
+global.fetch = () => new Promise((resolve, fail) => {{finish = resolve; reject = fail;}});
+refresh.value = '1';
+(async () => {{
+    const pending = onRefreshIntervalChange();
+    assert.equal(refresh.disabled, true);
+    panel.hidden = '{destination}' === 'other_panel';
+    settingsActive = '{destination}' !== 'other_tab';
+    if ('{failure}' === 'network') reject(new Error('REMOTE-ERROR-CANARY'));
+    else finish({{ok: false}});
+    await pending;
+    assert.equal(Number(refresh.value), 120);
+    assert.equal(state.settings.minimum_refresh_interval_minutes, 120);
+    assert.equal(refresh.disabled, false);
+    assert.equal(refreshError.hidden, false);
+    assert.equal(refreshError.textContent, '<img src=x> Save failed');
+    assert.deepEqual(toasts, '{destination}' === 'visible' ? [] : [{{
+        message: '<img src=x> Save failed', kind: 'error'
+    }}]);
+}})().catch(error => {{console.error(error); process.exitCode = 1;}});
+""")
+
+
 def test_interval_control_has_native_constraints_accessible_error_and_dedicated_handler():
     html = (ROOT / "web/index.html").read_text(encoding="utf-8")
     script = (ROOT / "web/static/app.js").read_text(encoding="utf-8")

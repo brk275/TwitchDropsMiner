@@ -2665,7 +2665,7 @@ async function onRefreshIntervalChange() {
         input.value = state.settings.minimum_refresh_interval_minutes || 30;
     } catch (failure) {
         input.value = state.settings.minimum_refresh_interval_minutes || 30;
-        error.textContent = message;
+        reportSettingsError(error, message);
         error.hidden = false;
     } finally {
         input.disabled = false;
