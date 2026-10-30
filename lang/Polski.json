@@ -206,6 +206,7 @@
             "actions": "Akcje",
             "connection_quality": "Jakość połączenia:",
             "minimum_refresh": "Minimalny interwał odświeżania (minuty):",
+            "minimum_refresh_save_error": "Nie udało się zapisać interwału odświeżania. Spróbuj ponownie.",
             "telegram": {
                 "name": "Powiadomienia Telegram",
                 "description": "Otrzymuj powiadomienia na Telegram, gdy zostanie odebrany drop.",

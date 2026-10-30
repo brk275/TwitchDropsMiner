@@ -2587,7 +2587,6 @@ async function saveSettings() {
         inventory_list_view: state.settings.inventory_list_view === true,
         language: document.getElementById('language').value,
         connection_quality: parseInt(document.getElementById('connection-quality').value),
-        minimum_refresh_interval_minutes: parseInt(document.getElementById('minimum-refresh-interval').value),
         games_to_watch: state.settings.games_to_watch || [],
         drop_name_blacklist: parseDropNameBlacklist(
             document.getElementById('drop-name-blacklist')?.value
@@ -2634,6 +2633,42 @@ async function saveProxy() {
         resultDiv.style.display = 'block';
     } finally {
         button.disabled = false;
+    }
+}
+
+async function onRefreshIntervalChange() {
+    const input = document.getElementById('minimum-refresh-interval');
+    const error = document.getElementById('minimum-refresh-error');
+    if (input.disabled) return;
+    error.hidden = true;
+    error.textContent = '';
+    if (!input.reportValidity()) return;
+    const requested = input.valueAsNumber;
+    if (!Number.isInteger(requested)) return;
+    const settingsAtRequest = state.settings;
+    const message = state.translations.gui?.settings?.minimum_refresh_save_error ||
+        'Could not save the refresh interval. Please try again.';
+    input.disabled = true;
+    try {
+        const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minimum_refresh_interval_minutes: requested })
+        });
+        if (!response.ok) throw new Error(message);
+        const data = await response.json();
+        if (data.success !== true || data.settings?.minimum_refresh_interval_minutes !== requested) throw new Error(message);
+        // Socket confirmations replace this object and take precedence over an older response.
+        if (state.settings === settingsAtRequest) {
+            state.settings = { ...state.settings, minimum_refresh_interval_minutes: requested };
+        }
+        input.value = state.settings.minimum_refresh_interval_minutes || 30;
+    } catch (failure) {
+        input.value = state.settings.minimum_refresh_interval_minutes || 30;
+        error.textContent = message;
+        error.hidden = false;
+    } finally {
+        input.disabled = false;
     }
 }
 
@@ -2826,6 +2861,8 @@ function applyTranslations(t) {
         const allowUnlinkedError = document.getElementById('allow-unlinked-error');
         if (allowUnlinkedError && !allowUnlinkedError.hidden) allowUnlinkedError.textContent = t.gui.settings.allow_unlinked_campaigns_save_error;
         if (typeof renderRewardPriority === 'function') renderRewardPriority();
+        const refreshError = document.getElementById('minimum-refresh-error');
+        if (refreshError && !refreshError.hidden) refreshError.textContent = t.gui.settings.minimum_refresh_save_error;
 
         const dropBlacklistHeader = document.getElementById('settings-drop-blacklist-header');
         if (dropBlacklistHeader) dropBlacklistHeader.textContent = t.gui.settings.drop_name_blacklist;
@@ -3355,7 +3392,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('priority-list-only').addEventListener('change', onPriorityModeChange);
     document.getElementById('language').addEventListener('change', saveSettings);
     document.getElementById('connection-quality').addEventListener('change', saveSettings);
-    document.getElementById('minimum-refresh-interval').addEventListener('change', saveSettings);
+    document.getElementById('minimum-refresh-interval').addEventListener('change', onRefreshIntervalChange);
     ['mining-hours-always', 'mining-hours-range', 'mining-hours-start', 'mining-hours-end']
         .forEach(id => document.getElementById(id).addEventListener('change', onMiningHoursChange));
     document.getElementById('drop-name-blacklist').addEventListener('change', saveSettings);

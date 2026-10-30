@@ -207,6 +207,7 @@
             "actions": "Aktionen",
             "connection_quality": "Verbindungsqualität:",
             "minimum_refresh": "Minimales Aktualisierungsintervall (Minuten):",
+            "minimum_refresh_save_error": "Das Aktualisierungsintervall konnte nicht gespeichert werden. Bitte versuche es erneut.",
             "telegram": {
                 "name": "Telegram-Benachrichtigungen",
                 "description": "Erhalten Sie Benachrichtigungen auf Telegram, wenn Sie Drops einsammeln.",

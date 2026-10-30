@@ -171,6 +171,7 @@
             "actions": "Actions",
             "connection_quality": "Connection Quality:",
             "minimum_refresh": "Minimum Refresh Interval (minutes):",
+            "minimum_refresh_save_error": "Could not save the refresh interval. Please try again.",
             "telegram": {
                 "name": "Telegram Notifications",
                 "description": "Receive notifications on Telegram when you claim drops.",

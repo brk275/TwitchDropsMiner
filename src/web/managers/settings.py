@@ -9,7 +9,12 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from src.config.reward_priority import RewardPriority
-from src.config.settings import InventoryFilterSettings, MiningHoursSettings, default_settings
+from src.config.settings import (
+    InventoryFilterSettings,
+    MiningHoursSettings,
+    RefreshIntervalSettings,
+    default_settings,
+)
 from src.i18n.translator import _
 from src.models.game import Game
 from src.services.discord_service import DiscordNotifier
@@ -134,6 +139,9 @@ class SettingsManager:
         requested_reward_priority = settings_data.get("reward_priority")
         if requested_reward_priority is not None:
             requested_reward_priority = RewardPriority.normalize(requested_reward_priority)
+        requested_refresh_interval = settings_data.get("minimum_refresh_interval_minutes")
+        if requested_refresh_interval is not None:
+            requested_refresh_interval = RefreshIntervalSettings.normalize(requested_refresh_interval)
         previous_priority_list_only = getattr(self._settings, "priority_list_only", True)
         requested_priority_list_only = settings_data.get("priority_list_only")
         priority_mode_changed = (
@@ -206,6 +214,9 @@ class SettingsManager:
         should_trigger_update |= self.check_and_update_setting(
             "connection_quality", settings_data.get("connection_quality")
         )
+        self.check_and_update_setting(
+            "minimum_refresh_interval_minutes", requested_refresh_interval
+        )
         if new_proxy is not None:
             should_trigger_update |= self.check_and_update_setting(
                 "proxy",
@@ -214,10 +225,6 @@ class SettingsManager:
                 lambda proxy: self._log_change("Proxy cleared") if proxy == "" else None,
                 mask_url_password,
             )
-        should_trigger_update |= self.check_and_update_setting(
-            "minimum_refresh_interval_minutes",
-            settings_data.get("minimum_refresh_interval_minutes"),
-        )
         if "telegram_bot_token" in settings_data:
             new_token = str(settings_data.get("telegram_bot_token") or "").strip()
             if new_token and new_token != TELEGRAM_TOKEN_MASK:

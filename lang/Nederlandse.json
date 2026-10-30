@@ -206,6 +206,7 @@
             "actions": "Acties",
             "connection_quality": "Verbindingskwaliteit:",
             "minimum_refresh": "Minimaal verversingsinterval (minuten):",
+            "minimum_refresh_save_error": "Het verversingsinterval kon niet worden opgeslagen. Probeer het opnieuw.",
             "telegram": {
                 "name": "Telegram-meldingen",
                 "description": "Ontvang meldingen op Telegram wanneer u drops claims.",

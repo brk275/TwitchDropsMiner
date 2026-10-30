@@ -22,6 +22,13 @@ simultaneous viewing can disrupt progress.
 
 Use Left/Right arrows, Home or End to switch Settings sub-tabs from the tab bar.
 
+## Inventory refresh interval
+
+In **Settings → General**, the minimum refresh interval accepts whole minutes from
+1 to 1,440. Invalid saved intervals fall back to the 30-minute default. Changes
+apply to the next maintenance cycle, not an already scheduled wait. Invalid live
+changes are rejected without saving; a failed save restores the confirmed value.
+
 ## Choose games and priorities
 
 In **Settings → Games → Mining list**, put the games you most want first. Drag a game to

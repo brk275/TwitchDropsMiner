@@ -206,6 +206,7 @@
             "actions": "操作",
             "connection_quality": "连接质量：",
             "minimum_refresh": "最小刷新间隔（分钟）：",
+            "minimum_refresh_save_error": "无法保存刷新间隔，请重试。",
             "telegram": {
                 "name": "电报通知",
                 "description": "在您获得掉宝时接收电报通知。",
