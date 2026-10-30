@@ -17,7 +17,12 @@ import aiohttp
 
 from src.auth.browser_session import BrowserIdentity, BrowserSession
 from src.auth.server_seed import SDKCookie, ServerSeed
-from src.auth.session_bundle import PrivateSessionFile, SessionBundle, SessionError
+from src.auth.session_bundle import (
+    PrivateSessionFile,
+    SessionBundle,
+    SessionError,
+    TransientSessionRequest,
+)
 from src.config import GQL_OPERATIONS, ClientType
 from src.exceptions import ExitRequest, LoginException
 
@@ -71,13 +76,6 @@ def catalog_diagnostic(results: Any) -> dict[str, Any]:
     return summary
 
 
-class _TransientRequest(SessionError):
-    """Retryable transport failure, retaining the existing redacted public code."""
-
-    def __init__(self):
-        super().__init__("REQUEST")
-
-
 class SessionTransport:
     """Send credentials only to fixed Twitch endpoints, without a cookie jar."""
 
@@ -103,7 +101,7 @@ class SessionTransport:
                 if response.status != 200 and self.diagnostics is not None:
                     self.diagnostics.record_http(method, url, response.status, operations=body)
                 if 500 <= response.status < 600:
-                    raise _TransientRequest().annotate(reason="http_error", upstream_status=response.status)
+                    raise TransientSessionRequest().annotate(reason="http_error", upstream_status=response.status)
                 if response.status != 200:
                     raise SessionError("AUTH" if response.status in (401, 403) else "REQUEST",
                                        reason="http_error", upstream_status=response.status)
@@ -119,7 +117,7 @@ class SessionTransport:
             if self.diagnostics is not None:
                 self.diagnostics.record(self.diagnostics.endpoint(url, method),
                                         outcome="timeout" if isinstance(error, TimeoutError) else "connection")
-            raise _TransientRequest().annotate(reason="timeout" if isinstance(error, TimeoutError) else "connection") from None
+            raise TransientSessionRequest().annotate(reason="timeout" if isinstance(error, TimeoutError) else "connection") from None
         except (aiohttp.ClientError, ValueError):
             if self.diagnostics is not None:
                 self.diagnostics.record(self.diagnostics.endpoint(url, method), outcome="decode")
@@ -514,7 +512,7 @@ class ImportedSession:
                     response = await self._transport.request(
                         "POST", BrowserSession.GQL_URL, headers=self._bundle.request_headers(), body=body,
                     )
-                except _TransientRequest:
+                except TransientSessionRequest:
                     if self._stopping:
                         raise ExitRequest() from None
                     candidates = body if batch else [body]

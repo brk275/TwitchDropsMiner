@@ -13,6 +13,7 @@ from contextlib import suppress
 from time import monotonic
 from typing import TYPE_CHECKING, NoReturn
 
+from src.auth.session_bundle import TransientSessionRequest
 from src.config import CALL, GQL_OPERATIONS, WATCH_INTERVAL
 from src.exceptions import GQLException
 from src.i18n import _
@@ -247,6 +248,9 @@ class WatchService:
                         or drop_data["currentMinutesWatched"] < 0
                     ):
                         continue
+                except TransientSessionRequest:
+                    # Keep the polling deadline, without estimating an unobserved minute.
+                    continue
                 except (GQLException, TimeoutError):
                     drop_data = None
 

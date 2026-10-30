@@ -848,6 +848,13 @@ progress to an ignored drop while the miner intentionally targets another reward
   covers positive remaining time, exact query cadence, failed watches and stale streams.
 - Twitch reports authoritative progress through User.Drops websocket events and GraphQL
   Inventory/CurrentDrop. Distinguish those readings from dashboard estimates and mocks.
+- `TransientSessionRequest` in `session_bundle` is the shared temporary-transport
+  classification, retaining the redacted `SESSION_REQUEST` diagnostic. Do not infer
+  transience from that public code: TLS, decode and nontransient HTTP errors share it.
+  Progress polling skips only this typed failure, without estimated minutes or shutdown,
+  and retains the next normal polling deadline. Preserve authentication/STALE errors,
+  cancellation, existing outer-timeout behavior and safe-read retry/mutation rules.
+  Cover this boundary with `tests/test_transient_progress_recovery.py`.
 - `DropsCampaign.progress_revision` advances on every `TimedDrop.update_minutes()`
   observation, including unchanged values, and before awaiting notification work on a
   successful claim transition. Sibling progress shares this revision. CurrentDrop polling

@@ -45,6 +45,13 @@ class SessionError(LoginException):
         return self
 
 
+class TransientSessionRequest(SessionError):
+    """Temporary transport failure, preserving the redacted public REQUEST code."""
+
+    def __init__(self):
+        super().__init__("REQUEST")
+
+
 class PrivateSessionFile:
     """Atomic JSON storage with POSIX owner-only mode and inherited Windows ACLs.
 

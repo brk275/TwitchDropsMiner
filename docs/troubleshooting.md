@@ -145,6 +145,12 @@ needed for login and renewal. See [Automatic renewal](authentication.md#automati
 
 ## No campaigns or no progress
 
+Source builds with transient progress-query recovery keep watching after temporary
+request retries are exhausted. They wait for the next normal progress poll without
+adding an estimated minute for that failed reading. Persistent outages can still
+prevent earning; watching alone is not proof of Twitch progress. This recovery does
+not bypass login failures, certificate checks or malformed-response errors.
+
 If TDM 2.2.0 says it is watching but Twitch inventory does not advance, update to
 2.2.1 or newer while preserving your data directory. The patch restores segment watch
 requests without downloading stream audio or video. A Watching label or accepted
