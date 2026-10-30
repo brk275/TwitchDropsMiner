@@ -178,6 +178,12 @@ header h1 {
     flex: 1;
 }
 
+#discord-thread-id {
+    width: 24ch;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
 .secondary-btn {
     padding: 8px 12px;
     background-color: var(--secondary-bg);
