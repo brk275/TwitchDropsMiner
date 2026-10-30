@@ -24,10 +24,12 @@ Use Left/Right arrows, Home or End to switch Settings sub-tabs from the tab bar.
 
 ## Inventory refresh interval
 
-In **Settings → General**, the minimum refresh interval accepts whole minutes from
-1 to 1,440. Invalid saved intervals fall back to the 30-minute default. Changes
+In source builds containing refresh-interval validation, **Settings → General**
+accepts whole minutes from 1 to 1,440. Invalid saved intervals fall back to the
+30-minute default. Changes
 apply to the next maintenance cycle, not an already scheduled wait. Invalid live
 changes are rejected without saving; a failed save restores the confirmed value.
+Published images need a release containing this fix.
 
 ## Choose games and priorities
 
